@@ -8,7 +8,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
-import { CrearLenteDto } from './dto/crear-lente.dto';
+import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto } from './dto';
 import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
 
 @Controller('productos')
@@ -21,8 +21,8 @@ export class ProductosController {
   }
 
   @Post('crearMontura')
-  crearMontura(@Body() crearLenteDto: CrearLenteDto) {
-    return this.productosService.crearLente(crearLenteDto);
+  crearMontura(@Body() crearMonturaDto: CrearMonturaDto) {
+    return this.productosService.crearMontura(crearMonturaDto);
   }
 
   @Post('crearAccesorio')

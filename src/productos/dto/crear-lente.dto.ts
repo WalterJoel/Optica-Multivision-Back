@@ -6,12 +6,7 @@ import {
   MaxLength,
   IsEnum,
 } from 'class-validator';
-
-export enum TipoProducto {
-  LENTE = 'LENTE',
-  MONTURA = 'MONTURA',
-  ACCESORIO = 'ACCESORIO',
-}
+import { TipoProducto } from '../../common/constants';
 
 export class CrearLenteDto {
   @IsString()
@@ -40,5 +35,5 @@ export class CrearLenteDto {
   precio_serie3: number;
 
   @IsEnum(TipoProducto)
-  tipo: TipoProducto; // LENTE | MONTURA | ACCESORIO
+  tipo: TipoProducto;
 }
