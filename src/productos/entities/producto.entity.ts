@@ -23,6 +23,9 @@ export class Producto {
   @Column({
     type: 'enum',
     enum: ['LENTE', 'MONTURA', 'ACCESORIO'],
+    //pot mientras
+      nullable: true,
+
   })
   tipo: string;
 

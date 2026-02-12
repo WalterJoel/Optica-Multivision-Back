@@ -1,0 +1,5 @@
+// create-message.dto.ts
+export class CreateMessageDto {
+  mensaje: string;
+  userId: number;
+}
