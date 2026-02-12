@@ -9,9 +9,11 @@ import {
 } from 'typeorm';
 import { Lente } from './lente.entity';
 import { Sede } from '../../sedes/entities/sede.entity';
+import { MatrixTipo } from '../types';
 
-export type MatrixType = 'NEGATIVO' | 'POSITIVO';
-export type StockTipo = 'NEUTRO' | 'ESFERICO' | 'CILINDRICO' | 'COMBINADO';
+/**
+ * Stock solamente para los lentes
+ */
 
 @Entity('stock')
 @Index(['lenteId', 'sedeId', 'matrix', 'row', 'col'], { unique: true })
@@ -31,7 +33,7 @@ export class Stock {
     type: 'enum',
     enum: ['NEGATIVO', 'POSITIVO'],
   })
-  matrix: MatrixType;
+  matrix: MatrixTipo;
 
   // posición fija en la matriz
   @Column('int')

@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { CrearLenteDto } from './dto/crear-lente.dto';
-// import { UpdateProductoDto } from './dto/update-produscto.dto';
-import { Producto, Lente, Stock } from './entities';
+import { DataSource, EntityManager } from 'typeorm';
+import {
+  CrearLenteDto,
+  CrearProductoDto,
+  CrearMonturaDto,
+  CrearAccesorioDto,
+} from './dto';
+import { Producto, Lente, Stock, Montura, StockProducto } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
+import { TipoProducto } from '../common/constants';
 
 type StockCell = {
   id: number;
@@ -68,6 +73,44 @@ export class ProductosService {
     }
   }
 
+  async crearMontura(crearMonturaDto: CrearMonturaDto) {
+    return this.dataSource.transaction(async (manager) => {
+      const producto = manager.create(Producto, {
+        nombre: crearMonturaDto.marca,
+        tipo: TipoProducto.MONTURA,
+      });
+      await manager.save(producto);
+
+      const montura = manager.create(Montura, {
+        producto,
+        marca: crearMonturaDto.marca,
+        material: crearMonturaDto.material,
+        medida: crearMonturaDto.medida,
+        color: crearMonturaDto.color,
+        formaFacial: crearMonturaDto.formaFacial,
+        sexo: crearMonturaDto.sexo,
+        imagenUrl: crearMonturaDto.imagenUrl,
+      });
+      await manager.save(montura);
+
+      const sedes = await manager.find(Sede);
+
+      const stockItems = sedes.map((sede) =>
+        manager.create(StockProducto, {
+          productoId: producto.id,
+          sedeId: sede.id,
+          cantidad: 0,
+          ubicacion: '',
+        }),
+      );
+
+      // Guardar todos los stock items
+      await manager.save(stockItems);
+
+      return { producto, montura, stockItems };
+    });
+  }
+
   /**
    *
    * 1.- Se crea el producto
@@ -77,7 +120,6 @@ export class ProductosService {
    */
 
   async crearLente(crearLenteDto: CrearLenteDto) {
-    console.log(crearLenteDto, ' DTO INPUT');
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -85,7 +127,6 @@ export class ProductosService {
     try {
       // 1️⃣ PRODUCTO
       const producto = qr.manager.create(Producto, {
-        activo: true,
         nombre: crearLenteDto.marca,
         tipo: crearLenteDto.tipo,
       });
@@ -125,7 +166,6 @@ export class ProductosService {
       await qr.release();
     }
   }
-
   async getLenses() {
     return this.dataSource.getRepository(Lente).find({
       where: { activo: true },
