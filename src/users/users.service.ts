@@ -29,7 +29,7 @@ export class UsersService {
 
   findAll() {
     return this.userRepo.find({
-      select: ['id', 'email', 'role', 'createdAt'],
+      select: ['id', 'email', 'role', 'avatarUrl','createdAt'],
     });
   }
 
@@ -62,4 +62,14 @@ export class UsersService {
 
     return { message: 'Usuario eliminado' };
   }
+
+    async setAvatar(userId: number, filename: string) {
+    const user = await this.findOne(userId);
+
+    user.avatarUrl = `/uploads/avatars/${filename}`;
+    await this.userRepo.save(user);
+
+    return { ok: true, avatarUrl: user.avatarUrl };
+  }
+
 }
