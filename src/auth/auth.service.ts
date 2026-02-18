@@ -28,12 +28,16 @@ async login(email: string, password: string) {
   return {
     access_token: this.jwtService.sign({
       sub: user.id,
+      email: user.email,
+
       role: user.role,
     }),
     user: {
       id: user.id,
       email: user.email,
       role: user.role,
+      avatarUrl: user.avatarUrl ?? null,
+
     },
   };
 }

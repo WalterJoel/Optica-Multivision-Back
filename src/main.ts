@@ -3,9 +3,13 @@ import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
 import { join } from 'path';
 import * as express from 'express';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(cookieParser());
+
     // ✅ Servir archivos subidos (uploads)
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
