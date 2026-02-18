@@ -1,4 +1,3 @@
-// src/productos/entities/producto.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -19,10 +18,6 @@ export class Producto {
   @Column({ default: true })
   activo: boolean;
 
-  /**
-   * Campo flexible para almacenar una característica adicional
-   * de cualquier accesorio (ej: material, estilo, colección, edición especial, etc).
-   */
   @Column({ length: 50 })
   tipo: string;
 

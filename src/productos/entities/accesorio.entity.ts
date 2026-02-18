@@ -13,9 +13,8 @@ export class Accesorio {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'producto_id' })
-  producto: Producto;
+  @Column()
+  productoId: number;
 
   @Column({ length: 100 })
   nombre: string;
@@ -37,4 +36,10 @@ export class Accesorio {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  /*Productos*/
+
+  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'producto_id' })
+  producto: Producto;
 }

@@ -35,7 +35,6 @@ export class Stock {
   })
   matrix: MatrixTipo;
 
-  // posición fija en la matriz
   @Column('int')
   row: number;
 
