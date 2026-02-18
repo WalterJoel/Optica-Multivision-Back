@@ -40,4 +40,28 @@ export class ChatService {
       order: { createdAt: 'ASC' },
     });
   }
+  async createWithFile(params: {
+    userId: number;
+    mensaje?: string;
+    file: Express.Multer.File;
+  })
+{
+  const user = await this.userRepo.findOne({ where: { id: params.userId } });
+  if (!user) throw new Error('Usuario no existe');
+
+  const fileUrl = `/uploads/chat/${params.file.filename}`;
+
+  const message = this.chatRepo.create({
+    mensaje: params.mensaje?.trim() ? params.mensaje.trim() : undefined,
+    user,
+    fileUrl,
+    fileName: params.file.originalname,
+    fileType: params.file.mimetype,
+    fileSize: params.file.size,
+  });
+
+
+  return this.chatRepo.save(message);
+}
+
 }

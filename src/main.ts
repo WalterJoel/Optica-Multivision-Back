@@ -1,9 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
+import { join } from 'path';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+    // ✅ Servir archivos subidos (uploads)
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+
 
   // Habilitar CORS para todas las rutas y todos los orígenes
   app.enableCors({
