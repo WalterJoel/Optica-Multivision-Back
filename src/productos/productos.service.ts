@@ -104,7 +104,6 @@ export class ProductosService {
         }),
       );
 
-      // Guardar todos los stock items
       await manager.save(stockItems);
 
       return { producto, montura, stockItems };

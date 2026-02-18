@@ -13,9 +13,8 @@ export class Montura {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'producto_id' })
-  producto: Producto;
+  @Column()
+  productoId: number;
 
   @Column({ length: 100 })
   marca: string;
@@ -40,4 +39,10 @@ export class Montura {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  /*Relacion*/
+
+  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'producto_id' })
+  producto: Producto;
 }

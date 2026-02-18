@@ -2,7 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
+  OneToOne,
   CreateDateColumn,
   JoinColumn,
 } from 'typeorm';
@@ -13,9 +13,8 @@ export class Lente {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Producto, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  producto: Producto;
+  @Column()
+  productoId: number;
 
   @Column({ length: 100 })
   marca: string;
@@ -51,4 +50,9 @@ export class Lente {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  /*Relacion*/
+  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'productoId' })
+  producto: Producto;
 }
