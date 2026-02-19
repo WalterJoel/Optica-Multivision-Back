@@ -20,16 +20,23 @@ export class AuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest();
-    const token = req.cookies?.access_token;
 
-    if (!token) throw new UnauthorizedException();
+    const authHeader = req.headers?.authorization || req.headers?.Authorization;
+    if (!authHeader || typeof authHeader !== 'string') {
+      throw new UnauthorizedException('Falta Authorization header');
+    }
+
+    const [type, token] = authHeader.split(' ');
+    if (type !== 'Bearer' || !token) {
+      throw new UnauthorizedException('Authorization debe ser: Bearer <token>');
+    }
 
     try {
       const payload = await this.jwtService.verifyAsync(token);
       req.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Token inválido o expirado');
     }
   }
 }

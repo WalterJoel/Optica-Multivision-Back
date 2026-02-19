@@ -11,14 +11,11 @@ import { AuthGuard } from './auth.guard';
   imports: [
     TypeOrmModule.forFeature([User]),
     JwtModule.register({
-      secret: 'DEV_SECRET_KEY',
+      secret: process.env.JWT_SECRET || 'DEV_SECRET_KEY',
       signOptions: { expiresIn: '1d' },
     }),
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    { provide: APP_GUARD, useClass: AuthGuard }, // ✅ global
-  ],
+  providers: [AuthService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AuthModule {}
