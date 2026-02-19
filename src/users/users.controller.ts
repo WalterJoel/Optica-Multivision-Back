@@ -15,9 +15,11 @@ import { UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-
+import { Req } from '@nestjs/common';
+import type { Request } from 'express';
 
 @Controller('users')
+
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
@@ -46,12 +48,18 @@ export class UsersController {
       }),
     )
     uploadAvatar(
-      @UploadedFile() file: Express.Multer.File,
-      @Body() body: { userId: string },
-    ) {
-      return this.usersService.setAvatar(Number(body.userId), file.filename);
-    }
+      @Req() req: Request,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  const userId = (req as any).user?.sub;
+  return this.usersService.setAvatar(Number(userId), file.filename);
+}
 
+@Get('me')
+me(@Req() req: Request) {
+  const userId = (req as any).user?.sub;
+  return this.usersService.findOne(userId);
+}
 
   @Get()
   findAll() {

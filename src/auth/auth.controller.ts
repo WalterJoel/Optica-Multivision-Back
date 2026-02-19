@@ -34,4 +34,10 @@ export class AuthController {
     res.clearCookie('access_token', { path: '/' });
     return { ok: true };
   }
+
+  @Get('me')
+me(@Req() req: Request) {
+  const u = (req as any).user; // payload
+  return { ok: true, user: { id: u.sub, email: u.email, role: u.role } };
+}
 }
