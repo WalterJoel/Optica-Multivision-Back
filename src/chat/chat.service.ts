@@ -16,28 +16,60 @@ export class ChatService {
     private userRepo: Repository<User>,
   ) {}
 
-  async create(dto: CreateMessageDto) {
-  const user = await this.userRepo.findOne({
-    where: { id: dto.userId },
-  });
+  async create(params: { userId: number; mensaje: string }) {
+  const user = await this.userRepo.findOne({ where: { id: params.userId } });
+  if (!user) throw new Error('Usuario no existe');
 
-  if (!user) {
-    throw new Error('Usuario no existe');
-  }
-
-  const message = this.chatRepo.create({
-    mensaje: dto.mensaje,
-    user: user,
-  });
-
+  const message = this.chatRepo.create({ mensaje: params.mensaje, user });
   return this.chatRepo.save(message);
 }
 
 
+
   findAll() {
-    return this.chatRepo.find({
-      relations: ['user'],
-      order: { createdAt: 'ASC' },
-    });
-  }
+  return this.chatRepo.find({
+    relations: ['user'],
+    select: {
+      id: true,
+      mensaje: true,
+      createdAt: true,
+      fileUrl: true,
+      fileName: true,
+      fileType: true,
+      fileSize: true,
+      user: {
+        id: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+      },
+    },
+    order: { createdAt: 'ASC' },
+  });
+}
+
+  async createWithFile(params: {
+    userId: number;
+    mensaje?: string;
+    file: Express.Multer.File;
+  })
+{
+  const user = await this.userRepo.findOne({ where: { id: params.userId } });
+  if (!user) throw new Error('Usuario no existe');
+
+  const fileUrl = `/uploads/chat/${params.file.filename}`;
+
+  const message = this.chatRepo.create({
+    mensaje: params.mensaje?.trim() ? params.mensaje.trim() : undefined,
+    user,
+    fileUrl,
+    fileName: params.file.originalname,
+    fileType: params.file.mimetype,
+    fileSize: params.file.size,
+  });
+
+
+  return this.chatRepo.save(message);
+}
+
 }

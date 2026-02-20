@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -29,21 +30,20 @@ export class UsersService {
 
   findAll() {
     return this.userRepo.find({
-      select: ['id', 'email', 'role', 'createdAt'],
+      select: ['id', 'email', 'role', 'avatarUrl','createdAt'],
     });
   }
 
-  async findOne(id: number) {
-    const user = await this.userRepo.findOne({
-      where: { id },
-    });
+async findOne(id: number) {
+  const user = await this.userRepo.findOne({
+    where: { id },
+    select: ['id', 'email', 'role', 'avatarUrl', 'createdAt'], // ✅ sin password
+  });
 
-    if (!user) {
-      throw new NotFoundException('Usuario no existe');
-    }
+  if (!user) throw new NotFoundException('Usuario no existe');
+  return user;
+}
 
-    return user;
-  }
 
   async update(id: number, dto: UpdateUserDto) {
     const user = await this.findOne(id);
@@ -62,4 +62,15 @@ export class UsersService {
 
     return { message: 'Usuario eliminado' };
   }
+
+    async setAvatar(userId: number, filename: string) {
+    const user = await this.findOne(userId);
+
+    user.avatarUrl = `/uploads/avatars/${filename}`;
+    await this.userRepo.save(user);
+
+    return { ok: true, avatarUrl: user.avatarUrl };
+  }
+  
+
 }
