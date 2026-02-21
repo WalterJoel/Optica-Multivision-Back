@@ -12,7 +12,7 @@ import { ChatModule } from './chat/chat.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: 'postgresql://postgres:QHUEEXSIaFtEyeeVsZRkyHTNzSrDTMml@trolley.proxy.rlwy.net:45962/railway',
+      url: 'postgresql://postgres:ohbcKqIGVhdhRCcsWBdCLtlNYiOaVOoW@caboose.proxy.rlwy.net:26634/railway',
       autoLoadEntities: true,
       synchronize: true, // SOLO DEV
       ssl:
@@ -25,7 +25,6 @@ import { ChatModule } from './chat/chat.module';
     ProductosModule,
     SedesModule,
     ChatModule,
-
   ],
   controllers: [AppController],
   providers: [AppService],
