@@ -19,6 +19,7 @@ import { MatrixTipo } from '../types';
 @Index(['lenteId', 'sedeId', 'matrix', 'row', 'col'], { unique: true })
 @Index(['lenteId'])
 @Index(['sedeId'])
+@Index('idx_stock_graduacion', ['lenteId', 'matrix', 'esf', 'cyl'])
 export class Stock {
   @PrimaryGeneratedColumn()
   id: number;
@@ -41,7 +42,6 @@ export class Stock {
   @Column('int')
   col: number;
 
-  // valores ópticos (para lectura humana)
   @Column('decimal', { precision: 5, scale: 2, nullable: true })
   esf: number | null;
 

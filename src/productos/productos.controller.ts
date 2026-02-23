@@ -10,6 +10,7 @@ import {
 import { ProductosService } from './productos.service';
 import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto } from './dto';
 import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
+import { Public } from '../auth/public.decorator';
 
 @Controller('productos')
 export class ProductosController {
@@ -53,6 +54,12 @@ export class ProductosController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productosService.findOne(+id);
+  }
+
+  @Public()
+  @Get('obtenerInventarioPorSede/:id')
+  obtenerInventarioPorSede(@Param('id') id: number) {
+    return this.productosService.obtenerInventarioPorSedes(+id);
   }
 
   @Delete(':id')
