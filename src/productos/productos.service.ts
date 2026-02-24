@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import {
   CrearLenteDto,
   CrearProductoDto,
@@ -10,6 +10,7 @@ import { Producto, Lente, Stock, Montura, StockProducto } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
 import { TipoProducto } from '../common/constants';
+import { InjectRepository } from '@nestjs/typeorm';
 
 type StockCell = {
   id: number;
@@ -31,7 +32,11 @@ type UpdateStockItem = {
 
 @Injectable()
 export class ProductosService {
-  constructor(private dataSource: DataSource) {}
+  constructor(
+    private dataSource: DataSource,
+    @InjectRepository(Stock)
+    private readonly stockRepository: Repository<Stock>,
+  ) {}
 
   /**
    * Actualiza varias celdas de stock de lentes de manera eficiente
@@ -197,6 +202,42 @@ export class ProductosService {
     }
 
     return result;
+  }
+  /**
+   * Consulta el inventario de una graduación específica
+   * y devuelve el stock y precio asociados en cada sede.
+   *
+   * @param idGraduacion - ID de la graduación a consultar
+   * @returns Promise<Array<{
+   *   idSede: string;
+   *   nombreSede: string;
+   *   stock: number;
+   *   precio: number;
+   * }>>
+   */
+
+  async obtenerInventarioPorSedes(stockId: number) {
+    const base = await this.stockRepository.findOne({
+      where: { id: stockId },
+      select: ['lenteId', 'matrix', 'esf', 'cyl'],
+    });
+
+    if (!base) throw new NotFoundException('Stock no encontrado');
+    console.log(typeof base.cyl, base.cyl);
+    console.log(typeof base.esf, base.esf);
+
+    return this.stockRepository.find({
+      where: {
+        lenteId: base.lenteId,
+        matrix: base.matrix,
+        esf: base.esf !== null ? Number(base.esf) : IsNull(),
+        cyl: base.cyl !== null ? Number(base.cyl) : IsNull(),
+      },
+      relations: {
+        sede: true,
+        lente: true,
+      },
+    });
   }
 
   findOne(id: number) {
