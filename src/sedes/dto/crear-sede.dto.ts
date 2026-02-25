@@ -1,8 +1,8 @@
-export class CreateSedeDto {
+export class CrearSedeDto {
   nombre: string;
   ruc: string;
   direccion: string;
   telefono: string;
   logoUrl?: string | null;
-  activo?: boolean;
+  activo: boolean;
 }
