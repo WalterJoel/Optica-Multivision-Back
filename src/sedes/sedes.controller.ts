@@ -1,15 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { SedesService } from './sedes.service';
-import { CreateSedeDto } from './dto/create-sede.dto';
+import { CrearSedeDto } from './dto/crear-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
 
 @Controller('sedes')
 export class SedesController {
   constructor(private readonly sedesService: SedesService) {}
 
-  @Post()
-  create(@Body() createSedeDto: CreateSedeDto) {
-    return this.sedesService.create(createSedeDto);
+  @Post('crearSede')
+  create(@Body() crearSedeDto: CrearSedeDto) {
+    return this.sedesService.crearSede(crearSedeDto);
   }
 
   @Get()

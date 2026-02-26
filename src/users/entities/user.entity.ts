@@ -18,7 +18,7 @@ export class User {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   sedeId: number | null;
 
   @ManyToOne(() => Sede, { eager: false, nullable: true })

@@ -88,27 +88,27 @@ export class UsersService {
   }
 
   async update(id: number, dto: UpdateUserDto) {
-    const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Usuario no existe');
+  const user = await this.userRepo.findOne({ where: { id } });
+  if (!user) throw new NotFoundException('Usuario no existe');
 
-    // ✅ si cambian sedeId, validar
-    if ((dto as any).sedeId !== undefined) {
-      const sedeId = Number((dto as any).sedeId);
-      const sede = await this.sedeRepo.findOne({ where: { id: sedeId } });
-      if (!sede) throw new NotFoundException('Sede no existe');
-      (user as any).sedeId = sedeId;
-    }
-
-    if ((dto as any).email) user.email = String((dto as any).email).trim().toLowerCase();
-    if ((dto as any).role) user.role = (dto as any).role;
-
-    if ((dto as any).password) {
-      user.password = await bcrypt.hash((dto as any).password, 10);
-    }
-
-    await this.userRepo.save(user);
-    return this.findOne(id);
+  // validar y setear sedeId si viene
+  if (dto.sedeId !== undefined) {
+    const sedeId = Number(dto.sedeId);
+    const sede = await this.sedeRepo.findOne({ where: { id: sedeId } });
+    if (!sede) throw new NotFoundException('Sede no existe');
+    user.sedeId = sedeId;
   }
+
+  if (dto.email) user.email = dto.email.trim().toLowerCase();
+  if (dto.role) user.role = dto.role;
+
+  if (dto.password) {
+    user.password = await bcrypt.hash(dto.password, 10);
+  }
+
+  await this.userRepo.save(user);
+  return this.findOne(id);
+}
 
   async remove(id: number) {
     const user = await this.userRepo.findOne({ where: { id } });

@@ -209,12 +209,30 @@ export class ProductosService {
    *
    * @param idGraduacion - ID de la graduación a consultar
    * @returns Promise<Array<{
-   *   idSede: string;
-   *   nombreSede: string;
-   *   stock: number;
    *   precio: number;
+   *   sede :{
+   *      idSede: string;
+   *      nombreSede: string;
+   *      stock: number;
+   *  }
    * }>>
    */
+  private calcularPrecio(
+    cyl: number | null,
+    precio1: number,
+    precio2: number,
+    precio3: number,
+  ): number {
+    //Caso de que se consulte por el neutro
+    if (cyl === null) return Number(precio1);
+
+    const abs = Math.abs(cyl);
+    const serie = Math.min(3, Math.ceil(abs / 2));
+
+    const precios = [precio1, precio2, precio3];
+
+    return Number(precios[serie - 1]);
+  }
 
   async obtenerInventarioPorSedes(stockId: number) {
     const base = await this.stockRepository.findOne({
@@ -223,10 +241,8 @@ export class ProductosService {
     });
 
     if (!base) throw new NotFoundException('Stock no encontrado');
-    console.log(typeof base.cyl, base.cyl);
-    console.log(typeof base.esf, base.esf);
 
-    return this.stockRepository.find({
+    const data = await this.stockRepository.find({
       where: {
         lenteId: base.lenteId,
         matrix: base.matrix,
@@ -238,6 +254,22 @@ export class ProductosService {
         lente: true,
       },
     });
+
+    if (!data.length) return null;
+    const precioCalculado = this.calcularPrecio(
+      base.cyl !== null ? Number(base.cyl) : null,
+      data[0].lente.precio_serie1,
+      data[0].lente.precio_serie2,
+      data[0].lente.precio_serie3,
+    );
+    return {
+      precioCalculado,
+      sedes: data.map((item) => ({
+        id: item.sede.id,
+        nombre: item.sede.nombre,
+        unidades: item.cantidad,
+      })),
+    };
   }
 
   findOne(id: number) {
