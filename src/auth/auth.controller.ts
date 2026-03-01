@@ -30,6 +30,6 @@ export class AuthController {
   @Get('me')
   me(@Req() req: Request) {
     const u = (req as any).user;
-    return { ok: true, user: u ? { id: u.sub, email: u.email, role: u.role } : null };
+    return { ok: true, user: u ? { id: u.sub, email: u.email, role: u.role,sedeId: u.sedeId } : null };
   }
 }
