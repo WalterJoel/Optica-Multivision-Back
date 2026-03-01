@@ -17,8 +17,7 @@ export class ClientesService {
     private clienteRepo: Repository<Cliente>,
   ) {}
 
-  async crearCliente(dto: CrearClienteDto) {
-    // 🔎 Validaciones básicas
+  async crearCliente(dto: CrearClienteDto, userId: number) {    // 🔎 Validaciones básicas
 
     if (dto.tipoCliente === 'PERSONA') {
       if (dto.tipoDoc !== 'DNI')
@@ -59,6 +58,20 @@ export class ClientesService {
       telefono: dto.telefono ?? null,
       correo: dto.correo ?? null,
       direccion: dto.direccion ?? null,
+
+      dip: dto.dip ?? null,
+      add: dto.add ?? null,
+
+      odEsf: dto.odEsf ?? null,
+      odCyl: dto.odCyl ?? null,
+      odEje: dto.odEje ?? null,
+
+      oiEsf: dto.oiEsf ?? null,
+      oiCyl: dto.oiCyl ?? null,
+      oiEje: dto.oiEje ?? null,
+
+  encargadoMedicionId: Number.isFinite(userId) ? userId : null,
+      fechaMedicion: new Date(),
       activo: true,
     });
 

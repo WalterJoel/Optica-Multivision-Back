@@ -2,14 +2,17 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { ClientesService } from './clientes.service';
 import { CrearClienteDto } from './dto/crear-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
+import type { Request } from 'express';
+import { Req } from '@nestjs/common';
 
 @Controller('clientes')
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}
 
-  @Post('crearCliente')
-  create(@Body() dto: CrearClienteDto) {
-    return this.clientesService.crearCliente(dto);
+    @Post('crearCliente')
+  create(@Body() dto: CrearClienteDto, @Req() req: Request) {
+    const userId = (req as any).user?.sub; // ✅ viene de tu AuthGuard global
+    return this.clientesService.crearCliente(dto, Number(userId));
   }
 
   @Get()

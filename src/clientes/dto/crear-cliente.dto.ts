@@ -10,4 +10,17 @@ export class CrearClienteDto {
   telefono?: string;
   correo?: string;
   direccion?: string;
+
+  // MEDIDAS
+  dip?: number;
+  add?: number;
+
+  odEsf?: number;
+  odCyl?: number;
+  odEje?: number;
+
+  oiEsf?: number;
+  oiCyl?: number;
+  oiEje?: number;
+
 }
