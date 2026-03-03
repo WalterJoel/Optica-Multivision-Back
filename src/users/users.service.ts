@@ -54,6 +54,7 @@ export class UsersService {
         email: true,
         role: true,
         avatarUrl: true,
+        activo: true,        // ✅ AQUI
         createdAt: true,
         sedeId: true,
         sede: {
@@ -74,6 +75,8 @@ export class UsersService {
         email: true,
         role: true,
         avatarUrl: true,
+        activo: true,       // ✅ AQUI
+
         createdAt: true,
         sedeId: true,
         sede: {
@@ -86,6 +89,16 @@ export class UsersService {
     if (!user) throw new NotFoundException('Usuario no existe');
     return user;
   }
+  //valdair si esta activo o no
+  async updateStatus(id: number, activo: boolean) {
+  const user = await this.userRepo.findOne({ where: { id } });
+  if (!user) throw new NotFoundException("Usuario no existe");
+
+  user.activo = !!activo;
+  await this.userRepo.save(user);
+
+  return this.findOne(id);
+}
 
   async update(id: number, dto: UpdateUserDto) {
   const user = await this.userRepo.findOne({ where: { id } });

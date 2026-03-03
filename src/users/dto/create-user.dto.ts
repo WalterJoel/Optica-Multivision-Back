@@ -4,4 +4,5 @@ export class CreateUserDto {
   role: string;
   sedeId: number; //NUEVO
 
+
 }
