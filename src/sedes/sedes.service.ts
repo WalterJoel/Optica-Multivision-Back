@@ -51,7 +51,12 @@ export class SedesService {
     Object.assign(sede, dto as any);
     return this.sedeRepository.save(sede);
   }
-
+  // Nuevo método para actualizar solo el estado activo/inactivo
+  async updateStatus(id: number, activo: boolean) {
+  const sede = await this.findOne(id);
+  sede.activo = !!activo;
+  return this.sedeRepository.save(sede);
+}
   async remove(id: number) {
     const sede = await this.findOne(id);
     await this.sedeRepository.remove(sede);

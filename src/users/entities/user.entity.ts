@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,ManyToOne ,JoinColumn} from 'typeorm';
+import { Sede } from '../../sedes/entities/sede.entity';
 
 @Entity('users')
 export class User {
@@ -16,6 +17,16 @@ export class User {
   
   @Column({ nullable: true })
   avatarUrl?: string;
+  @Column({ default: true })
+activo: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  sedeId: number | null;
+
+  @ManyToOne(() => Sede, { eager: false, nullable: true })
+  @JoinColumn({ name: 'sedeId' })
+  sede: Sede | null;
+
 
   @CreateDateColumn()
   createdAt: Date;

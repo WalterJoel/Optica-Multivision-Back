@@ -7,7 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ProductosModule } from './productos/products.module';
 import { SedesModule } from './sedes/sedes.module';
 import { ChatModule } from './chat/chat.module';
-
+import { ClientesModule } from './clientes/clientes.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -25,6 +25,7 @@ import { ChatModule } from './chat/chat.module';
     ProductosModule,
     SedesModule,
     ChatModule,
+    ClientesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
