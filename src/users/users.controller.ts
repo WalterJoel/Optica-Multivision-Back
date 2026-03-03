@@ -78,6 +78,39 @@ me(@Req() req: Request) {
   ) {
     return this.usersService.update(id, dto);
   }
+  @Patch(':id/status')
+updateStatus(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() body: { activo: boolean },
+) {
+  return this.usersService.updateStatus(id, body.activo);
+}
+@Post(':id/avatar')
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/avatars',
+      filename: (req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!allowed.includes(file.mimetype)) {
+        return cb(new Error('Tipo de archivo no permitido'), false);
+      }
+      cb(null, true);
+    },
+  }),
+)
+uploadAvatarForUser(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.usersService.setAvatar(id, file.filename);
+}
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {

@@ -14,19 +14,19 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    console.log(email, password, ' ----->>>>>>>>>>>>');
-    const user = await this.userRepo.findOne({ where: { email } });
-    console.log(user, ' USER --->>>>>>>>');
+    const user = await this.userRepo.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
 
-    if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas');
+    if (!user) throw new UnauthorizedException('Credenciales inválidas');
+
+    // ✅ si está suspendido
+    if (user.activo === false) {
+      throw new UnauthorizedException('Usuario suspendido');
     }
-    //f()
+
     const ok = await bcrypt.compare(password, user.password);
-    console.log(ok, ' OKK');
-    if (!ok) {
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
+    if (!ok) throw new UnauthorizedException('Credenciales inválidas');
 
     return {
       access_token: this.jwtService.sign({
@@ -41,6 +41,7 @@ export class AuthService {
         role: user.role,
         sedeId: user.sedeId,
         avatarUrl: user.avatarUrl ?? null,
+        activo: user.activo,
       },
     };
   }

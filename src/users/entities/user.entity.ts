@@ -17,6 +17,8 @@ export class User {
   
   @Column({ nullable: true })
   avatarUrl?: string;
+  @Column({ default: true })
+activo: boolean;
 
   @Column({ type: 'int', nullable: true })
   sedeId: number | null;
