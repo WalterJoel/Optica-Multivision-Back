@@ -1,4 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity('clientes')
 export class Cliente {
@@ -31,40 +36,40 @@ export class Cliente {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   direccion: string | null;
-// --- MEDIDAS (última medición) ---
-@Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-dip: number | null;
+  // --- MEDIDAS (última medición) ---
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dip: number | null;
 
-@Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-add: number | null;
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  add: number | null;
 
-// OJO DERECHO (OD)
-@Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
-odEsf: number | null;
+  // OJO DERECHO (OD)
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  odEsf: number | null;
 
-@Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
-odCyl: number | null;
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  odCyl: number | null;
 
-@Column({ type: 'int', nullable: true })
-odEje: number | null;
+  @Column({ type: 'int', nullable: true })
+  odEje: number | null;
 
-// OJO IZQUIERDO (OI)
-@Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
-oiEsf: number | null;
+  // OJO IZQUIERDO (OI)
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  oiEsf: number | null;
 
-@Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
-oiCyl: number | null;
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  oiCyl: number | null;
 
-@Column({ type: 'int', nullable: true })
-oiEje: number | null;
+  @Column({ type: 'int', nullable: true })
+  oiEje: number | null;
 
-// Encargado = usuario logueado
-@Column({ type: 'int', nullable: true })
-encargadoMedicionId: number | null;
+  // Encargado = usuario logueado
+  @Column({ type: 'int', nullable: true })
+  encargadoMedicionId: number | null;
 
-// fecha de medición (opcional pero útil)
-@Column({ type: 'timestamp', nullable: true })
-fechaMedicion: Date | null;
+  // fecha de medición (opcional pero útil)
+  @Column({ type: 'timestamp', nullable: true })
+  fechaMedicion: Date | null;
 
   @Column({ default: true })
   activo: boolean;

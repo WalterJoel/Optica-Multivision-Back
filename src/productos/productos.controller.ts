@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
 import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto } from './dto';
@@ -65,5 +66,22 @@ export class ProductosController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productosService.remove(+id);
+  }
+
+  // ==========================
+  // SECCIÓN  ACCESORIOS
+  // ==========================
+
+  @Get('buscarAccesorio/:nombre/:limite/:desplazamiento')
+  async buscarAccesorio(
+    @Param('nombre') nombre: string,
+    @Query('limite') limite = 50,
+    @Query('desplazamiento') desplazamiento = 0,
+  ) {
+    return this.productosService.buscarAccesorio(
+      nombre,
+      Number(limite),
+      Number(desplazamiento),
+    );
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Like, Repository } from 'typeorm';
 import {
   CrearLenteDto,
   CrearProductoDto,
@@ -11,6 +11,7 @@ import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
 import { TipoProducto } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Accesorio } from './entities/accesorio.entity';
 
 type StockCell = {
   id: number;
@@ -36,6 +37,8 @@ export class ProductosService {
     private dataSource: DataSource,
     @InjectRepository(Stock)
     private readonly stockRepository: Repository<Stock>,
+    @InjectRepository(Accesorio)
+    private readonly accesorioRepository: Repository<Accesorio>,
   ) {}
 
   /**
@@ -282,5 +285,17 @@ export class ProductosService {
 
   remove(id: number) {
     return `This action removes a #${id} producto`;
+  }
+
+  async buscarAccesorio(nombre?: string, limite = 50, desplazamiento = 0) {
+    const [accesorios, total] = await this.accesorioRepository.findAndCount({
+      where: nombre ? { nombre: Like(`%${nombre}%`) } : {},
+      take: limite,
+      skip: desplazamiento,
+      select: ['id', 'nombre', 'precio'],
+      order: { nombre: 'ASC' },
+    });
+
+    return { total, data: accesorios };
   }
 }

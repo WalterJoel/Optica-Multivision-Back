@@ -8,6 +8,7 @@ import { ProductosModule } from './productos/products.module';
 import { SedesModule } from './sedes/sedes.module';
 import { ChatModule } from './chat/chat.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { KitsModule } from './kits/kits.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -26,6 +27,7 @@ import { ClientesModule } from './clientes/clientes.module';
     SedesModule,
     ChatModule,
     ClientesModule,
+    KitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

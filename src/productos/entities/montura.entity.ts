@@ -16,6 +16,9 @@ export class Montura {
   @Column()
   productoId: number;
 
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  precio: number;
+
   @Column({ length: 100 })
   marca: string;
 
