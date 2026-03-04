@@ -299,11 +299,12 @@ export class ProductosService {
             tipo: TipoProducto.ACCESORIO,
           }),
         );
+        console.log('crea PRODUCOTO', producto);
 
         const accesorio = await manager.save(
           manager.create(Accesorio, {
-            producto,
             ...crearAccesorioDto,
+            producto: producto,
           }),
         );
 
@@ -339,5 +340,10 @@ export class ProductosService {
     });
 
     return { total, data: accesorios };
+  }
+  async obtenerAccesorios() {
+    return this.dataSource.getRepository(Accesorio).find({
+      order: { createdAt: 'DESC' },
+    });
   }
 }

@@ -11,10 +11,6 @@ import { Type } from 'class-transformer';
 import { TipoProducto } from '../../common/constants';
 
 export class CrearAccesorioDto {
-  @IsInt()
-  @Type(() => Number)
-  productoId: number;
-
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
