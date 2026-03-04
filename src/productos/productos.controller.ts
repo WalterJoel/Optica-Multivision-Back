@@ -27,11 +27,6 @@ export class ProductosController {
     return this.productosService.crearMontura(crearMonturaDto);
   }
 
-  @Post('crearAccesorio')
-  crearAccesorio(@Body() crearLenteDto: CrearLenteDto) {
-    return this.productosService.crearLente(crearLenteDto);
-  }
-
   @Get('lentes')
   getLenses() {
     return this.productosService.getLenses();
@@ -71,6 +66,11 @@ export class ProductosController {
   // ==========================
   // SECCIÓN  ACCESORIOS
   // ==========================
+
+  @Post('crearAccesorio')
+  crearAccesorio(@Body() crearAccesorioDto: CrearAccesorioDto) {
+    return this.productosService.crearAccesorio(crearAccesorioDto);
+  }
 
   @Get('buscarAccesorio/:nombre/:limite/:desplazamiento')
   async buscarAccesorio(

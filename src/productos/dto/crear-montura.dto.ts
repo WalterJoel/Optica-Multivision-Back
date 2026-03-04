@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   MaxLength,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoProducto, FormaFacial, SexoMontura } from '../../common/constants';
@@ -19,6 +20,11 @@ export class CrearMonturaDto {
   @IsNotEmpty()
   @MaxLength(100)
   material: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  @Type(() => Number)
+  precio: number;
 
   @IsString()
   @IsNotEmpty()

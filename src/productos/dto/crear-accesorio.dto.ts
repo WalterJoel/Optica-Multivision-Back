@@ -5,6 +5,7 @@ import {
   IsInt,
   IsEnum,
   MaxLength,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoProducto } from '../../common/constants';
@@ -18,6 +19,11 @@ export class CrearAccesorioDto {
   @IsNotEmpty()
   @MaxLength(100)
   nombre: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  @Type(() => Number)
+  precio: number;
 
   @IsString()
   @IsOptional()

@@ -287,6 +287,48 @@ export class ProductosService {
     return `This action removes a #${id} producto`;
   }
 
+  // ==========================
+  // SECCIÓN  ACCESORIOS
+  // ==========================
+  async crearAccesorio(crearAccesorioDto: CrearAccesorioDto) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const producto = await manager.save(
+          manager.create(Producto, {
+            nombre: crearAccesorioDto.nombre,
+            tipo: TipoProducto.ACCESORIO,
+          }),
+        );
+
+        const accesorio = await manager.save(
+          manager.create(Accesorio, {
+            producto,
+            ...crearAccesorioDto,
+          }),
+        );
+
+        const sedes = await manager.find(Sede);
+        const stockItems = sedes.map((sede) =>
+          manager.create(StockProducto, {
+            productoId: producto.id,
+            sedeId: sede.id,
+            cantidad: 0,
+            ubicacion: '',
+          }),
+        );
+        await manager.save(stockItems);
+
+        return { producto, accesorio, stockItems };
+      });
+    } catch (error) {
+      // Transformamos el error para que tenga 'message' legible
+      throw {
+        message:
+          error?.message || 'Error al crear el accesorio, inténtalo de nuevo',
+      };
+    }
+  }
+
   async buscarAccesorio(nombre?: string, limite = 50, desplazamiento = 0) {
     const [accesorios, total] = await this.accesorioRepository.findAndCount({
       where: nombre ? { nombre: Like(`%${nombre}%`) } : {},
