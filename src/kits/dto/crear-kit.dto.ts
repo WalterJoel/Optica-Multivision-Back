@@ -26,6 +26,10 @@ export class CrearKitDto {
   @IsNotEmpty()
   nombre: string;
 
+  @IsString()
+  @IsNotEmpty()
+  descripcion: string;
+
   @IsNumber()
   @IsNotEmpty()
   @Type(() => Number)
