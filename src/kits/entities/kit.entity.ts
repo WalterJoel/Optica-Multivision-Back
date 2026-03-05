@@ -15,6 +15,9 @@ export class Kit {
   @Column({ length: 100 })
   nombre: string;
 
+  @Column({ length: 300 })
+  descripcion: string;
+
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   precio: number;
 

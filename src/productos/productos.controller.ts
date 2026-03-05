@@ -27,11 +27,6 @@ export class ProductosController {
     return this.productosService.crearMontura(crearMonturaDto);
   }
 
-  @Post('crearAccesorio')
-  crearAccesorio(@Body() crearLenteDto: CrearLenteDto) {
-    return this.productosService.crearLente(crearLenteDto);
-  }
-
   @Get('lentes')
   getLenses() {
     return this.productosService.getLenses();
@@ -52,7 +47,7 @@ export class ProductosController {
     return this.productosService.updateLensStock(body.items);
   }
 
-  @Get(':id')
+  @Get('/ssss/:id')
   findOne(@Param('id') id: string) {
     return this.productosService.findOne(+id);
   }
@@ -71,10 +66,16 @@ export class ProductosController {
   // ==========================
   // SECCIÓN  ACCESORIOS
   // ==========================
+  @Public()
+  @Post('crearAccesorio')
+  crearAccesorio(@Body() crearAccesorioDto: CrearAccesorioDto) {
+    return this.productosService.crearAccesorio(crearAccesorioDto);
+  }
 
-  @Get('buscarAccesorio/:nombre/:limite/:desplazamiento')
+  @Public()
+  @Get('buscarAccesorio')
   async buscarAccesorio(
-    @Param('nombre') nombre: string,
+    @Query('nombre') nombre: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
@@ -83,5 +84,11 @@ export class ProductosController {
       Number(limite),
       Number(desplazamiento),
     );
+  }
+
+  @Public()
+  @Get('accesorios')
+  obtenerAccesorios() {
+    return this.productosService.obtenerAccesorios();
   }
 }
