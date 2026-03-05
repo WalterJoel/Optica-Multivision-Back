@@ -77,9 +77,17 @@ export class ClientesService {
     return this.clienteRepository.save(cliente);
   }
 
-  async buscarCliente(nombre?: string, limite = 50, desplazamiento = 0) {
+  async buscarCliente(busqueda?: string, limite = 50, desplazamiento = 0) {
+    const where = busqueda
+      ? [
+          { numeroDoc: ILike(`%${busqueda}%`) },
+          { nombres: ILike(`%${busqueda}%`) },
+          { apellidos: ILike(`%${busqueda}%`) },
+        ]
+      : {};
+
     const [clientes, total] = await this.clienteRepository.findAndCount({
-      where: nombre ? { nombres: ILike(`%${nombre}%`) } : {},
+      where,
       take: limite,
       skip: desplazamiento,
       select: ['id', 'nombres', 'apellidos', 'numeroDoc'],

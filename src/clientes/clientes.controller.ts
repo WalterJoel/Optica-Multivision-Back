@@ -28,12 +28,12 @@ export class ClientesController {
   @Public()
   @Get('buscarCliente')
   async buscarCliente(
-    @Query('nombre') nombre: string,
+    @Query('busqueda') busqueda: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
     return this.clientesService.buscarCliente(
-      nombre,
+      busqueda,
       Number(limite),
       Number(desplazamiento),
     );
