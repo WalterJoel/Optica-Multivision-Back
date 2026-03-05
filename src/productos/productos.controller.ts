@@ -73,9 +73,9 @@ export class ProductosController {
   }
 
   @Public()
-  @Get('buscarAccesorio/:nombre/:limite/:desplazamiento')
+  @Get('buscarAccesorio')
   async buscarAccesorio(
-    @Param('nombre') nombre: string,
+    @Query('nombre') nombre: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
