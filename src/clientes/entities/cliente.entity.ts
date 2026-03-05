@@ -3,9 +3,13 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('clientes')
+@Index('IDX_CLIENTE_NUMERO_DOC', ['numeroDoc'])
+@Index('IDX_CLIENTE_NOMBRES', ['nombres'])
+@Index('IDX_CLIENTE_APELLIDOS', ['apellidos'])
 export class Cliente {
   @PrimaryGeneratedColumn()
   id: number;

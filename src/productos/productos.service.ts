@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, IsNull, Like, Repository } from 'typeorm';
+import { DataSource, ILike, IsNull, Repository } from 'typeorm';
 import {
   CrearLenteDto,
   CrearProductoDto,
@@ -332,7 +332,7 @@ export class ProductosService {
 
   async buscarAccesorio(nombre?: string, limite = 50, desplazamiento = 0) {
     const [accesorios, total] = await this.accesorioRepository.findAndCount({
-      where: nombre ? { nombre: Like(`%${nombre}%`) } : {},
+      where: nombre ? { nombre: ILike(`%${nombre}%`) } : {},
       take: limite,
       skip: desplazamiento,
       select: ['id', 'nombre', 'precio'],
@@ -341,6 +341,7 @@ export class ProductosService {
 
     return { total, data: accesorios };
   }
+
   async obtenerAccesorios() {
     return this.dataSource.getRepository(Accesorio).find({
       order: { createdAt: 'DESC' },
