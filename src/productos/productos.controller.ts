@@ -9,8 +9,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
-import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto } from './dto';
-import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
+import {
+  CrearLenteDto,
+  CrearAccesorioDto,
+  CrearMonturaDto,
+  UpdateMonturaDto,
+} from './dto';
 import { Public } from '../auth/public.decorator';
 
 @Controller('productos')
@@ -25,6 +29,47 @@ export class ProductosController {
   @Post('crearMontura')
   crearMontura(@Body() crearMonturaDto: CrearMonturaDto) {
     return this.productosService.crearMontura(crearMonturaDto);
+  }
+
+  @Public()
+  @Get('monturas')
+  obtenerMonturas() {
+    return this.productosService.obtenerMonturas();
+  }
+
+  @Public()
+  @Get('buscarMontura')
+  buscarMontura(
+    @Query('nombre') nombre: string,
+    @Query('limite') limite = 50,
+    @Query('desplazamiento') desplazamiento = 0,
+  ) {
+    return this.productosService.buscarMontura(
+      nombre,
+      Number(limite),
+      Number(desplazamiento),
+    );
+  }
+
+  @Public()
+  @Get('monturas/:id')
+  obtenerMonturaPorId(@Param('id') id: string) {
+    return this.productosService.obtenerMonturaPorId(+id);
+  }
+
+  @Public()
+  @Patch('monturas/:id')
+  actualizarMontura(
+    @Param('id') id: string,
+    @Body() updateMonturaDto: UpdateMonturaDto,
+  ) {
+    return this.productosService.actualizarMontura(+id, updateMonturaDto);
+  }
+
+  @Public()
+  @Delete('monturas/:id')
+  eliminarMontura(@Param('id') id: string) {
+    return this.productosService.eliminarMontura(+id);
   }
 
   @Get('lentes')
@@ -64,7 +109,7 @@ export class ProductosController {
   }
 
   // ==========================
-  // SECCIÓN  ACCESORIOS
+  // SECCIÓN ACCESORIOS
   // ==========================
   @Public()
   @Post('crearAccesorio')
