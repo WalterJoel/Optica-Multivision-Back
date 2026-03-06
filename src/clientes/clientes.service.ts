@@ -94,7 +94,7 @@ export class ClientesService {
       order: { nombres: 'ASC' },
     });
 
-    return { total, data: clientes };
+    return { total, clientes: clientes };
   }
 
   findAll() {
