@@ -9,6 +9,7 @@ import { SedesModule } from './sedes/sedes.module';
 import { ChatModule } from './chat/chat.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { KitsModule } from './kits/kits.module';
+import { DescuentosModule } from './descuentos/descuentos.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -28,6 +29,7 @@ import { KitsModule } from './kits/kits.module';
     ChatModule,
     ClientesModule,
     KitsModule,
+    DescuentosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
