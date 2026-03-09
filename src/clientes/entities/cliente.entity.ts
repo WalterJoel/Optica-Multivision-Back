@@ -41,11 +41,17 @@ export class Cliente {
   @Column({ type: 'varchar', length: 255, nullable: true })
   direccion: string | null;
   // --- MEDIDAS (última medición) ---
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  dip: number | null;
+  
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   add: number | null;
+//Ojo x ojo
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dipOd: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dipOi: number | null;
+
 
   // OJO DERECHO (OD)
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
