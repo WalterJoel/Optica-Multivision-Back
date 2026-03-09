@@ -4,6 +4,7 @@ import { UpdateDescuentoDto } from './dto/update-descuento.dto';
 
 @Injectable()
 export class DescuentosService {
+  //cambiamos crear por crete 
   create(createDescuentoDto: CrearDescuentoDto) {
     return 'This action adds a new descuento';
   }

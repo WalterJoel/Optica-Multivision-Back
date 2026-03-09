@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { DescuentosService } from './descuentos.service';
+//cambiamos crear por crete 
 import { CrearDescuentoDto  } from './dto/create-descuento.dto';
 import { UpdateDescuentoDto } from './dto/update-descuento.dto';
 
@@ -8,6 +9,7 @@ export class DescuentosController {
   constructor(private readonly descuentosService: DescuentosService) {}
 
   @Post()
+  //cambiamos crear por crete 
   create(@Body() createDescuentoDto: CrearDescuentoDto) {
     return this.descuentosService.create(createDescuentoDto);
   }
