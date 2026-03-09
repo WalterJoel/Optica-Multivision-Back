@@ -39,6 +39,8 @@ export class ProductosService {
     private readonly stockRepository: Repository<Stock>,
     @InjectRepository(Accesorio)
     private readonly accesorioRepository: Repository<Accesorio>,
+    @InjectRepository(Lente)
+    private readonly lenteRepository: Repository<Lente>,
   ) {}
 
   /**
@@ -347,4 +349,35 @@ export class ProductosService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  // ==========================
+  // SECCIÓN  LENTES
+  // ==========================
+  async buscarLente(busqueda?: string, limite = 50, desplazamiento = 0) {
+    const where = busqueda
+      ? [
+          { marca: ILike(`%${busqueda}%`) },
+          { material: ILike(`%${busqueda}%`) },
+        ]
+      : {};
+
+    const [lentes, total] = await this.lenteRepository.findAndCount({
+      where,
+      take: limite,
+      skip: desplazamiento,
+      select: [
+        'id',
+        'marca',
+        'material',
+        'precio_serie1',
+        'precio_serie2',
+        'precio_serie3',
+        'imagenUrl',
+      ],
+      order: { marca: 'ASC' },
+    });
+
+    return { total, lentes };
+  }
 }
+//TODO: DELETE DATASOURCE REPOSITORY

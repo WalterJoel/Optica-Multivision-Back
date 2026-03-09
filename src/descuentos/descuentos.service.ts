@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CreateDescuentoDto } from './dto/create-descuento.dto';
+import { CrearDescuentoDto } from './dto/create-descuento.dto';
 import { UpdateDescuentoDto } from './dto/update-descuento.dto';
 
 @Injectable()
 export class DescuentosService {
-  create(createDescuentoDto: CreateDescuentoDto) {
+  create(createDescuentoDto: CrearDescuentoDto) {
     return 'This action adds a new descuento';
   }
 
