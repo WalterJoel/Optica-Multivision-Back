@@ -222,18 +222,21 @@ export class ProductosService {
    *  }
    * }>>
    */
+  private obtenerSeriePorCilindro(cyl: number | null): number {
+    // Caso de que sea neutro
+    if (cyl === null) return 1;
+
+    const abs = Math.abs(cyl);
+    return Math.min(3, Math.ceil(abs / 2));
+  }
+
   private calcularPrecio(
     cyl: number | null,
     precio1: number,
     precio2: number,
     precio3: number,
   ): number {
-    //Caso de que se consulte por el neutro
-    if (cyl === null) return Number(precio1);
-
-    const abs = Math.abs(cyl);
-    const serie = Math.min(3, Math.ceil(abs / 2));
-
+    const serie = this.obtenerSeriePorCilindro(cyl);
     const precios = [precio1, precio2, precio3];
 
     return Number(precios[serie - 1]);

@@ -78,13 +78,17 @@ export class ClientesService {
   }
 
   async buscarCliente(busqueda?: string, limite = 50, desplazamiento = 0) {
-    const where = busqueda
-      ? [
-          { numeroDoc: ILike(`%${busqueda}%`) },
-          { nombres: ILike(`%${busqueda}%`) },
-          { apellidos: ILike(`%${busqueda}%`) },
-        ]
-      : {};
+    let where = {};
+
+    if (busqueda) {
+      const palabras = busqueda.split(' ');
+
+      where = palabras.flatMap((palabra) => [
+        { numeroDoc: ILike(`%${palabra}%`) },
+        { nombres: ILike(`%${palabra}%`) },
+        { apellidos: ILike(`%${palabra}%`) },
+      ]);
+    }
 
     const [clientes, total] = await this.clienteRepository.findAndCount({
       where,
@@ -94,7 +98,7 @@ export class ClientesService {
       order: { nombres: 'ASC' },
     });
 
-    return { total, clientes: clientes };
+    return { total, clientes };
   }
 
   findAll() {

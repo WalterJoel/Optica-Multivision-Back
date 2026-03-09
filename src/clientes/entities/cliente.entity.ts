@@ -57,6 +57,12 @@ export class Cliente {
   @Column({ type: 'int', nullable: true })
   odEje: number | null;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dipOd: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dipOi: number | null;
+
   // OJO IZQUIERDO (OI)
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   oiEsf: number | null;
