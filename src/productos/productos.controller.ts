@@ -136,4 +136,21 @@ export class ProductosController {
   obtenerAccesorios() {
     return this.productosService.obtenerAccesorios();
   }
+
+  // ==========================
+  // SECCIÓN LENTES
+  // ==========================
+  @Public()
+  @Get('buscarLente')
+  async buscarLente(
+    @Query('busqueda') busqueda: string,
+    @Query('limite') limite = 50,
+    @Query('desplazamiento') desplazamiento = 0,
+  ) {
+    return this.productosService.buscarLente(
+      busqueda,
+      Number(limite),
+      Number(desplazamiento),
+    );
+  }
 }

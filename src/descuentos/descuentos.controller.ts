@@ -1,17 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { DescuentosService } from './descuentos.service';
-//cambiamos crear por crete 
-import { CrearDescuentoDto  } from './dto/create-descuento.dto';
+import { CrearDescuentoDto } from './dto/create-descuento.dto';
 import { UpdateDescuentoDto } from './dto/update-descuento.dto';
+import { Public } from 'src/auth/public.decorator';
+import { ObtenerDescuentosDto } from './dto/obtener-descuentos.dto';
 
 @Controller('descuentos')
 export class DescuentosController {
   constructor(private readonly descuentosService: DescuentosService) {}
 
-  @Post()
-  //cambiamos crear por crete 
+  @Public()
+  @Post('crearDescuento')
   create(@Body() createDescuentoDto: CrearDescuentoDto) {
     return this.descuentosService.create(createDescuentoDto);
+  }
+
+  @Post('obtener-descuentos')
+  obtenerDescuentos(@Body() obtenerDescuentosDto: ObtenerDescuentosDto) {
+    return this.descuentosService.obtenerDescuentos(obtenerDescuentosDto);
   }
 
   @Get()
@@ -25,7 +39,10 @@ export class DescuentosController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDescuentoDto: UpdateDescuentoDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateDescuentoDto: UpdateDescuentoDto,
+  ) {
     return this.descuentosService.update(+id, updateDescuentoDto);
   }
 

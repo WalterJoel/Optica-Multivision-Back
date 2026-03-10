@@ -63,6 +63,7 @@ export class Cliente {
   @Column({ type: 'int', nullable: true })
   odEje: number | null;
 
+
   // OJO IZQUIERDO (OI)
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   oiEsf: number | null;

@@ -21,8 +21,9 @@ export class CrearClienteDto {
   odCyl?: number;
   odEje?: number;
 
+  
+
   oiEsf?: number;
   oiCyl?: number;
   oiEje?: number;
-
 }

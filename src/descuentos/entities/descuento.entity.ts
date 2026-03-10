@@ -1,9 +1,12 @@
+import { Producto } from 'src/productos/entities';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 @Entity('descuentos')
@@ -12,17 +15,17 @@ export class Descuento {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'cliente_id' })
+  @Column()
   clienteId: number;
 
-  @Column({ name: 'producto_id' })
+  @Column()
   productoId: number;
 
   @Column({ length: 50 })
   tipoProducto: string;
 
-  @Column({ length: 50, nullable: true })
-  serie: string | null;
+  @Column({ type: 'int', nullable: true })
+  serie: number | null;
 
   @Column('decimal', { precision: 10, scale: 2, name: 'monto_descuento' })
   montoDescuento: number;
@@ -30,6 +33,12 @@ export class Descuento {
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at' }) a;
   createdAt: Date;
+
+  /*Productos*/
+
+  @ManyToOne(() => Producto)
+  @JoinColumn({ name: 'productoId' })
+  producto: Producto;
 }

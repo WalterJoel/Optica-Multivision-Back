@@ -37,6 +37,8 @@ export class ProductosService {
     private readonly stockRepository: Repository<Stock>,
     @InjectRepository(Accesorio)
     private readonly accesorioRepository: Repository<Accesorio>,
+    @InjectRepository(Lente)
+    private readonly lenteRepository: Repository<Lente>,
   ) {}
 
   /**
@@ -345,16 +347,35 @@ export class ProductosService {
     return result;
   }
 
+  /**
+   * Consulta el inventario de una graduación específica
+   * y devuelve el stock y precio asociados en cada sede.
+   *
+   * @param idGraduacion - ID de la graduación a consultar
+   * @returns Promise<Array<{
+   *   precio: number;
+   *   sede :{
+   *      idSede: string;
+   *      nombreSede: string;
+   *      stock: number;
+   *  }
+   * }>>
+   */
+  private obtenerSeriePorCilindro(cyl: number | null): number {
+    // Caso de que sea neutro
+    if (cyl === null) return 1;
+
+    const abs = Math.abs(cyl);
+    return Math.min(3, Math.ceil(abs / 2));
+  }
+
   private calcularPrecio(
     cyl: number | null,
     precio1: number,
     precio2: number,
     precio3: number,
   ): number {
-    if (cyl === null) return Number(precio1);
-
-    const abs = Math.abs(cyl);
-    const serie = Math.min(3, Math.ceil(abs / 2));
+    const serie = this.obtenerSeriePorCilindro(cyl);
     const precios = [precio1, precio2, precio3];
 
     return Number(precios[serie - 1]);
@@ -466,4 +487,35 @@ export class ProductosService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  // ==========================
+  // SECCIÓN  LENTES
+  // ==========================
+  async buscarLente(busqueda?: string, limite = 50, desplazamiento = 0) {
+    const where = busqueda
+      ? [
+          { marca: ILike(`%${busqueda}%`) },
+          { material: ILike(`%${busqueda}%`) },
+        ]
+      : {};
+
+    const [lentes, total] = await this.lenteRepository.findAndCount({
+      where,
+      take: limite,
+      skip: desplazamiento,
+      select: [
+        'id',
+        'marca',
+        'material',
+        'precio_serie1',
+        'precio_serie2',
+        'precio_serie3',
+        'imagenUrl',
+      ],
+      order: { marca: 'ASC' },
+    });
+
+    return { total, lentes };
+  }
 }
+//TODO: DELETE DATASOURCE REPOSITORY
