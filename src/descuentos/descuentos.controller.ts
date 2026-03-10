@@ -23,7 +23,8 @@ export class DescuentosController {
     return this.descuentosService.create(createDescuentoDto);
   }
 
-  @Post('obtener-descuentos')
+  @Public()
+  @Post('obtenerDescuentos')
   obtenerDescuentos(@Body() obtenerDescuentosDto: ObtenerDescuentosDto) {
     return this.descuentosService.obtenerDescuentos(obtenerDescuentosDto);
   }
