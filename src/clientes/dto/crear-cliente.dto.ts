@@ -12,15 +12,16 @@ export class CrearClienteDto {
   direccion?: string;
 
   // MEDIDAS
-  dip?: number;
   add?: number;
+//Ojoderecho e izquierdo, opcionales porque no siempre se toman en la creación del cliente, pueden ser actualizadas después con UpdateClienteDto
+  dipOd?: number;
+  dipOi?: number;
 
   odEsf?: number;
   odCyl?: number;
   odEje?: number;
 
-  dipOd?: number;
-  dipOi?: number;
+  
 
   oiEsf?: number;
   oiCyl?: number;

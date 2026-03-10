@@ -44,8 +44,9 @@ export class Montura {
   createdAt: Date;
 
   /*Relacion*/
+//antes   @JoinColumn({ name: 'producto_id' })
 
   @OneToOne(() => Producto, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'producto_id' })
+  @JoinColumn({ name: 'productoId' })
   producto: Producto;
 }
