@@ -24,8 +24,8 @@ export class Descuento {
   @Column({ length: 50 })
   tipoProducto: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  serie: string | null;
+  @Column({ type: 'int', nullable: true })
+  serie: number | null;
 
   @Column('decimal', { precision: 10, scale: 2, name: 'monto_descuento' })
   montoDescuento: number;

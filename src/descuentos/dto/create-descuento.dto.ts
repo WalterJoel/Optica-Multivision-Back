@@ -23,10 +23,10 @@ export class CrearDescuentoDto {
   @MaxLength(50)
   tipoProducto: TipoProducto;
 
-  @IsString()
+  @IsNumber()
+  @IsPositive()
   @IsOptional()
-  @MaxLength(50)
-  serie?: string; // opcional, solo necesario si tipoProducto = 'LENTE'
+  serie?: number; // opcional, solo necesario si tipoProducto = 'LENTE'
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()

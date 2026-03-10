@@ -26,35 +26,42 @@ export class DescuentosService {
   }
 
   async obtenerDescuentos(dto: ObtenerDescuentosDto) {
-    // const { clienteId, productos } = dto;
-    // const productoIds = productos.map((p) => p.productoId);
-    // const descuentos = await this.descuentoRepository.find({
-    //   where: { clienteId, productoId: In(productoIds), activo: true },
-    //   relations: ['producto'],
-    // });
-    // const resultado = productos
-    //   .map((producto) => {
-    //     let serieBuscada: string | null = null;
-    //     if (producto.esLente) {
-    //       const serieNum = this.obtenerSeriePorCilindro(producto.cyl ?? null);
-    //       serieBuscada = `serie${serieNum}`;
-    //     }
-    //     const descuento = descuentos.find((d) => {
-    //       if (d.productoId !== producto.productoId) return false;
-    //       if (producto.esLente) return d.serie === serieBuscada;
-    //       return true; // si no es lente, la serie no importa
-    //     });
-    //     if (!descuento) return null;
-    //     return {
-    //       productoId: producto.productoId,
-    //       nombreProducto: descuento.producto?.nombre ?? null,
-    //       esLente: producto.esLente,
-    //       serie: producto.esLente ? serieBuscada : null,
-    //       montoDescuento: descuento.montoDescuento,
-    //     };
-    //   })
-    //   .filter(Boolean);
-    // return resultado;
+    const { clienteId, productos } = dto;
+
+    const productoIds = productos.map((p) => p.productoId);
+
+    const descuentos = await this.descuentoRepository.find({
+      where: { clienteId, productoId: In(productoIds), activo: true },
+      relations: ['producto'],
+    });
+
+    const resultado = productos
+      .map((producto) => {
+        let serieBuscada: number | null = null;
+
+        if (producto.esLente) {
+          serieBuscada = this.obtenerSeriePorCilindro(producto.cyl ?? null);
+        }
+
+        const descuento = descuentos.find((d) => {
+          if (d.productoId !== producto.productoId) return false;
+          if (producto.esLente) return d.serie === serieBuscada;
+          return true; // si no es lente, la serie no importa
+        });
+
+        if (!descuento) return null; // sin descuento, lo ignoramos
+
+        return {
+          productoId: producto.productoId,
+          nombreProducto: descuento.producto?.nombre ?? null,
+          esLente: producto.esLente,
+          serie: serieBuscada,
+          montoDescuento: descuento.montoDescuento,
+        };
+      })
+      .filter(Boolean);
+
+    return resultado;
   }
 
   async findAll() {
