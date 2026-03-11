@@ -10,6 +10,7 @@ import {
 @Index('IDX_CLIENTE_NUMERO_DOC', ['numeroDoc'])
 @Index('IDX_CLIENTE_NOMBRES', ['nombres'])
 @Index('IDX_CLIENTE_APELLIDOS', ['apellidos'])
+@Index('IDX_CLIENTE_RAZON_SOCIAL', ['razonSocial'])
 export class Cliente {
   @PrimaryGeneratedColumn()
   id: number;
@@ -20,7 +21,7 @@ export class Cliente {
   @Column({ type: 'varchar', length: 5 })
   tipoDoc: 'DNI' | 'RUC';
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 20, unique: true })
   numeroDoc: string;
 
   @Column({ type: 'varchar', length: 150, nullable: true })
@@ -40,10 +41,14 @@ export class Cliente {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   direccion: string | null;
-  // --- MEDIDAS (última medición) ---
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  dip: number | null;
 
+  @Column({ type: 'date', nullable: true })
+  fechaNacimiento: Date | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  antecedentes: string | null;
+
+  // MEDIDAS
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   add: number | null;
 
@@ -60,9 +65,6 @@ export class Cliente {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   dipOd: number | null;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  dipOi: number | null;
-
   // OJO IZQUIERDO (OI)
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   oiEsf: number | null;
@@ -73,11 +75,13 @@ export class Cliente {
   @Column({ type: 'int', nullable: true })
   oiEje: number | null;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  dipOi: number | null;
+
   // Encargado = usuario logueado
   @Column({ type: 'int', nullable: true })
   encargadoMedicionId: number | null;
 
-  // fecha de medición (opcional pero útil)
   @Column({ type: 'timestamp', nullable: true })
   fechaMedicion: Date | null;
 
