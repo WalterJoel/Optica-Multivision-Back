@@ -4,7 +4,7 @@ import {
   CrearLenteDto,
   CrearProductoDto,
   CrearMonturaDto,
-  CrearAccesorioDto,
+  CrearAccesorioDto,UpdateMonturaDto, UpdateAccesorioDto,
 } from './dto';
 import { Producto, Lente, Stock, Montura, StockProducto } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
@@ -30,10 +30,10 @@ type UpdateStockItem = {
   id: number;
   cantidad: number;
 };
-
 @Injectable()
 export class ProductosService {
   constructor(
+    //usa data sourcecoregir i repository
     private dataSource: DataSource,
     @InjectRepository(Stock)
     private readonly stockRepository: Repository<Stock>,
@@ -41,6 +41,8 @@ export class ProductosService {
     private readonly accesorioRepository: Repository<Accesorio>,
     @InjectRepository(Lente)
     private readonly lenteRepository: Repository<Lente>,
+    @InjectRepository(Montura)
+    private readonly monturaRepository: Repository<Montura>,
   ) {}
 
   /**
@@ -92,7 +94,8 @@ export class ProductosService {
       await manager.save(producto);
 
       const montura = manager.create(Montura, {
-        producto,
+        productoId: producto.id,
+        precio: crearMonturaDto.precio,
         marca: crearMonturaDto.marca,
         material: crearMonturaDto.material,
         medida: crearMonturaDto.medida,
@@ -352,6 +355,71 @@ export class ProductosService {
       order: { createdAt: 'DESC' },
     });
   }
+  async obtenerAccesorioPorId(id: number) {
+  const accesorio = await this.accesorioRepository.findOne({
+    where: { id },
+  });
+
+  if (!accesorio) {
+    throw new NotFoundException('Accesorio no encontrado');
+  }
+
+  return accesorio;
+}
+
+async actualizarAccesorio(
+  id: number,
+  updateAccesorioDto: UpdateAccesorioDto,
+) {
+  return this.dataSource.transaction(async (manager) => {
+    const accesorioRepo = manager.getRepository(Accesorio);
+    const productoRepo = manager.getRepository(Producto);
+
+    const accesorio = await accesorioRepo.findOne({
+      where: { id },
+    });
+
+    if (!accesorio) {
+      throw new NotFoundException('Accesorio no encontrado');
+    }
+
+    await accesorioRepo.update(id, {
+      ...updateAccesorioDto,
+    });
+
+    if (updateAccesorioDto.nombre) {
+      await productoRepo.update(accesorio.productoId, {
+        nombre: updateAccesorioDto.nombre,
+      });
+    }
+
+    return await accesorioRepo.findOne({
+      where: { id },
+    });
+  });
+}
+
+async eliminarAccesorio(id: number) {
+  return this.dataSource.transaction(async (manager) => {
+    const accesorioRepo = manager.getRepository(Accesorio);
+    const productoRepo = manager.getRepository(Producto);
+    const stockProductoRepo = manager.getRepository(StockProducto);
+
+    const accesorio = await accesorioRepo.findOne({
+      where: { id },
+    });
+
+    if (!accesorio) {
+      throw new NotFoundException('Accesorio no encontrado');
+    }
+
+    await stockProductoRepo.delete({ productoId: accesorio.productoId });
+    await accesorioRepo.delete(id);
+    await productoRepo.delete(accesorio.productoId);
+
+    return { message: 'Accesorio eliminado correctamente' };
+  });
+}
 
   // ==========================
   // SECCIÓN  LENTES
@@ -382,5 +450,93 @@ export class ProductosService {
 
     return { total, lentes };
   }
+  async obtenerMonturas() {
+  return this.monturaRepository.find({
+    order: { createdAt: 'DESC' },
+  });
+}
+
+async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
+  const where = busqueda
+    ? [
+        { marca: ILike(`%${busqueda}%`) },
+        { material: ILike(`%${busqueda}%`) },
+        { color: ILike(`%${busqueda}%`) },
+        { medida: ILike(`%${busqueda}%`) },
+      ]
+    : {};
+
+  const [monturas, total] = await this.monturaRepository.findAndCount({
+    where,
+    take: limite,
+    skip: desplazamiento,
+    order: { createdAt: 'DESC' },
+  });
+
+  return { total, monturas };
+}
+
+async obtenerMonturaPorId(id: number) {
+  const montura = await this.monturaRepository.findOne({
+    where: { id },
+  });
+
+  if (!montura) {
+    throw new NotFoundException('Montura no encontrada');
+  }
+
+  return montura;
+}
+
+async actualizarMontura(id: number, updateMonturaDto: UpdateMonturaDto) {
+  return this.dataSource.transaction(async (manager) => {
+    const monturaRepo = manager.getRepository(Montura);
+    const productoRepo = manager.getRepository(Producto);
+
+    const montura = await monturaRepo.findOne({
+      where: { id },
+    });
+
+    if (!montura) {
+      throw new NotFoundException('Montura no encontrada');
+    }
+
+    await monturaRepo.update(id, {
+      ...updateMonturaDto,
+    });
+
+    if (updateMonturaDto.marca) {
+      await productoRepo.update(montura.productoId, {
+        nombre: updateMonturaDto.marca,
+      });
+    }
+
+    return await monturaRepo.findOne({
+      where: { id },
+    });
+  });
+}
+
+async eliminarMontura(id: number) {
+  return this.dataSource.transaction(async (manager) => {
+    const monturaRepo = manager.getRepository(Montura);
+    const productoRepo = manager.getRepository(Producto);
+    const stockProductoRepo = manager.getRepository(StockProducto);
+
+    const montura = await monturaRepo.findOne({
+      where: { id },
+    });
+
+    if (!montura) {
+      throw new NotFoundException('Montura no encontrada');
+    }
+
+    await stockProductoRepo.delete({ productoId: montura.productoId });
+    await monturaRepo.delete(id);
+    await productoRepo.delete(montura.productoId);
+
+    return { message: 'Montura eliminada correctamente' };
+  });
+}
 }
 //TODO: DELETE DATASOURCE REPOSITORY
