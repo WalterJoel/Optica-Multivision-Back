@@ -22,6 +22,12 @@ export class Accesorio {
   @Column({ length: 100 })
   nombre: string;
 
+  /*Si queremos que se muestre al vender como accesorios basicos*/
+  @Column({
+    default: false,
+  })
+  basico: boolean;
+
   /**
    * Campo flexible para almacenar una característica adicional
    * de cualquier accesorio (ej: material, estilo, colección, edición especial, etc).

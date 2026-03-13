@@ -10,6 +10,7 @@ import {
 import { KitsService } from './kits.service';
 import { CrearKitDto } from './dto/crear-kit.dto';
 import { ActualizarKitDto } from './dto/ActualizarKitDto';
+import { Public } from 'src/auth/public.decorator';
 
 @Controller('kits')
 export class KitsController {
@@ -20,9 +21,10 @@ export class KitsController {
     return this.kitsService.create(createKitDto);
   }
 
-  @Get()
-  findAll() {
-    return this.kitsService.findAll();
+  @Public()
+  @Get('kits')
+  obtenerKits() {
+    return this.kitsService.obtenerKits();
   }
 
   @Get(':id')

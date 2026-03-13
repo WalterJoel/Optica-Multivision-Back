@@ -72,7 +72,7 @@ export class KitsService {
   }
 
   // Listar todos los kits con sus accesorios
-  async findAll(): Promise<Kit[]> {
+  async obtenerKits(): Promise<Kit[]> {
     return this.kitRepository.find({
       relations: ['accesorios', 'accesorios.accesorio'],
     });

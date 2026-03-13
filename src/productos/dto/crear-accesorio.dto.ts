@@ -6,6 +6,7 @@ import {
   IsEnum,
   MaxLength,
   IsNumber,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoProducto } from '../../common/constants';
@@ -30,6 +31,10 @@ export class CrearAccesorioDto {
   @IsString()
   @MaxLength(255)
   imagenUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  basico?: boolean;
 
   @IsEnum(TipoProducto)
   tipo: TipoProducto;
