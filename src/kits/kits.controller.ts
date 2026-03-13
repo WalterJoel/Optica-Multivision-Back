@@ -15,7 +15,7 @@ import { ActualizarKitDto } from './dto/ActualizarKitDto';
 export class KitsController {
   constructor(private readonly kitsService: KitsService) {}
 
-  @Post()
+  @Post('crearKit')
   create(@Body() createKitDto: CrearKitDto) {
     return this.kitsService.create(createKitDto);
   }

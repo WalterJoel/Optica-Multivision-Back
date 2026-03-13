@@ -340,11 +340,11 @@ export class ProductosService {
       where: nombre ? { nombre: ILike(`%${nombre}%`) } : {},
       take: limite,
       skip: desplazamiento,
-      select: ['id', 'nombre', 'precio'],
+      select: ['id', 'nombre', 'precio', 'productoId'],
       order: { nombre: 'ASC' },
     });
 
-    return { total, data: accesorios };
+    return { total, accesorios };
   }
 
   async obtenerAccesorios() {
@@ -370,12 +370,12 @@ export class ProductosService {
       skip: desplazamiento,
       select: [
         'id',
+        'productoId',
         'marca',
         'material',
         'precio_serie1',
         'precio_serie2',
         'precio_serie3',
-        'imagenUrl',
       ],
       order: { marca: 'ASC' },
     });

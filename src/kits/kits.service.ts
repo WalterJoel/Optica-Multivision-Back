@@ -29,12 +29,12 @@ export class KitsService {
   async create(
     createKitDto: CrearKitDto,
   ): Promise<{ message: string; kitId: number }> {
-    const { nombre, precio, accesorios } = createKitDto;
+    const { nombre, precio, accesorios, descripcion } = createKitDto;
 
     try {
       const kit = await this.dataSource.transaction(async (manager) => {
         // Crear el kit
-        const kit = manager.create(Kit, { nombre, precio });
+        const kit = manager.create(Kit, { nombre, precio, descripcion });
         await manager.save(kit);
 
         // Crear los registros de KitAccesorio
