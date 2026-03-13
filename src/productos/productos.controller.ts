@@ -9,7 +9,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
-import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto } from './dto';
+import { CrearLenteDto, CrearAccesorioDto, CrearMonturaDto,
+  UpdateMonturaDto,
+  UpdateAccesorioDto
+ } from './dto';
 import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
 import { Public } from '../auth/public.decorator';
 
@@ -109,4 +112,68 @@ export class ProductosController {
       Number(desplazamiento),
     );
   }
+
+  //Sección Monturas
+  @Public()
+@Get('monturas')
+obtenerMonturas() {
+  return this.productosService.obtenerMonturas();
+}
+
+@Public()
+@Get('buscarMontura')
+async buscarMontura(
+  @Query('busqueda') busqueda: string,
+  @Query('limite') limite = 50,
+  @Query('desplazamiento') desplazamiento = 0,
+) {
+  return this.productosService.buscarMontura(
+    busqueda,
+    Number(limite),
+    Number(desplazamiento),
+  );
+}
+
+@Public()
+@Get('montura/:id')
+obtenerMonturaPorId(@Param('id') id: string) {
+  return this.productosService.obtenerMonturaPorId(+id);
+}
+
+@Public()
+@Patch('montura/:id')
+actualizarMontura(
+  @Param('id') id: string,
+  @Body() updateMonturaDto: UpdateMonturaDto,
+) {
+  return this.productosService.actualizarMontura(+id, updateMonturaDto);
+}
+
+@Public()
+@Delete('montura/:id')
+eliminarMontura(@Param('id') id: string) {
+  return this.productosService.eliminarMontura(+id);
+}
+
+//rutas para accesorios
+@Public()
+@Get('accesorio/:id')
+obtenerAccesorioPorId(@Param('id') id: string) {
+  return this.productosService.obtenerAccesorioPorId(+id);
+}
+
+@Public()
+@Patch('accesorio/:id')
+actualizarAccesorio(
+  @Param('id') id: string,
+  @Body() updateAccesorioDto: UpdateAccesorioDto,
+) {
+  return this.productosService.actualizarAccesorio(+id, updateAccesorioDto);
+}
+
+@Public()
+@Delete('accesorio/:id')
+eliminarAccesorio(@Param('id') id: string) {
+  return this.productosService.eliminarAccesorio(+id);
+}
 }
