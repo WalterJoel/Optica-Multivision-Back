@@ -70,6 +70,7 @@ export class DescuentosService {
         if (!descuento) return null; // sin descuento, lo ignoramos
 
         return {
+          id: descuento.id,
           productoId: producto.productoId,
           nombreProducto: descuento.producto?.nombre ?? null,
           esLente: producto.esLente,
