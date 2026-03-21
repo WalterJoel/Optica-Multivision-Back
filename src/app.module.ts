@@ -10,6 +10,7 @@ import { ChatModule } from './chat/chat.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { KitsModule } from './kits/kits.module';
 import { DescuentosModule } from './descuentos/descuentos.module';
+import { VentasModule } from './ventas/ventas.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -30,6 +31,7 @@ import { DescuentosModule } from './descuentos/descuentos.module';
     ClientesModule,
     KitsModule,
     DescuentosModule,
+    VentasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
