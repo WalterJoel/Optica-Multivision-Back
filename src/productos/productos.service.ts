@@ -20,6 +20,8 @@ type StockCell = {
   cantidad: number;
   esf: number | null;
   cyl: number | null;
+  productoId: number;
+  nombreProducto: string;
 };
 type StockRow = {
   id: number;
@@ -188,6 +190,18 @@ export class ProductosService {
   }
 
   async getStockForLenteAndSede(lenteId: number, sedeId: number) {
+    //Verifico que el lente exista y ademas obtengo el productoID del mismo
+    const lente = await this.lenteRepository.findOne({
+      where: { id: lenteId },
+    });
+
+    if (!lente) {
+      throw new Error('Lente no encontrado');
+    }
+
+    const productoId = lente.productoId;
+
+    // Obtengo data para generar mi matriz
     const rows: (Stock & { esf: number | null; cyl: number | null })[] =
       await this.dataSource.getRepository(Stock).find({
         where: { lenteId, sedeId },
@@ -208,6 +222,8 @@ export class ProductosService {
         cantidad: cell.cantidad,
         esf: cell.esf,
         cyl: cell.cyl,
+        productoId: lente.productoId,
+        nombreProducto: lente.marca,
       };
     }
 

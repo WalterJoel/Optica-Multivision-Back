@@ -14,6 +14,24 @@ export class DescuentosService {
   ) {}
 
   async create(createDescuentoDto: CrearDescuentoDto) {
+    // const { clienteId, productoId, serie } = createDescuentoDto;
+
+    // // Valido duplicado
+    // const existe = await this.descuentoRepository.findOne({
+    //   where: {
+    //     clienteId,
+    //     productoId,
+    //     serie: createDescuentoDto.serie,
+    //   },
+    // });
+
+    // if (existe) {
+    //   throw new BadRequestException(
+    //     'Ya existe un descuento para este cliente, producto y serie',
+    //   );
+    // }
+
+    // Crear
     const descuento = this.descuentoRepository.create(createDescuentoDto);
 
     return await this.descuentoRepository.save(descuento);
