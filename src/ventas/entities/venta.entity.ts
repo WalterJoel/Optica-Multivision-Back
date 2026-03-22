@@ -43,11 +43,8 @@ export class Venta {
   @Column({ length: 50 })
   tipoVenta: string; // CONTADO | CREDITO
 
-  @Column({ length: 50, default: 'PAGADO' })
-  estadoPago: string; // PAGADO | PENDIENTE | PARCIAL
-
-  @Column({ length: 50, default: 'ENTREGADO' })
-  estadoProceso: string; // EN_TALLER | LISTO | ENTREGADO
+  @Column({ length: 50 })
+  estadoPago: string; // PAGADO | PENDIENTE
 
   @Column({ default: false })
   montaje: boolean;

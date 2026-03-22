@@ -1,34 +1,30 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { VentasService } from './ventas.service';
-import { CreateVentaDto } from './dto/create-venta.dto';
-import { UpdateVentaDto } from './dto/update-venta.dto';
+import { CrearVentaDto } from './dto/crear-venta.dto';
 
 @Controller('ventas')
 export class VentasController {
   constructor(private readonly ventasService: VentasService) {}
 
-  @Post()
-  create(@Body() createVentaDto: CreateVentaDto) {
-    return this.ventasService.create(createVentaDto);
+  @Post('crearVenta')
+  create(@Body() createVentaDto: CrearVentaDto) {
+    return this.ventasService.crearVenta(createVentaDto);
   }
 
-  @Get()
-  findAll() {
-    return this.ventasService.findAll();
-  }
+  // ┌───────────────────────────────────────────────┐
+  // │  📦 SECCIÓN: SEGUIMIENTO DE PEDIDOS          │
+  // └───────────────────────────────────────────────┘
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ventasService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVentaDto: UpdateVentaDto) {
-    return this.ventasService.update(+id, updateVentaDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ventasService.remove(+id);
+  @Get('obtenerSeguimientosCreados')
+  obtenerCreados() {
+    return this.ventasService.obtenerSeguimientosCreados();
   }
 }

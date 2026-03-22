@@ -20,26 +20,20 @@ export class VentaProducto {
   @Column()
   productoId: number;
 
-  @Column({ length: 150 })
-  nombreProducto: string;
-
   @Column({ length: 50 })
   tipoProducto: string; // LENTE, MONTURA, ACCESORIO
 
   @Column('decimal', { precision: 10, scale: 2 })
   precioUnitario: number;
 
-  @Column('int')
-  cantidad: number;
-
   @Column('decimal', { precision: 10, scale: 2 })
-  subtotal: number;
-
-  @Column({ nullable: true })
-  descuentoId?: number;
+  subtotal: number; // 🔶 PRECIO UNITARIO * CANTIDAD
 
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
-  descuento?: number;
+  descuento?: number; // 🔶 NO VINCULO CON EL ID, PORQUE LOS DESCUENTOS PUEDEN CAMBIAR SE ACTIVAN EN EL MOMENTO DE LA VENTA NADA MAS
+
+  @Column('int')
+  cantidad: number;
 
   // STOCK PARA LENTES
   @Column({ nullable: true })
@@ -50,9 +44,10 @@ export class VentaProducto {
 
   @Column('decimal', { precision: 5, scale: 2, nullable: true })
   cyl?: number;
+
   // STOCK PARA MONTURAS Y ACCESORIOS
   @Column({ nullable: true })
-  stockProductoId?: number; // montura/accesorio
+  stockProductoId?: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
