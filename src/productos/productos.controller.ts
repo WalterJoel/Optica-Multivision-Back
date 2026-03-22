@@ -74,7 +74,11 @@ export class ProductosController {
   //                                           SECCIÓN  ACCESORIOS
   // ========================================================================================================
   // ========================================================================================================
-
+@Public()
+@Get('obtenerStockProductoPorSede/:productoId')
+obtenerStockProductoPorSede(@Param('productoId') productoId: number) {
+  return this.productosService.obtenerStockProductoPorSede(+productoId);
+}
   @Public()
   @Post('crearAccesorio')
   crearAccesorio(@Body() crearAccesorioDto: CrearAccesorioDto) {

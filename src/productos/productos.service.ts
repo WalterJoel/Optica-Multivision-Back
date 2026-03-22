@@ -36,18 +36,22 @@ type UpdateStockItem = {
 };
 @Injectable()
 export class ProductosService {
-  constructor(
-    //usa data sourcecoregir i repository
-    private dataSource: DataSource,
-    @InjectRepository(Stock)
-    private readonly stockRepository: Repository<Stock>,
-    @InjectRepository(Accesorio)
-    private readonly accesorioRepository: Repository<Accesorio>,
-    @InjectRepository(Lente)
-    private readonly lenteRepository: Repository<Lente>,
-    @InjectRepository(Montura)
-    private readonly monturaRepository: Repository<Montura>,
-  ) {}
+constructor(
+  private dataSource: DataSource,
+  @InjectRepository(Stock)
+  private readonly stockRepository: Repository<Stock>,
+
+  // 👇 ESTE ES NUEVO (IMPORTANTE)
+  @InjectRepository(StockProducto)
+  private readonly stockProductoRepository: Repository<StockProducto>,
+
+  @InjectRepository(Accesorio)
+  private readonly accesorioRepository: Repository<Accesorio>,
+  @InjectRepository(Lente)
+  private readonly lenteRepository: Repository<Lente>,
+  @InjectRepository(Montura)
+  private readonly monturaRepository: Repository<Montura>,
+) {}
 
   /**
    * Actualiza varias celdas de stock de lentes de manera eficiente
@@ -88,7 +92,32 @@ export class ProductosService {
       await qr.release();
     }
   }
+//productos.service
+async obtenerStockProductoPorSede(productoId: number) {
+  const stock = await this.stockProductoRepository.find({
+    where: { productoId },
+    relations: {
+      sede: true,
+    },
+    order: {
+      sedeId: 'ASC',
+    },
+  });
 
+  return stock.map((item) => ({
+    id: item.id,
+    sedeId: item.sedeId,
+    productoId: item.productoId,
+    cantidad: item.cantidad,
+    ubicacion: item.ubicacion,
+    sede: item.sede
+      ? {
+          id: item.sede.id,
+          nombre: item.sede.nombre,
+        }
+      : null,
+  }));
+}
   async crearMontura(crearMonturaDto: CrearMonturaDto) {
     return this.dataSource.transaction(async (manager) => {
       const producto = manager.create(Producto, {
