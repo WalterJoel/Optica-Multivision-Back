@@ -56,11 +56,22 @@ export class VentasService {
       }
 
       // ✅ Crear seguimiento de pedido
-      await this.crearSeguimientoDePedido({
-        ventaId: ventaGuardada.id,
-      });
+      // await this.crearSeguimientoDePedido({
+      //   ventaId: ventaGuardada.id,
+      // });
 
       return ventaGuardada;
+    });
+  }
+
+  async obtenerVentas() {
+    return await this.ventaRepository.find({
+      relations: {
+        productos: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
     });
   }
 

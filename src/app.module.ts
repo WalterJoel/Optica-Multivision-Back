@@ -15,7 +15,7 @@ import { VentasModule } from './ventas/ventas.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: 'postgresql://postgres:ohbcKqIGVhdhRCcsWBdCLtlNYiOaVOoW@caboose.proxy.rlwy.net:26634/railway',
+      url: 'postgresql://postgres:ETQfAPdWuCmTkmeyPjKMcqBENTOKuHie@gondola.proxy.rlwy.net:35788/railway',
       autoLoadEntities: true,
       synchronize: true, // SOLO DEV
       ssl:

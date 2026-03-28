@@ -55,3 +55,7 @@ export enum EstadoPedido {
   TRANSITO = 'TRANSITO',
   ENTREGADO = 'ENTREGADO',
 }
+
+export enum Roles {
+  ADMIN = 'ADMIN',
+}

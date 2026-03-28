@@ -12,7 +12,7 @@ import { EstadoPedido } from 'src/common/constants';
 export interface HistorialEstado {
   estado: EstadoPedido;
   fechaCambio: string;
-  observaciones?: string;
+  observaciones?: string; //FEHCHA Y HORA
   usuarioId?: number;
 }
 
