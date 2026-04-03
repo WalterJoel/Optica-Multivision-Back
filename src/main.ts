@@ -17,7 +17,10 @@ async function bootstrap() {
 
   // ✅ CORS sin cookies
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://master.d2ygexviux9rer.amplifyapp.com',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     //perimitir authorisation en cors
     allowedHeaders: 'Content-Type, Authorization',

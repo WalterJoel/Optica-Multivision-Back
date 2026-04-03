@@ -19,6 +19,7 @@ import { VentasModule } from './ventas/ventas.module';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         autoLoadEntities: true,
+        // Evita synchronize: true en producción por seguridad de datos
         synchronize: process.env.NODE_ENV !== 'production',
         ssl:
           process.env.NODE_ENV === 'production'
