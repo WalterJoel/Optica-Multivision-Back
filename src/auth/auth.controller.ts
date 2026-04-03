@@ -10,6 +10,7 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
+    console.log(body.email, '  EMAIL');
     const result = await this.authService.login(body.email, body.password);
 
     // ✅ token-only: devolver token al front
@@ -30,6 +31,11 @@ export class AuthController {
   @Get('me')
   me(@Req() req: Request) {
     const u = (req as any).user;
-    return { ok: true, user: u ? { id: u.sub, email: u.email, role: u.role,sedeId: u.sedeId } : null };
+    return {
+      ok: true,
+      user: u
+        ? { id: u.sub, email: u.email, role: u.role, sedeId: u.sedeId }
+        : null,
+    };
   }
 }

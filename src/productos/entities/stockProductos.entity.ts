@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   Index,
   JoinColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Sede } from '../../sedes/entities/sede.entity';
 import { Producto } from './producto.entity';
@@ -30,6 +31,9 @@ export class StockProducto {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @ManyToOne(() => Producto, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'productoId' })

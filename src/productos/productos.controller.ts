@@ -18,6 +18,8 @@ import {
 } from './dto';
 import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
 import { Public } from '../auth/public.decorator';
+import { monturas } from 'src/seeds/monturas/monturas';
+import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 
 @Controller('productos')
 export class ProductosController {
@@ -51,11 +53,6 @@ export class ProductosController {
     @Body() body: { items: { id: number; cantidad: number }[] },
   ) {
     return this.productosService.updateLensStock(body.items);
-  }
-
-  @Get('/ssss/:id')
-  findOne(@Param('id') id: string) {
-    return this.productosService.findOne(+id);
   }
 
   @Public()
@@ -155,9 +152,31 @@ export class ProductosController {
   // ========================================================================================================
 
   @Public()
+  @Post('/seedmonturas')
+  insertarMonturas() {
+    // return 'done';
+    return this.productosService.seedMonturas(monturas);
+  }
+
+  @Public()
   @Get('montura/:id')
   obtenerMonturaPorId(@Param('id') id: string) {
     return this.productosService.obtenerMonturaPorId(+id);
+  }
+
+  /**
+   *
+   * @param qr
+   * @param sedeId
+   * @returns
+   */
+  @Public()
+  @Get('montura/qr/:qr/:sedeId')
+  obtenerMonturaPorQr(
+    @Param('qr') qr: string,
+    @Param('sedeId') sedeId: number,
+  ) {
+    return this.productosService.obtenerMonturaPorQr(qr, Number(sedeId));
   }
 
   @Public()
@@ -192,6 +211,20 @@ export class ProductosController {
       busqueda,
       Number(limite),
       Number(desplazamiento),
+    );
+  }
+
+  // ╔═══════════════════════════════════════════╗
+  // ║   📦 STOCK DE PRODUCTOS                   ║
+  // ╚═══════════════════════════════════════════╝
+
+  @Public()
+  @Post('/actualizarStockProductos')
+  async actualizarStockProductos(
+    @Body() actualizarStockProductos: ActualizarStockProductosDto,
+  ) {
+    return await this.productosService.actualizarStockProductos(
+      actualizarStockProductos,
     );
   }
 }

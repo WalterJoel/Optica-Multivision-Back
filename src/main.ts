@@ -2,12 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import * as express from 'express';
+import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ❌ Ya no necesario en token-only
-  // app.use(cookieParser());
+  // ✅ Obtengo los secretos desde AWS
+  process.env.DATABASE_URL = await getAwsParameter('opticabd');
+  process.env.NODE_ENV = await getAwsParameter('entorno');
+
+  console.log(process.env.DATABASE_URL, ' BD --- CREDENCIALES');
 
   // ✅ Servir uploads
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));

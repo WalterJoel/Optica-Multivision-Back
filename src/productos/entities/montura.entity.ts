@@ -13,6 +13,12 @@ export class Montura {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ length: 100 }) //Codigo que maneja el dueñO
+  codigo: string;
+
+  @Column({ length: 100, unique: true })
+  codigoQr: string;
+
   @Column()
   productoId: number;
 

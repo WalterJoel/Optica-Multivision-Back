@@ -18,6 +18,11 @@ export class CrearMonturaDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(50)
+  codigo: string;
+
+  @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   material: string;
 
@@ -46,7 +51,4 @@ export class CrearMonturaDto {
   @IsString()
   @MaxLength(255)
   imagenUrl?: string;
-
-  @IsEnum(TipoProducto)
-  tipo: TipoProducto;
 }

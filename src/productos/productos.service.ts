@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, ILike, IsNull, Repository } from 'typeorm';
+import { v4 } from 'uuid';
 import {
   CrearLenteDto,
   CrearProductoDto,
@@ -11,9 +16,10 @@ import {
 import { Producto, Lente, Stock, Montura, StockProducto } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
-import { TipoProducto } from '../common/constants';
+import { Codigos, TipoProducto } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
+import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 
 type StockCell = {
   id: number;
@@ -41,6 +47,8 @@ export class ProductosService {
     private dataSource: DataSource,
     @InjectRepository(Stock)
     private readonly stockRepository: Repository<Stock>,
+    @InjectRepository(StockProducto)
+    private readonly stockProductoRepository: Repository<StockProducto>,
     @InjectRepository(Accesorio)
     private readonly accesorioRepository: Repository<Accesorio>,
     @InjectRepository(Lente)
@@ -89,44 +97,70 @@ export class ProductosService {
     }
   }
 
-  async crearMontura(crearMonturaDto: CrearMonturaDto) {
-    return this.dataSource.transaction(async (manager) => {
-      const producto = manager.create(Producto, {
-        nombre: crearMonturaDto.marca,
-        tipo: TipoProducto.MONTURA,
+  async seedMonturas(data) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const sedes = await manager.find(Sede);
+
+        //  Bulk productos
+        const productosBulk = data.map((item) =>
+          manager.create(Producto, {
+            nombre: item.marca,
+            tipo: TipoProducto.MONTURA,
+          }),
+        );
+
+        const productos = await manager
+          .getRepository(Producto)
+          .save(productosBulk);
+
+        //  Bulk monturas
+        const monturasBulk = data.map((item, idx) =>
+          manager.create(Montura, {
+            productoId: productos[idx].id,
+            codigoQr: v4() + Codigos.CODIGO_MONTURAS,
+            codigo: item.codigo,
+            precio: item.precio,
+            marca: item.marca,
+            material: item.material,
+            medida: item.medida,
+            color: item.color,
+            formaFacial: item.formaFacial,
+            sexo: item.sexo,
+            imagenUrl: item.imagenUrl,
+          }),
+        );
+
+        await manager.getRepository(Montura).insert(monturasBulk);
+
+        //  Bulk stock SOLO para monturas
+        const stockBulk: Partial<StockProducto>[] = [];
+        for (const montura of monturasBulk) {
+          // 🔹 antes era productos
+          for (const sede of sedes) {
+            stockBulk.push({
+              productoId: montura.productoId,
+              sedeId: sede.id,
+              cantidad: 0,
+              ubicacion: '',
+            });
+          }
+        }
+
+        await manager.getRepository(StockProducto).insert(stockBulk);
+        await manager.getRepository(StockProducto).insert(stockBulk);
+
+        return {
+          productos: productos.length,
+          monturas: monturasBulk.length,
+          stock: stockBulk.length,
+        };
       });
-      await manager.save(producto);
-
-      const montura = manager.create(Montura, {
-        productoId: producto.id,
-        precio: crearMonturaDto.precio,
-        marca: crearMonturaDto.marca,
-        material: crearMonturaDto.material,
-        medida: crearMonturaDto.medida,
-        color: crearMonturaDto.color,
-        formaFacial: crearMonturaDto.formaFacial,
-        sexo: crearMonturaDto.sexo,
-        imagenUrl: crearMonturaDto.imagenUrl,
-      });
-      await manager.save(montura);
-
-      const sedes = await manager.find(Sede);
-
-      const stockItems = sedes.map((sede) =>
-        manager.create(StockProducto, {
-          productoId: producto.id,
-          sedeId: sede.id,
-          cantidad: 0,
-          ubicacion: '',
-        }),
-      );
-
-      await manager.save(stockItems);
-
-      return { producto, montura, stockItems };
-    });
+    } catch (error) {
+      console.error('Error en seedMonturas:', error);
+      throw new Error('No se pudo insertar las monturas. Revisa el log.');
+    }
   }
-
   /**
    *
    * 1.- Se crea el producto
@@ -141,14 +175,14 @@ export class ProductosService {
     await qr.startTransaction();
 
     try {
-      // 1️⃣ PRODUCTO
+      // ✅ 1️  PRODUCTO
       const producto = qr.manager.create(Producto, {
         nombre: crearLenteDto.marca,
         tipo: crearLenteDto.tipo,
       });
       await qr.manager.save(producto);
 
-      // 2️⃣ LENTE
+      // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
         producto: { id: producto.id },
         marca: crearLenteDto.marca,
@@ -160,10 +194,10 @@ export class ProductosService {
       });
       await qr.manager.save(lente);
 
-      // 3️⃣ SEDES
+      // ✅ 3️ SEDES
       const sedes = await qr.manager.find(Sede);
 
-      // 4️⃣ STOCK (SEMILLA)
+      // ✅ 4️ STOCK (SEMILLA)
       const stockRepo = qr.manager.getRepository(Stock);
       const bulk: Partial<Stock>[] = [];
 
@@ -300,14 +334,6 @@ export class ProductosService {
       })),
     };
   }
-
-  findOne(id: number) {
-    return `This action returns a #${id} producto`;
-  }
-
-  // update(id: number, updateProductoDto: UpdateProductoDto) {
-  //   return `This action updates a #${id} producto`;
-  // }
 
   remove(id: number) {
     return `This action removes a #${id} producto`;
@@ -482,12 +508,16 @@ export class ProductosService {
 
     return { total, lentes };
   }
+
+  // ┌───────────────────────────────────────────────┐
+  // │  ✅  SECCIÓN MONTURAS                        │
+  // └───────────────────────────────────────────────┘
+
   async obtenerMonturas() {
     return this.monturaRepository.find({
       order: { createdAt: 'DESC' },
     });
   }
-
   async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
     const where = busqueda
       ? [
@@ -506,6 +536,40 @@ export class ProductosService {
     });
 
     return { total, monturas };
+  }
+
+  async obtenerMonturaPorQr(codigoQr: string, sedeId: number) {
+    try {
+      // Buscar montura por QR
+      const montura = await this.monturaRepository.findOne({
+        where: { codigoQr },
+        select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
+      });
+
+      if (!montura) {
+        throw new NotFoundException({
+          message: `No se encontró montura con codigoQr: ${codigoQr}`,
+          codigoQr,
+        });
+      }
+
+      // Buscar stock de esa montura en la sede
+      const stock = await this.stockProductoRepository.findOne({
+        where: { productoId: montura.productoId, sedeId },
+        select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
+      });
+
+      return {
+        montura,
+        stock: stock || { cantidad: 0, ubicacion: '' },
+      };
+    } catch (error) {
+      // Captura errores inesperados (BD caída, sintaxis, etc)
+      throw new InternalServerErrorException({
+        message: 'Error al consultar la base de datos',
+        error: error.message,
+      });
+    }
   }
 
   async obtenerMonturaPorId(id: number) {
@@ -569,6 +633,94 @@ export class ProductosService {
 
       return { message: 'Montura eliminada correctamente' };
     });
+  }
+  /*
+    Se crea la montura y ademas:
+      ✅ Se agrega stock 0 por cada sede existente
+  */
+  async crearMontura(crearMonturaDto: CrearMonturaDto) {
+    return this.dataSource.transaction(async (manager) => {
+      const producto = manager.create(Producto, {
+        nombre: crearMonturaDto.marca,
+        tipo: TipoProducto.MONTURA,
+      });
+      await manager.save(producto);
+
+      const montura = manager.create(Montura, {
+        productoId: producto.id,
+        codigoQr: v4() + Codigos.CODIGO_MONTURAS,
+        codigo: crearMonturaDto.codigo,
+        precio: crearMonturaDto.precio,
+        marca: crearMonturaDto.marca,
+        material: crearMonturaDto.material,
+        medida: crearMonturaDto.medida,
+        color: crearMonturaDto.color,
+        formaFacial: crearMonturaDto.formaFacial,
+        sexo: crearMonturaDto.sexo,
+        imagenUrl: crearMonturaDto.imagenUrl,
+      });
+      await manager.save(montura);
+
+      const sedes = await manager.find(Sede);
+
+      const stockItems = sedes.map((sede) =>
+        manager.create(StockProducto, {
+          productoId: producto.id,
+          sedeId: sede.id,
+          cantidad: 0,
+          ubicacion: '',
+        }),
+      );
+
+      await manager.save(stockItems);
+
+      return { producto, montura, stockItems };
+    });
+  }
+
+  // ╔═══════════════════════════════════════════╗
+  // ║   📦 TABLA STOCK_PRODUCTOS                ║
+  // ╚═══════════════════════════════════════════╝
+
+  /*
+    Funcion para actualizar la TABLA STOCK_PRODUCTOS:
+      ✅ se puede actualizar ACCESORIOS O MONTURAS es indiferente
+  */
+
+  async actualizarStockProductos(dto: ActualizarStockProductosDto) {
+    // ✅ QueryRunner (Eficiente: todas las operaciones usan un mismo canal)
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Usamos el manager del queryRunner para que herede la transacción
+      const promesas = dto.items.map((item) => {
+        return queryRunner.manager.update(
+          StockProducto,
+          { id: item.stockId },
+          { cantidad: item.cantidad },
+        );
+      });
+
+      await Promise.all(promesas);
+      await queryRunner.commitTransaction();
+
+      return {
+        ok: true,
+        count: dto.items.length,
+        message: 'Stock actualizado correctamente',
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException({
+        message: 'Error al consultar la base de datos',
+        error: error.message,
+      });
+    } finally {
+      // ✅ Liberamos el queryRunner para devolver la conexión al pool
+      await queryRunner.release();
+    }
   }
 }
 //TODO: DELETE DATASOURCE REPOSITORY

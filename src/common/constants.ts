@@ -59,3 +59,8 @@ export enum EstadoPedido {
 export enum Roles {
   ADMIN = 'ADMIN',
 }
+
+/* Estos codigos se reutilizan del sistema anterior del Sr Raul para el QR */
+export enum Codigos {
+  CODIGO_MONTURAS = 'Monts002',
+}
