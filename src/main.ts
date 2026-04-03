@@ -5,11 +5,11 @@ import * as express from 'express';
 import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
   // ✅ Obtengo los secretos desde AWS
   process.env.DATABASE_URL = await getAwsParameter('opticabd');
   process.env.NODE_ENV = await getAwsParameter('entorno');
+
+  const app = await NestFactory.create(AppModule);
 
   console.log(process.env.DATABASE_URL, ' BD --- CREDENCIALES');
 
