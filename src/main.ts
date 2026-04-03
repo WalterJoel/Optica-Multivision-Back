@@ -8,10 +8,9 @@ async function bootstrap() {
   // ✅ Obtengo los secretos desde AWS
   process.env.DATABASE_URL = await getAwsParameter('opticabd');
   process.env.NODE_ENV = await getAwsParameter('entorno');
+  console.log(process.env.DATABASE_URL, ' BD --- CREDENCIALES');
 
   const app = await NestFactory.create(AppModule);
-
-  console.log(process.env.DATABASE_URL, ' BD --- CREDENCIALES');
 
   // ✅ Servir uploads
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
