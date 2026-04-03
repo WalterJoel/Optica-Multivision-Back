@@ -25,7 +25,8 @@ async function bootstrap() {
     //perimitir authorisation en cors
     allowedHeaders: 'Content-Type, Authorization',
 
-    credentials: false,
+    credentials: true,
+    maxAge: 86400,
   });
 
   await app.listen(process.env.PORT ?? 3001);
