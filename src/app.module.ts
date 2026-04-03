@@ -13,15 +13,18 @@ import { DescuentosModule } from './descuentos/descuentos.module';
 import { VentasModule } from './ventas/ventas.module';
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      autoLoadEntities: true,
-      synchronize: process.env.NODE_ENV === 'production' ? false : true,
-      ssl:
-        process.env.NODE_ENV === 'production'
-          ? { rejectUnauthorized: false }
-          : false,
+    TypeOrmModule.forRootAsync({
+      // Usamos useFactory para que la configuración se genere dinámicamente
+      useFactory: () => ({
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        autoLoadEntities: true,
+        synchronize: process.env.NODE_ENV !== 'production',
+        ssl:
+          process.env.NODE_ENV === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
+      }),
     }),
     AuthModule,
     UsersModule,
