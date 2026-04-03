@@ -540,11 +540,15 @@ export class ProductosService {
 
   async obtenerMonturaPorQr(codigoQr: string, sedeId: number) {
     try {
-      // Buscar montura por QR
+      console.log(`--- Iniciando búsqueda para QR: ${codigoQr} ---`);
+
+      // TIEMPO 1: Buscar Montura
+      console.time('Tiempo_Montura');
       const montura = await this.monturaRepository.findOne({
         where: { codigoQr },
         select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
       });
+      console.timeEnd('Tiempo_Montura');
 
       if (!montura) {
         throw new NotFoundException({
@@ -553,18 +557,21 @@ export class ProductosService {
         });
       }
 
-      // Buscar stock de esa montura en la sede
+      // TIEMPO 2: Buscar Stock
+      console.time('Tiempo_Stock');
       const stock = await this.stockProductoRepository.findOne({
         where: { productoId: montura.productoId, sedeId },
         select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
       });
+      console.timeEnd('Tiempo_Stock');
+
+      console.log(`--- Fin de consulta para sede: ${sedeId} ---`);
 
       return {
         montura,
         stock: stock || { cantidad: 0, ubicacion: '' },
       };
     } catch (error) {
-      // Captura errores inesperados (BD caída, sintaxis, etc)
       throw new InternalServerErrorException({
         message: 'Error al consultar la base de datos',
         error: error.message,
