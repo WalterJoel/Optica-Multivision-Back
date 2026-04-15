@@ -20,6 +20,7 @@ import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
 import { Public } from '../auth/public.decorator';
 import { monturas } from 'src/seeds/monturas/monturas';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
+import { TipoProducto } from 'src/common/constants';
 
 @Controller('productos')
 export class ProductosController {
@@ -166,17 +167,17 @@ export class ProductosController {
 
   /**
    *
-   * @param qr
+   * @param codigo -- Puede ser el QR o codigo que maneja el dueño
    * @param sedeId
    * @returns
    */
   @Public()
-  @Get('montura/qr/:qr/:sedeId')
+  @Get('montura/qr/:codigo/:sedeId')
   obtenerMonturaPorQr(
-    @Param('qr') qr: string,
+    @Param('codigo') codigo: string,
     @Param('sedeId') sedeId: number,
   ) {
-    return this.productosService.obtenerMonturaPorQr(qr, Number(sedeId));
+    return this.productosService.obtenerMonturaPorQr(codigo, Number(sedeId));
   }
 
   @Public()
@@ -202,7 +203,7 @@ export class ProductosController {
 
   @Public()
   @Get('buscarMontura')
-  async buscarMontura(
+  buscarMontura(
     @Query('busqueda') busqueda: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
@@ -220,11 +221,24 @@ export class ProductosController {
 
   @Public()
   @Post('/actualizarStockProductos')
-  async actualizarStockProductos(
+  actualizarStockProductos(
     @Body() actualizarStockProductos: ActualizarStockProductosDto,
   ) {
-    return await this.productosService.actualizarStockProductos(
+    return this.productosService.actualizarStockProductos(
       actualizarStockProductos,
+    );
+  }
+
+  @Public()
+  @Get('/productosNoActualizados/:idSede/:tipoProducto')
+  obtenerProductosNoActualizados(
+    @Param('idSede') idSede: number,
+    @Param('tipoProducto') tipoProducto: TipoProducto,
+  ) {
+    console.log(idSede, tipoProducto, ' SSSSSS-<');
+    return this.productosService.obtenerProductosNoActualizados(
+      idSede,
+      tipoProducto,
     );
   }
 }

@@ -4,7 +4,9 @@ import {
   Column,
   Index,
   CreateDateColumn,
+  OneToOne,
 } from 'typeorm';
+import { Montura } from './montura.entity';
 
 @Entity('productos')
 export class Producto {
@@ -23,4 +25,7 @@ export class Producto {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @OneToOne(() => Montura, (montura) => montura.producto)
+  montura: Montura;
 }

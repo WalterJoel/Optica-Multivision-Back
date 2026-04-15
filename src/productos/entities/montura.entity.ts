@@ -5,15 +5,18 @@ import {
   OneToOne,
   CreateDateColumn,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Producto } from './producto.entity';
 
 @Entity('monturas')
+@Index('idx_montura_codigo', ['codigo'])
+@Index('idx_montura_qr', ['codigoQr'])
 export class Montura {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100 }) //Codigo que maneja el dueñO
+  @Column({ length: 100 }) //Codigo que maneja el dueño
   codigo: string;
 
   @Column({ length: 100, unique: true })

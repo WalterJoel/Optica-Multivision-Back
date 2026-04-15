@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, ILike, IsNull, Repository } from 'typeorm';
+import { DataSource, ILike, IsNull, MoreThan, Raw, Repository } from 'typeorm';
 import { v4 } from 'uuid';
 import {
   CrearLenteDto,
@@ -538,22 +538,23 @@ export class ProductosService {
     return { total, monturas };
   }
 
-  async obtenerMonturaPorQr(codigoQr: string, sedeId: number) {
+  async obtenerMonturaPorQr(codigo: string, sedeId: number) {
     try {
-      console.log(`--- Iniciando búsqueda para QR: ${codigoQr} ---`);
+      console.log(`--- Iniciando búsqueda para QR: ${codigo} ---`);
 
       // TIEMPO 1: Buscar Montura
       console.time('Tiempo_Montura');
       const montura = await this.monturaRepository.findOne({
-        where: { codigoQr },
+        where: [{ codigoQr: codigo }, { codigo: codigo }],
+
         select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
       });
       console.timeEnd('Tiempo_Montura');
 
       if (!montura) {
         throw new NotFoundException({
-          message: `No se encontró montura con codigoQr: ${codigoQr}`,
-          codigoQr,
+          message: `No se encontró montura con codigoQr: ${codigo}`,
+          codigo,
         });
       }
 
@@ -728,6 +729,45 @@ export class ProductosService {
       // ✅ Liberamos el queryRunner para devolver la conexión al pool
       await queryRunner.release();
     }
+  }
+
+  /*
+    Funcion que retorna los productos que no fueron actualizados EN EL DIA
+      ✅ RECIBE SEDE_ID, TIPO_PRODUCTO(MONTURA O ACCESORIO)
+      ✅ Se consume de la tabla STOCK_PRODUCTOS el campo UPDATE_AT
+      ✅ Solo aquellos productos que tengan un stock mayor a 0  
+  */
+
+  async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
+    const inicioHoy = new Date();
+
+    inicioHoy.setHours(0, 0, 0, 0);
+
+    return await this.stockProductoRepository.find({
+      where: {
+        sedeId: idSede,
+        //Todo lo que (al restarle 5 horas) sea MENOR a la medianoche de hoy
+        // es decir, que se actualizó ayer o antes.
+        updatedAt: Raw(
+          (alias) => `(${alias} - INTERVAL '5 hours') < :inicioHoy`,
+          {
+            inicioHoy,
+          },
+        ),
+        producto: {
+          tipo: tipoProducto,
+        },
+        cantidad: MoreThan(0),
+      },
+      relations: {
+        producto: {
+          montura: true,
+        },
+      },
+      order: {
+        updatedAt: 'ASC',
+      },
+    });
   }
 }
 //TODO: DELETE DATASOURCE REPOSITORY

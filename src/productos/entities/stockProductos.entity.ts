@@ -32,7 +32,17 @@ export class StockProducto {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({
+    type: 'timestamptz',
+    name: 'updated_at',
+    transformer: {
+      to: (value: Date) => value,
+      from: (value: Date) => {
+        // Esto asegura que cuando NestJS lea la fecha, la trate como local
+        return value;
+      },
+    },
+  })
   updatedAt: Date;
 
   @ManyToOne(() => Producto, { onDelete: 'RESTRICT' })
