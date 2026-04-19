@@ -10,7 +10,6 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
-    console.log(body.email, '  EMAIL');
     const result = await this.authService.login(body.email, body.password);
 
     // ✅ token-only: devolver token al front

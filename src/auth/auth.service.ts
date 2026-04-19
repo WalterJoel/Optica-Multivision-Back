@@ -35,14 +35,7 @@ export class AuthService {
         sedeId: user.sedeId,
         role: user.role,
       }),
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        sedeId: user.sedeId,
-        avatarUrl: user.avatarUrl ?? null,
-        activo: user.activo,
-      },
+      user,
     };
   }
 }

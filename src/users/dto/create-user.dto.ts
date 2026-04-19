@@ -2,7 +2,7 @@ export class CreateUserDto {
   email: string;
   password: string;
   role: string;
-  sedeId: number; //NUEVO
-
-
+  nombre: string;
+  apellido: string;
+  sedeId: number;
 }
