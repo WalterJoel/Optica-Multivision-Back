@@ -17,7 +17,10 @@ import { VentasModule } from './ventas/ventas.module';
       // Usamos useFactory para que la configuración se genere dinámicamente
       useFactory: () => ({
         type: 'postgres',
-        url: process.env.DATABASE_URL,
+        url:
+          process.env.NODE_ENV === 'production'
+            ? process.env.DATABASE_URL
+            : 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
         // url: 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
         autoLoadEntities: true,
         // Evita synchronize: true en producción por seguridad de datos

@@ -58,6 +58,9 @@ export enum EstadoPedido {
 
 export enum Roles {
   ADMIN = 'ADMIN',
+  ALMACEN = 'ALMACEN',
+  TALLER = 'TALLER',
+  VENDEDOR = 'VENDEDOR',
 }
 
 /* Estos codigos se reutilizan del sistema anterior del Sr Raul para el QR */

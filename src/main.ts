@@ -2,12 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import * as express from 'express';
-import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
+// import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 
 async function bootstrap() {
   // ✅ Obtengo los secretos desde AWS
-  process.env.DATABASE_URL = await getAwsParameter('opticabd');
-  process.env.NODE_ENV = await getAwsParameter('entorno');
+  // process.env.DATABASE_URL = await getAwsParameter('opticabd');
+  // process.env.NODE_ENV = await getAwsParameter('entorno');
   console.log(process.env.DATABASE_URL, ' BD --- CREDENCIALES');
 
   const app = await NestFactory.create(AppModule);

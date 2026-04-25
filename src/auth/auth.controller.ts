@@ -9,15 +9,8 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const result = await this.authService.login(body.email, body.password);
-
-    // ✅ token-only: devolver token al front
-    return {
-      ok: true,
-      access_token: result.access_token,
-      user: result.user,
-    };
+  login(@Body() body: { email: string; password: string }) {
+    return this.authService.login(body.email, body.password);
   }
 
   @Public()

@@ -54,7 +54,7 @@ export class UsersService {
         email: true,
         role: true,
         avatarUrl: true,
-        activo: true,        // ✅ AQUI
+        activo: true, // ✅ AQUI
         createdAt: true,
         sedeId: true,
         sede: {
@@ -75,7 +75,7 @@ export class UsersService {
         email: true,
         role: true,
         avatarUrl: true,
-        activo: true,       // ✅ AQUI
+        activo: true, // ✅ AQUI
 
         createdAt: true,
         sedeId: true,
@@ -91,37 +91,37 @@ export class UsersService {
   }
   //valdair si esta activo o no
   async updateStatus(id: number, activo: boolean) {
-  const user = await this.userRepo.findOne({ where: { id } });
-  if (!user) throw new NotFoundException("Usuario no existe");
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Usuario no existe');
 
-  user.activo = !!activo;
-  await this.userRepo.save(user);
+    user.activo = !!activo;
+    await this.userRepo.save(user);
 
-  return this.findOne(id);
-}
+    return this.findOne(id);
+  }
 
   async update(id: number, dto: UpdateUserDto) {
-  const user = await this.userRepo.findOne({ where: { id } });
-  if (!user) throw new NotFoundException('Usuario no existe');
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Usuario no existe');
 
-  // validar y setear sedeId si viene
-  if (dto.sedeId !== undefined) {
-    const sedeId = Number(dto.sedeId);
-    const sede = await this.sedeRepo.findOne({ where: { id: sedeId } });
-    if (!sede) throw new NotFoundException('Sede no existe');
-    user.sedeId = sedeId;
+    // validar y setear sedeId si viene
+    if (dto.sedeId !== undefined) {
+      const sedeId = Number(dto.sedeId);
+      const sede = await this.sedeRepo.findOne({ where: { id: sedeId } });
+      if (!sede) throw new NotFoundException('Sede no existe');
+      user.sedeId = sedeId;
+    }
+
+    if (dto.email) user.email = dto.email.trim().toLowerCase();
+    if (dto.role) user.role = dto.role;
+
+    if (dto.password) {
+      user.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    await this.userRepo.save(user);
+    return this.findOne(id);
   }
-
-  if (dto.email) user.email = dto.email.trim().toLowerCase();
-  if (dto.role) user.role = dto.role;
-
-  if (dto.password) {
-    user.password = await bcrypt.hash(dto.password, 10);
-  }
-
-  await this.userRepo.save(user);
-  return this.findOne(id);
-}
 
   async remove(id: number) {
     const user = await this.userRepo.findOne({ where: { id } });

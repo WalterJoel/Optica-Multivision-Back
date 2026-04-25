@@ -33,8 +33,8 @@ export class User {
   @Column({ default: true })
   activo: boolean;
 
-  @Column({ type: 'int', nullable: true })
-  sedeId: number | null;
+  @Column({ type: 'int' })
+  sedeId: number;
 
   @ManyToOne(() => Sede, { eager: false, nullable: true })
   @JoinColumn({ name: 'sedeId' })
