@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { VentaProducto } from './ventaProducto.entity';
+import { TipoVenta } from 'src/common/constants';
 
 @Entity('ventas')
 export class Venta {
@@ -37,10 +38,7 @@ export class Venta {
   @Column({ length: 150, nullable: true })
   responsableVenta?: string;
 
-  @Column({ length: 50 })
-  metodoPago: string;
-
-  @Column({ length: 50 })
+  @Column({ length: 50, default: TipoVenta.CONTADO })
   tipoVenta: string; // CONTADO | CREDITO
 
   @Column({ length: 50 })

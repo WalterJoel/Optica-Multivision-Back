@@ -7,12 +7,16 @@ import {
   Index,
   JoinColumn,
   UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 import { Sede } from '../../sedes/entities/sede.entity';
 import { Producto } from './producto.entity';
 
+// Esta tabla se utiliza para guardar stock de monturas y accesorios por sede
 @Entity('stock_productos')
 @Index(['sedeId'])
+@Index(['productoId', 'sedeId'])
+@Unique(['productoId', 'sedeId'])
 export class StockProducto {
   @PrimaryGeneratedColumn()
   id: number;

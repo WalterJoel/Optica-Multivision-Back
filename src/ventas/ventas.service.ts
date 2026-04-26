@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Venta } from './entities/venta.entity';
@@ -25,42 +25,70 @@ export class VentasService {
     const { productos, ...ventaData } = createVentaDto;
 
     return await this.ventaRepository.manager.transaction(async (manager) => {
-      const venta = manager.getRepository(Venta).create({
-        ...ventaData,
-        productos: productos.map((p) => ({ ...p })),
-      });
-      const ventaGuardada = await manager.getRepository(Venta).save(venta);
+      try {
+        // =========================
+        // 1. CREAR VENTA (PENDIENTE VALIDACIÓN)
+        // =========================
+        const venta = manager.getRepository(Venta).create({
+          ...ventaData,
+          productos: productos.map((p) => ({ ...p })),
+        });
 
-      for (const p of productos) {
-        if (p.tipoProducto === TipoProducto.LENTE) {
-          const stock = await manager.getRepository(Stock).findOne({
-            where: { id: p.stockId },
-            lock: { mode: 'pessimistic_write' },
-          });
-          if (!stock || stock.cantidad < p.cantidad) {
-            throw new Error(`Stock insuficiente para lente ${p.productoId}`);
+        const ventaGuardada = await manager.getRepository(Venta).save(venta);
+
+        // =========================
+        // 2. VALIDAR Y DESCONTAR STOCK
+        // =========================
+        for (const p of productos) {
+          if (p.tipoProducto === TipoProducto.LENTE) {
+            const stock = await manager.getRepository(Stock).findOne({
+              where: { id: p.stockId },
+              lock: { mode: 'pessimistic_write' },
+            });
+
+            if (!stock || stock.cantidad < p.cantidad) {
+              throw new ConflictException({
+                message: `Stock insuficiente para lente ${p.productoId}`,
+              });
+            }
+
+            stock.cantidad -= p.cantidad;
+            await manager.getRepository(Stock).save(stock);
+          } else {
+            const stockProd = await manager
+              .getRepository(StockProducto)
+              .findOne({
+                where: { id: p.stockProductoId },
+                lock: { mode: 'pessimistic_write' },
+              });
+
+            if (!stockProd || stockProd.cantidad < p.cantidad) {
+              throw new ConflictException({
+                message: `Stock insuficiente para producto ${p.productoId}`,
+              });
+            }
+
+            stockProd.cantidad -= p.cantidad;
+            await manager.getRepository(StockProducto).save(stockProd);
           }
-          stock.cantidad -= p.cantidad;
-          await manager.getRepository(Stock).save(stock);
-        } else {
-          const stockProd = await manager.getRepository(StockProducto).findOne({
-            where: { id: p.stockProductoId },
-            lock: { mode: 'pessimistic_write' },
-          });
-          if (!stockProd || stockProd.cantidad < p.cantidad) {
-            throw new Error(`Stock insuficiente para producto ${p.productoId}`);
-          }
-          stockProd.cantidad -= p.cantidad;
-          await manager.getRepository(StockProducto).save(stockProd);
         }
+
+        // =========================
+        // 3. SEGUIMIENTO (OPCIONAL)
+        // =========================
+        // await this.crearSeguimientoDePedido({
+        //   ventaId: ventaGuardada.id,
+        // });
+
+        return {
+          message: 'Venta creada correctamente',
+          data: ventaGuardada,
+        };
+      } catch (error) {
+        throw new ConflictException({
+          message: error?.message || 'Error al crear venta',
+        });
       }
-
-      // ✅ Crear seguimiento de pedido
-      // await this.crearSeguimientoDePedido({
-      //   ventaId: ventaGuardada.id,
-      // });
-
-      return ventaGuardada;
     });
   }
 

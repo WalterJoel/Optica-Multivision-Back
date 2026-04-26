@@ -16,7 +16,6 @@ import {
   UpdateMonturaDto,
   UpdateAccesorioDto,
 } from './dto';
-import { UpdateStockLenteDto } from './dto/update-stock-lente.dto';
 import { Public } from '../auth/public.decorator';
 import { monturas } from 'src/seeds/monturas/monturas';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';

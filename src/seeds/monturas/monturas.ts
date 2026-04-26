@@ -1,4 +1,16 @@
-export const monturas = [
+export interface MonturaSeed {
+  marca: string;
+  codigo: string;
+  color: string;
+  material: string;
+  sexo: string;
+  formaFacial: string;
+  codigoQr?: string;
+  precio: number;
+  medida: string;
+  imagenUrl?: string;
+}
+export const monturas: MonturaSeed[] = [
   {
     marca: 'FEILLIS',
     codigo: '0369X',

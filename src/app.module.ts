@@ -11,6 +11,7 @@ import { ClientesModule } from './clientes/clientes.module';
 import { KitsModule } from './kits/kits.module';
 import { DescuentosModule } from './descuentos/descuentos.module';
 import { VentasModule } from './ventas/ventas.module';
+import { CajaModule } from './caja/caja.module';
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -21,6 +22,7 @@ import { VentasModule } from './ventas/ventas.module';
           process.env.NODE_ENV === 'production'
             ? process.env.DATABASE_URL
             : 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
+
         // url: 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
         autoLoadEntities: true,
         // Evita synchronize: true en producción por seguridad de datos
@@ -40,6 +42,7 @@ import { VentasModule } from './ventas/ventas.module';
     KitsModule,
     DescuentosModule,
     VentasModule,
+    CajaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

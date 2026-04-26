@@ -7,7 +7,6 @@ import { DataSource, ILike, IsNull, MoreThan, Raw, Repository } from 'typeorm';
 import { v4 } from 'uuid';
 import {
   CrearLenteDto,
-  CrearProductoDto,
   CrearMonturaDto,
   CrearAccesorioDto,
   UpdateMonturaDto,
@@ -20,6 +19,7 @@ import { Codigos, TipoProducto } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
+import { MonturaSeed } from 'src/seeds/monturas/monturas';
 
 type StockCell = {
   id: number;
@@ -29,13 +29,7 @@ type StockCell = {
   productoId: number;
   nombreProducto: string;
 };
-type StockRow = {
-  id: number;
-  matrix: 'NEGATIVO' | 'POSITIVO';
-  row: number;
-  col: number;
-  cantidad: number;
-};
+
 type UpdateStockItem = {
   id: number;
   cantidad: number;
@@ -68,7 +62,7 @@ export class ProductosService {
     await qr.startTransaction();
 
     try {
-      const stockRepo = qr.manager.getRepository(Stock);
+      // const stockRepo = qr.manager.getRepository(Stock);
 
       // Bulk update con QueryBuilder
       // Generamos un CASE WHEN para cada item
@@ -97,69 +91,59 @@ export class ProductosService {
     }
   }
 
-  async seedMonturas(data) {
-    try {
-      return await this.dataSource.transaction(async (manager) => {
-        const sedes = await manager.find(Sede);
+  async seedMonturas(data: MonturaSeed[]) {
+    return await this.dataSource.transaction(async (manager) => {
+      const sedes = await manager.find(Sede);
 
-        //  Bulk productos
-        const productosBulk = data.map((item) =>
-          manager.create(Producto, {
-            nombre: item.marca,
-            tipo: TipoProducto.MONTURA,
-          }),
-        );
+      // 1. Productos
+      const productos = await manager.getRepository(Producto).save(
+        data.map((item) => ({
+          nombre: item.marca,
+          tipo: TipoProducto.MONTURA,
+        })),
+      );
 
-        const productos = await manager
-          .getRepository(Producto)
-          .save(productosBulk);
+      // 2. Monturas
+      const monturas = await manager.getRepository(Montura).save(
+        data.map((item, idx) => ({
+          productoId: productos[idx].id,
+          codigoQr: v4() + Codigos.CODIGO_MONTURAS,
+          codigo: item.codigo,
+          precio: item.precio,
+          marca: item.marca,
+          material: item.material,
+          medida: item.medida,
+          color: item.color,
+          formaFacial: item.formaFacial,
+          sexo: item.sexo,
+          imagenUrl: item.imagenUrl,
+        })),
+      );
 
-        //  Bulk monturas
-        const monturasBulk = data.map((item, idx) =>
-          manager.create(Montura, {
-            productoId: productos[idx].id,
-            codigoQr: v4() + Codigos.CODIGO_MONTURAS,
-            codigo: item.codigo,
-            precio: item.precio,
-            marca: item.marca,
-            material: item.material,
-            medida: item.medida,
-            color: item.color,
-            formaFacial: item.formaFacial,
-            sexo: item.sexo,
-            imagenUrl: item.imagenUrl,
-          }),
-        );
+      // 3. Stock
+      const stockBulk: Partial<StockProducto>[] = [];
 
-        await manager.getRepository(Montura).insert(monturasBulk);
-
-        //  Bulk stock SOLO para monturas
-        const stockBulk: Partial<StockProducto>[] = [];
-        for (const montura of monturasBulk) {
-          // 🔹 antes era productos
-          for (const sede of sedes) {
-            stockBulk.push({
-              productoId: montura.productoId,
-              sedeId: sede.id,
-              cantidad: 0,
-              ubicacion: '',
-            });
-          }
+      for (const montura of monturas) {
+        for (const sede of sedes) {
+          stockBulk.push({
+            productoId: montura.productoId,
+            sedeId: sede.id,
+            cantidad: 0,
+            ubicacion: '',
+          });
         }
+      }
 
+      if (stockBulk.length) {
         await manager.getRepository(StockProducto).insert(stockBulk);
-        await manager.getRepository(StockProducto).insert(stockBulk);
+      }
 
-        return {
-          productos: productos.length,
-          monturas: monturasBulk.length,
-          stock: stockBulk.length,
-        };
-      });
-    } catch (error) {
-      console.error('Error en seedMonturas:', error);
-      throw new Error('No se pudo insertar las monturas. Revisa el log.');
-    }
+      return {
+        productos: productos.length,
+        monturas: monturas.length,
+        stock: stockBulk.length,
+      };
+    });
   }
   /**
    *
@@ -345,43 +329,53 @@ export class ProductosService {
   // ========================================================================================================
   // ========================================================================================================
 
+  /*
+    Se crea el accesorio y ademas:
+      ✅ Se agrega stock 0 por cada sede existente
+  */
   async crearAccesorio(crearAccesorioDto: CrearAccesorioDto) {
-    try {
-      return await this.dataSource.transaction(async (manager) => {
-        const producto = await manager.save(
-          manager.create(Producto, {
-            nombre: crearAccesorioDto.nombre,
-            tipo: TipoProducto.ACCESORIO,
-          }),
-        );
+    return this.dataSource.transaction(async (manager) => {
+      const producto = await manager.save(
+        manager.create(Producto, {
+          nombre: crearAccesorioDto.nombre,
+          tipo: TipoProducto.ACCESORIO,
+        }),
+      );
 
-        const accesorio = await manager.save(
-          manager.create(Accesorio, {
-            ...crearAccesorioDto,
-            producto: producto,
-          }),
-        );
+      const accesorio = await manager.save(
+        manager.create(Accesorio, {
+          ...crearAccesorioDto,
+          producto,
+        }),
+      );
+      //Creo el stock de este nuevo accesorio en cada sede
+      const sedes = await manager.find(Sede);
 
-        const sedes = await manager.find(Sede);
-        const stockItems = sedes.map((sede) =>
-          manager.create(StockProducto, {
-            productoId: producto.id,
-            sedeId: sede.id,
-            cantidad: 0,
-            ubicacion: '',
-          }),
-        );
-        await manager.save(stockItems);
+      const stockItems = sedes.map((sede) =>
+        manager.create(StockProducto, {
+          productoId: producto.id,
+          sedeId: sede.id,
+          cantidad: 0,
+          ubicacion: '',
+        }),
+      );
 
-        return { producto, accesorio, stockItems };
-      });
-    } catch (error) {
-      // Transformamos el error para que tenga 'message' legible
-      throw {
-        message:
-          error?.message || 'Error al crear el accesorio, inténtalo de nuevo',
+      if (stockItems.length) {
+        await manager
+          .getRepository(StockProducto)
+          .createQueryBuilder()
+          .insert()
+          .values(stockItems)
+          .orIgnore()
+          .execute();
+      }
+
+      return {
+        producto,
+        accesorio,
+        stockItemsCount: stockItems.length,
       };
-    }
+    });
   }
 
   //* Buscar  accesorio ILIKE ... */
@@ -539,45 +533,26 @@ export class ProductosService {
   }
 
   async obtenerMonturaPorQr(codigo: string, sedeId: number) {
-    try {
-      console.log(`--- Iniciando búsqueda para QR: ${codigo} ---`);
+    const montura = await this.monturaRepository.findOne({
+      where: [{ codigoQr: codigo }, { codigo }],
+      select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
+    });
 
-      // TIEMPO 1: Buscar Montura
-      console.time('Tiempo_Montura');
-      const montura = await this.monturaRepository.findOne({
-        where: [{ codigoQr: codigo }, { codigo: codigo }],
-
-        select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
-      });
-      console.timeEnd('Tiempo_Montura');
-
-      if (!montura) {
-        throw new NotFoundException({
-          message: `No se encontró montura con codigoQr: ${codigo}`,
-          codigo,
-        });
-      }
-
-      // TIEMPO 2: Buscar Stock
-      console.time('Tiempo_Stock');
-      const stock = await this.stockProductoRepository.findOne({
-        where: { productoId: montura.productoId, sedeId },
-        select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
-      });
-      console.timeEnd('Tiempo_Stock');
-
-      console.log(`--- Fin de consulta para sede: ${sedeId} ---`);
-
-      return {
-        montura,
-        stock: stock || { cantidad: 0, ubicacion: '' },
-      };
-    } catch (error) {
-      throw new InternalServerErrorException({
-        message: 'Error al consultar la base de datos',
-        error: error.message,
-      });
+    if (!montura) {
+      throw new NotFoundException(
+        `No se encontró montura con codigoQr: ${codigo}`,
+      );
     }
+
+    const stock = await this.stockProductoRepository.findOne({
+      where: { productoId: montura.productoId, sedeId },
+      select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
+    });
+
+    return {
+      montura,
+      stock: stock || { cantidad: 0, ubicacion: '' },
+    };
   }
 
   async obtenerMonturaPorId(id: number) {
@@ -648,26 +623,28 @@ export class ProductosService {
   */
   async crearMontura(crearMonturaDto: CrearMonturaDto) {
     return this.dataSource.transaction(async (manager) => {
-      const producto = manager.create(Producto, {
-        nombre: crearMonturaDto.marca,
-        tipo: TipoProducto.MONTURA,
-      });
-      await manager.save(producto);
+      const producto = await manager.save(
+        manager.create(Producto, {
+          nombre: crearMonturaDto.marca,
+          tipo: TipoProducto.MONTURA,
+        }),
+      );
 
-      const montura = manager.create(Montura, {
-        productoId: producto.id,
-        codigoQr: v4() + Codigos.CODIGO_MONTURAS,
-        codigo: crearMonturaDto.codigo,
-        precio: crearMonturaDto.precio,
-        marca: crearMonturaDto.marca,
-        material: crearMonturaDto.material,
-        medida: crearMonturaDto.medida,
-        color: crearMonturaDto.color,
-        formaFacial: crearMonturaDto.formaFacial,
-        sexo: crearMonturaDto.sexo,
-        imagenUrl: crearMonturaDto.imagenUrl,
-      });
-      await manager.save(montura);
+      const montura = await manager.save(
+        manager.create(Montura, {
+          productoId: producto.id,
+          codigoQr: v4() + Codigos.CODIGO_MONTURAS,
+          codigo: crearMonturaDto.codigo,
+          precio: crearMonturaDto.precio,
+          marca: crearMonturaDto.marca,
+          material: crearMonturaDto.material,
+          medida: crearMonturaDto.medida,
+          color: crearMonturaDto.color,
+          formaFacial: crearMonturaDto.formaFacial,
+          sexo: crearMonturaDto.sexo,
+          imagenUrl: crearMonturaDto.imagenUrl,
+        }),
+      );
 
       const sedes = await manager.find(Sede);
 
@@ -680,9 +657,21 @@ export class ProductosService {
         }),
       );
 
-      await manager.save(stockItems);
+      if (stockItems.length) {
+        await manager
+          .getRepository(StockProducto)
+          .createQueryBuilder()
+          .insert()
+          .values(stockItems)
+          .orIgnore()
+          .execute();
+      }
 
-      return { producto, montura, stockItems };
+      return {
+        producto,
+        montura,
+        stockItemsCount: stockItems.length,
+      };
     });
   }
 
@@ -696,22 +685,19 @@ export class ProductosService {
   */
 
   async actualizarStockProductos(dto: ActualizarStockProductosDto) {
-    // ✅ QueryRunner (Eficiente: todas las operaciones usan un mismo canal)
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Usamos el manager del queryRunner para que herede la transacción
-      const promesas = dto.items.map((item) => {
-        return queryRunner.manager.update(
+      for (const item of dto.items) {
+        await queryRunner.manager.update(
           StockProducto,
           { id: item.stockId },
           { cantidad: item.cantidad },
         );
-      });
+      }
 
-      await Promise.all(promesas);
       await queryRunner.commitTransaction();
 
       return {
@@ -719,14 +705,12 @@ export class ProductosService {
         count: dto.items.length,
         message: 'Stock actualizado correctamente',
       };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException({
-        message: 'Error al consultar la base de datos',
-        error: error.message,
-      });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Error al actualizar stock';
+
+      throw new Error(message);
     } finally {
-      // ✅ Liberamos el queryRunner para devolver la conexión al pool
       await queryRunner.release();
     }
   }

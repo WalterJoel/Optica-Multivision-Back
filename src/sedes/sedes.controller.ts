@@ -35,12 +35,9 @@ export class SedesController {
     return this.sedesService.update(+id, updateSedeDto);
   }
   @Patch(':id/status')
-updateStatus(
-  @Param('id') id: string,
-  @Body() body: { activo: boolean },
-) {
-  return this.sedesService.updateStatus(+id, body.activo);
-}
+  updateStatus(@Param('id') id: string, @Body() body: { activo: boolean }) {
+    return this.sedesService.updateStatus(+id, body.activo);
+  }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
