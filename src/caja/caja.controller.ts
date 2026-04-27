@@ -3,6 +3,7 @@ import { CajaService } from './caja.service';
 import { CrearCajaDto } from './dto/crear-caja.dto';
 import { CerrarCajaDto } from './dto/cerrar-caja.dto';
 import { CrearMovimientoCajaDto } from './dto/crear-movimiento-caja.dto';
+import { Public } from 'src/auth/public.decorator';
 
 @Controller('caja')
 export class CajaController {
@@ -18,7 +19,13 @@ export class CajaController {
     return this.cajaService.cerrarCaja(cerrarCajaDto);
   }
 
-  @Get('validaCajaAbierta/:sedeId')
+  // @Get('cajas')
+  // getCajas() {
+  //   return this.cajaService.getCajas();
+  // }
+
+  @Public()
+  @Get('validarCajaAbierta/:sedeId')
   validarCajaAbierta(@Param('sedeId') sedeId: string) {
     return this.cajaService.validarCajaAbierta(Number(sedeId));
   }
@@ -29,5 +36,10 @@ export class CajaController {
   @Post('crearMovimiento')
   registrar(@Body() dto: CrearMovimientoCajaDto) {
     return this.cajaService.registrarMovimiento(dto);
+  }
+
+  @Get('movimientoCaja/:sedeId')
+  getMovimientos(@Param('sedeId') sedeId: string) {
+    return this.cajaService.getMovimientos(Number(sedeId));
   }
 }

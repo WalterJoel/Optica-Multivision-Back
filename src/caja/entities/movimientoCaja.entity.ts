@@ -30,7 +30,7 @@ export class MovimientoCaja {
   @Column('decimal', { precision: 10, scale: 2 })
   monto: number;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'text', nullable: true })
   descripcion?: string;
 
   // Opcional (cuando viene de una venta/pago)

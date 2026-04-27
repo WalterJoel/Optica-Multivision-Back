@@ -51,9 +51,8 @@ export class CajaService {
       });
     }
   }
-
   async cerrarCaja(cerrarCajaDto: CerrarCajaDto) {
-    const { cajaId } = cerrarCajaDto;
+    const { cajaId, saldoFinal } = cerrarCajaDto;
 
     const caja = await this.cajaRepository.findOne({
       where: { id: cajaId },
@@ -69,6 +68,7 @@ export class CajaService {
 
     caja.estado = EstadoCaja.CERRADA;
     caja.fechaCierre = new Date();
+    caja.saldoFinal = saldoFinal;
 
     await this.cajaRepository.save(caja);
 
@@ -83,7 +83,6 @@ export class CajaService {
         sedeId,
         estado: EstadoCaja.ABIERTA,
       },
-      select: ['id', 'sedeId', 'userId', 'fechaApertura'],
     });
 
     return {
@@ -127,5 +126,19 @@ export class CajaService {
           ? 'Ingreso registrado correctamente'
           : 'Egreso registrado correctamente',
     };
+  }
+
+  async getMovimientos(sedeId: number) {
+    return await this.movimientoRepository.find({
+      where: {
+        caja: {
+          sedeId: sedeId,
+        },
+      },
+      relations: ['caja', 'usuario'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
   }
 }
