@@ -135,7 +135,7 @@ export class CajaService {
           sedeId: sedeId,
         },
       },
-      relations: ['caja', 'usuario'],
+      relations: ['caja'],
       order: {
         createdAt: 'DESC',
       },
