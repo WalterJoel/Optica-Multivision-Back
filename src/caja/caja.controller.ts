@@ -37,8 +37,8 @@ export class CajaController {
   registrar(@Body() dto: CrearMovimientoCajaDto) {
     return this.cajaService.registrarMovimiento(dto);
   }
-
-  @Get('movimientoCaja/:sedeId')
+  @Public()
+  @Get('movimientosCaja/:sedeId')
   getMovimientos(@Param('sedeId') sedeId: string) {
     return this.cajaService.getMovimientos(Number(sedeId));
   }
