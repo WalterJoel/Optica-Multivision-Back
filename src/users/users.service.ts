@@ -34,9 +34,8 @@ export class UsersService {
     if (exists) throw new ConflictException('Email ya existe');
 
     const user = this.userRepo.create({
+      ...dto,
       email: dto.email.trim().toLowerCase(),
-      role: dto.role,
-      sedeId: dto.sedeId,
       password: await bcrypt.hash(dto.password, 10),
     });
 

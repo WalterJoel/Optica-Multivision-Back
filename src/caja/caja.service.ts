@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
+import { EntityManager } from 'typeorm';
 import { Caja, EstadoCaja } from './entities/caja.entity';
 import { CrearCajaDto } from './dto/crear-caja.dto';
 import { CerrarCajaDto } from './dto/cerrar-caja.dto';
@@ -96,19 +96,7 @@ export class CajaService {
   // └───────────────────────────────────────────────┘
 
   async registrarMovimiento(dto: CrearMovimientoCajaDto) {
-    const { cajaId, tipo, monto } = dto;
-
-    const caja = await this.cajaRepository.findOne({
-      where: { id: cajaId },
-    });
-
-    if (!caja) {
-      throw new NotFoundException('Caja no encontrada');
-    }
-
-    if (caja.estado !== EstadoCaja.ABIERTA) {
-      throw new ConflictException('La caja está cerrada');
-    }
+    const { tipo, monto } = dto;
 
     if (monto <= 0) {
       throw new ConflictException('El monto debe ser mayor a 0');
@@ -125,17 +113,41 @@ export class CajaService {
         tipo === TipoMovimiento.INGRESO
           ? 'Ingreso registrado correctamente'
           : 'Egreso registrado correctamente',
+
+      data: movimiento,
     };
   }
 
+  async registrarMovimientoTransaction(
+    manager: EntityManager,
+    dto: CrearMovimientoCajaDto,
+  ) {
+    const { tipo, monto } = dto;
+
+    if (monto <= 0) {
+      throw new ConflictException('El monto debe ser mayor a 0');
+    }
+
+    const movimiento = manager.getRepository(MovimientoCaja).create({
+      ...dto,
+    });
+
+    await manager.getRepository(MovimientoCaja).save(movimiento);
+    return {
+      message:
+        tipo === TipoMovimiento.INGRESO
+          ? 'Ingreso registrado correctamente'
+          : 'Egreso registrado correctamente',
+
+      data: movimiento,
+    };
+  }
   async getMovimientos(sedeId: number) {
     return await this.movimientoRepository.find({
       where: {
-        caja: {
-          sedeId: sedeId,
-        },
+        sedeId,
       },
-      relations: ['caja'],
+      relations: ['venta', 'sede'],
       order: {
         createdAt: 'DESC',
       },

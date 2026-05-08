@@ -4,9 +4,11 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Caja } from './caja.entity';
 import { Venta } from 'src/ventas/entities/venta.entity';
+import { Sede } from 'src/sedes/entities/sede.entity';
 
 export enum TipoMovimiento {
   INGRESO = 'INGRESO',
@@ -19,7 +21,7 @@ export class MovimientoCaja {
   id: number;
 
   @Column()
-  cajaId: number;
+  sedeId: number;
 
   @Column({
     type: 'enum',
@@ -48,8 +50,7 @@ export class MovimientoCaja {
   @ManyToOne(() => Venta, { nullable: true, onDelete: 'SET NULL' })
   venta?: Venta;
 
-  @ManyToOne(() => Caja, (caja) => caja.movimientos, {
-    onDelete: 'CASCADE',
-  })
-  caja: Caja;
+  @ManyToOne(() => Sede, { eager: false, nullable: true })
+  @JoinColumn({ name: 'sedeId' })
+  sede: Sede | null;
 }

@@ -21,7 +21,7 @@ import { CajaModule } from './caja/caja.module';
         url:
           process.env.NODE_ENV === 'production'
             ? process.env.DATABASE_URL
-            : 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
+            : 'postgresql://postgres:adfvpTyMlpGhlmefxuUrMiDSgPEmwzLs@trolley.proxy.rlwy.net:33258/railway',
 
         // url: 'postgresql://postgres:ogFHyFOjkozggEkOdatCWwdqxSLppEik@hopper.proxy.rlwy.net:15380/railway',
         autoLoadEntities: true,

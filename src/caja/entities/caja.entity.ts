@@ -51,10 +51,6 @@ export class Caja {
   @Column({ type: 'timestamp', nullable: true })
   fechaCierre: Date;
 
-  // Relaciones
-  @OneToMany(() => MovimientoCaja, (mov) => mov.caja)
-  movimientos: MovimientoCaja[];
-
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })
   usuario: User;

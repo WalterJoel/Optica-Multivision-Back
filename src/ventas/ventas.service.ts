@@ -2,15 +2,14 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Venta } from './entities/venta.entity';
-import {
-  SeguimientoPedido,
-  HistorialEstado,
-} from './entities/seguimientoPedido.entity';
+import { SeguimientoPedido } from './entities/seguimientoPedido.entity';
 import { Stock } from '../productos/entities';
 import { StockProducto } from '../productos/entities';
 import { CrearVentaDto } from './dto/crear-venta.dto';
 import { TipoProducto } from 'src/common/constants';
 import { CrearSeguimientoPedidoDto } from './dto/crear-seguimiento-pedido-dto';
+import { CajaService } from 'src/caja/caja.service';
+import { TipoMovimiento } from 'src/caja/entities/movimientoCaja.entity';
 
 @Injectable()
 export class VentasService {
@@ -19,6 +18,8 @@ export class VentasService {
     private readonly ventaRepository: Repository<Venta>,
     @InjectRepository(SeguimientoPedido)
     private readonly seguimientoRepository: Repository<SeguimientoPedido>,
+
+    private readonly cajaService: CajaService,
   ) {}
 
   async crearVenta(createVentaDto: CrearVentaDto) {
@@ -80,11 +81,23 @@ export class VentasService {
         //   ventaId: ventaGuardada.id,
         // });
 
+        // =========================
+        // 4. SE CREA INGRESO A CAJA
+        await this.cajaService.registrarMovimientoTransaction(manager, {
+          sedeId: ventaData.sedeId,
+          tipo: TipoMovimiento.INGRESO,
+          monto: Number(ventaGuardada.total),
+          descripcion: `Ingreso por venta #${ventaGuardada.id}`,
+          ventaId: ventaGuardada.id,
+          metodoPago: ventaData.metodoPago,
+        });
+
         return {
           message: 'Venta creada correctamente',
           data: ventaGuardada,
         };
       } catch (error) {
+        console.log(error);
         throw new ConflictException({
           message: error?.message || 'Error al crear venta',
         });
