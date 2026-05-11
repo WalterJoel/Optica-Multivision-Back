@@ -2,7 +2,6 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsInt,
   IsEnum,
   MaxLength,
   IsNumber,
@@ -16,6 +15,16 @@ export class CrearAccesorioDto {
   @IsNotEmpty()
   @MaxLength(100)
   nombre: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  color: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  codigo: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()

@@ -13,6 +13,9 @@ export class Accesorio {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ length: 100, unique: true }) //Codigo que maneja el dueño
+  codigo: string;
+
   @Column()
   productoId: number;
 
@@ -21,6 +24,9 @@ export class Accesorio {
 
   @Column({ length: 100 })
   nombre: string;
+
+  @Column({ length: 100, nullable: true })
+  color: string;
 
   /*Si queremos que se muestre al vender como accesorios basicos*/
   @Column({

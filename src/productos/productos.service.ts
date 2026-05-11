@@ -3,7 +3,15 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, ILike, IsNull, MoreThan, Raw, Repository } from 'typeorm';
+import {
+  DataSource,
+  ILike,
+  IsNull,
+  MoreThan,
+  LessThan,
+  Raw,
+  Repository,
+} from 'typeorm';
 import { v4 } from 'uuid';
 import {
   CrearLenteDto,
@@ -20,6 +28,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 import { MonturaSeed } from 'src/seeds/monturas/monturas';
+import { AccesorioSeed } from 'src/seeds/accesorios/accesorios';
 
 type StockCell = {
   id: number;
@@ -128,7 +137,7 @@ export class ProductosService {
           stockBulk.push({
             productoId: montura.productoId,
             sedeId: sede.id,
-            cantidad: 0,
+            cantidad: 1,
             ubicacion: '',
           });
         }
@@ -329,6 +338,78 @@ export class ProductosService {
   // ========================================================================================================
   // ========================================================================================================
 
+  async obtenerAccesorioPorCodigoUnico(codigo: string, sedeId: number) {
+    const accesorio = await this.accesorioRepository.findOne({
+      where: { codigo },
+      select: ['id', 'productoId', 'codigo', 'nombre', 'precio'],
+    });
+
+    if (!accesorio) {
+      throw new NotFoundException(
+        `No se encontró accesorio con codigo: ${codigo}`, //Retorna como message xDDDDD
+      );
+    }
+
+    const stock = await this.stockProductoRepository.findOne({
+      where: { productoId: accesorio.productoId, sedeId },
+      select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
+    });
+
+    return {
+      accesorio,
+      stock: stock || { cantidad: 0, ubicacion: '' },
+    };
+  }
+
+  async seedAccesorios(data: AccesorioSeed[]) {
+    return await this.dataSource.transaction(async (manager) => {
+      const sedes = await manager.find(Sede);
+
+      // 1. Productos
+      const productos = await manager.getRepository(Producto).save(
+        data.map((item) => ({
+          nombre: item.nombre,
+          tipo: TipoProducto.ACCESORIO,
+        })),
+      );
+
+      // 2. Accesorios
+      const accesorios = await manager.getRepository(Accesorio).save(
+        data.map((item, idx) => ({
+          productoId: productos[idx].id,
+          nombre: item.nombre,
+          codigo: item.codigo,
+          precio: 10,
+        })),
+      );
+
+      // 3. Stock
+      const stockBulk: Partial<StockProducto>[] = [];
+
+      for (const [idx, accesorio] of accesorios.entries()) {
+        const original = data[idx];
+
+        for (const sede of sedes) {
+          stockBulk.push({
+            productoId: accesorio.productoId,
+            sedeId: sede.id,
+            cantidad: original.cantidad,
+            ubicacion: '',
+          });
+        }
+      }
+
+      if (stockBulk.length) {
+        await manager.getRepository(StockProducto).insert(stockBulk);
+      }
+
+      return {
+        productos: productos.length,
+        accesorios: accesorios.length,
+        stock: stockBulk.length,
+      };
+    });
+  }
   /*
     Se crea el accesorio y ademas:
       ✅ Se agrega stock 0 por cada sede existente
@@ -512,6 +593,7 @@ export class ProductosService {
       order: { createdAt: 'DESC' },
     });
   }
+
   async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
     const where = busqueda
       ? [
@@ -725,33 +807,37 @@ export class ProductosService {
   async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
     const inicioHoy = new Date();
 
+    console.log(inicioHoy, ' INICIO HOY');
     inicioHoy.setHours(0, 0, 0, 0);
 
-    return await this.stockProductoRepository.find({
+    const data = await this.stockProductoRepository.find({
       where: {
         sedeId: idSede,
-        //Todo lo que (al restarle 5 horas) sea MENOR a la medianoche de hoy
-        // es decir, que se actualizó ayer o antes.
-        updatedAt: Raw(
-          (alias) => `(${alias} - INTERVAL '5 hours') < :inicioHoy`,
-          {
-            inicioHoy,
-          },
-        ),
+
+        // Productos actualizados ayer o antes
+        updatedAt: LessThan(inicioHoy),
+
         producto: {
           tipo: tipoProducto,
         },
+
         cantidad: MoreThan(0),
       },
+
       relations: {
         producto: {
           montura: true,
+          accesorio: true,
         },
       },
+
       order: {
         updatedAt: 'ASC',
       },
     });
+
+    console.log(data, 'DATA');
+
+    return data;
   }
 }
-//TODO: DELETE DATASOURCE REPOSITORY

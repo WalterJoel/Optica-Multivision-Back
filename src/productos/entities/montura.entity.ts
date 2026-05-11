@@ -37,7 +37,7 @@ export class Montura {
   @Column({ length: 100 })
   medida: string;
 
-  @Column({ length: 50 })
+  @Column({ length: 50, default: 'negro' })
   color: string;
 
   @Column({ length: 50 })

@@ -18,6 +18,7 @@ import {
 } from './dto';
 import { Public } from '../auth/public.decorator';
 import { monturas } from 'src/seeds/monturas/monturas';
+import { accesoriosSeed } from 'src/seeds/accesorios/accesorios';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 import { TipoProducto } from 'src/common/constants';
 
@@ -71,6 +72,31 @@ export class ProductosController {
   //                                           SECCIÓN  ACCESORIOS
   // ========================================================================================================
   // ========================================================================================================
+
+  /**
+   *
+   * @param codigo -- Codigo que maneja el dueño
+   * @param sedeId
+   * @returns
+   */
+  @Public()
+  @Get('obtenerAccesorio/:codigo/:sedeId')
+  obtenerAccesorioPorCodigoUnico(
+    @Param('codigo') codigo: string,
+    @Param('sedeId') sedeId: number,
+  ) {
+    return this.productosService.obtenerAccesorioPorCodigoUnico(
+      codigo,
+      Number(sedeId),
+    );
+  }
+
+  @Public()
+  @Post('/seedAccesorios')
+  seedAccesorios() {
+    // return 'done';
+    return this.productosService.seedAccesorios(accesoriosSeed);
+  }
 
   @Public()
   @Post('crearAccesorio')

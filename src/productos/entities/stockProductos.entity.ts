@@ -49,7 +49,10 @@ export class StockProducto {
   })
   updatedAt: Date;
 
-  @ManyToOne(() => Producto, { onDelete: 'RESTRICT' })
+  //Relations
+  @ManyToOne(() => Producto, (producto) => producto.stocks, {
+    onDelete: 'RESTRICT',
+  })
   @JoinColumn({ name: 'productoId' })
   producto: Producto;
 

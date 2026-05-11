@@ -5,13 +5,18 @@ import {
   OneToOne,
   CreateDateColumn,
   JoinColumn,
+  ManyToOne,
 } from 'typeorm';
 import { Producto } from './producto.entity';
+import { Kit } from 'src/kits/entities/kit.entity';
 
 @Entity('lentes')
 export class Lente {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ nullable: true })
+  kitId: number;
 
   @Column()
   productoId: number;
@@ -55,4 +60,8 @@ export class Lente {
   @OneToOne(() => Producto, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'productoId' })
   producto: Producto;
+
+  @ManyToOne(() => Kit, { nullable: true }) //Un mismo kit puede estar en muchos lentes
+  @JoinColumn({ name: 'kitId' })
+  kit: Kit;
 }

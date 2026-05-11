@@ -5,10 +5,16 @@ import {
   IsPositive,
   MaxLength,
   IsEnum,
+  IsInt,
 } from 'class-validator';
 import { TipoProducto } from '../../common/constants';
 
 export class CrearLenteDto {
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  kitId?: number;
+
   @IsString()
   @MaxLength(100)
   marca: string;
