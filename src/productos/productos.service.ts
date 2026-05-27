@@ -31,7 +31,10 @@ import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 import { AccesorioSeed } from 'src/seeds/accesorios/accesorios';
 import { validarExcelInsercion } from './utils/monturas/excel/validaciones';
-import { crearMonturasExcelSchema } from './utils/monturas/excel/crearMonturasExcelSchema';
+import {
+  crearMonturasExcelSchema,
+  HEADERS_CREAR_MONTURA,
+} from './utils/monturas/excel/crearMonturasExcelSchema';
 import { editarMonturasExcelSchema } from './utils/monturas/excel/editarMonturasExcelSchema';
 import { FilaExcelEditarMontura } from './types';
 
@@ -553,18 +556,20 @@ export class ProductosService {
       };
 
       rows.push({
-        precioCompra: Number(getByHeader('PRECIO COMPRA')),
-        precioVenta: Number(getByHeader('PRECIO VENTA')),
-        medida: String(getByHeader('TALLA')),
-        codigo: String(getByHeader('CODIGO')),
-        codigoMontura: String(getByHeader('CODIGO MONTURA')),
-        marca: String(getByHeader('MARCA')),
-        color: String(getByHeader('COLOR')),
-        material: String(getByHeader('MATERIAL')),
+        precioCompra: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA)),
+        precioVenta: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA)),
+        medida: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA)),
+        codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO)),
+        codigoMontura: String(
+          getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA),
+        ),
+        marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA)),
+        color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR)),
+        material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL)),
 
         // Capturamos los datos numéricos directamente del Excel
-        sedeId: Number(getByHeader('SEDE')),
-        cantidad: Number(getByHeader('CANTIDAD') || 0),
+        sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE)),
+        cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
       });
     });
 
@@ -605,25 +610,21 @@ export class ProductosService {
 
       /*
     =========================================
-    A. CREAR PRODUCTOS (YA INCLUYE STOCK)
+    A. CREAR PRODUCTOS
     =========================================
     */
 
-      const productosDB: Producto[] = [];
+      const productos = rows.map((r) =>
+        manager.create(Producto, {
+          nombre: r.marca,
+          tipo: TipoProducto.MONTURA,
+          sedeId: sedeIdObjetivo,
+          cantidad: r.cantidad,
+          ubicacion: '',
+        }),
+      );
 
-      for (const r of rows) {
-        const producto = await manager.save(
-          manager.create(Producto, {
-            nombre: r.marca,
-            tipo: TipoProducto.MONTURA,
-            sedeId: sedeIdObjetivo,
-            cantidad: r.cantidad,
-            ubicacion: '',
-          }),
-        );
-
-        productosDB.push(producto);
-      }
+      const productosDB = await manager.save(Producto, productos);
 
       /*
     =========================================
@@ -693,25 +694,25 @@ export class ProductosService {
       .innerJoin('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
       .select([
-        'producto.id AS "PRODUCTOID"',
-        'montura.precioCompra AS "PRECIO_COMPRA"',
-        'montura.precioVenta AS "PRECIO_VENTA"',
-        'montura.talla AS "TALLA"',
-        'montura.codigo AS "CODIGO"',
-        'montura.codigoMontura AS "CODIGO_MONTURA"',
-        'montura.marca AS "MARCA"',
-        'producto.cantidad AS "CANTIDAD"',
-        'montura.color AS "COLOR"',
-        'montura.material AS "MATERIAL"',
-        'producto.tipo AS "TIPO"',
-        'sede.nombre AS "SEDE_ACTUAL"',
-        'sede.id AS "SEDEID"',
+        `producto.id AS "${HEADERS_CREAR_MONTURA.PRODUCTO_ID}"`,
+        `montura.precioCompra AS "${HEADERS_CREAR_MONTURA.PRECIO_COMPRA}"`,
+        `montura.precioVenta AS "${HEADERS_CREAR_MONTURA.PRECIO_VENTA}"`,
+        `montura.talla AS "${HEADERS_CREAR_MONTURA.TALLA}"`,
+        `montura.codigo AS "${HEADERS_CREAR_MONTURA.CODIGO}"`,
+        `montura.codigoMontura AS "${HEADERS_CREAR_MONTURA.CODIGO_MONTURA}"`,
+        `montura.marca AS "${HEADERS_CREAR_MONTURA.MARCA}"`,
+        `producto.cantidad AS "${HEADERS_CREAR_MONTURA.CANTIDAD}"`,
+        `montura.color AS "${HEADERS_CREAR_MONTURA.COLOR}"`,
+        `montura.material AS "${HEADERS_CREAR_MONTURA.MATERIAL}"`,
+        `producto.tipo AS "${HEADERS_CREAR_MONTURA.TIPO}"`,
+        `sede.nombre AS "${HEADERS_CREAR_MONTURA.SEDE}"`,
+        `sede.id AS "${HEADERS_CREAR_MONTURA.SEDE_ID}"`,
       ])
       .orderBy('montura.createdAt', 'DESC')
       .getRawMany();
   }
 
-  /* Edita monturas (SOLO SEDE Y CANTIDAD EN LA TABLA STOCK PRODUCTO) de forma masiva para excel */
+  /* Edita monturas de forma masiva para excel */
   async editarMonturasExcel(file: Express.Multer.File) {
     const workbook = new ExcelJS.Workbook();
     const excelBuffer: any = Buffer.from(file.buffer);
@@ -752,18 +753,24 @@ export class ProductosService {
       };
 
       rows.push({
-        productoId: Number(getByHeader('PRODUCTOID')),
-        sedeId: Number(getByHeader('SEDEID')),
-        cantidad: Number(getByHeader('CANTIDAD') || 0),
+        productoId: Number(getByHeader(HEADERS_CREAR_MONTURA.PRODUCTO_ID)),
+        sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE_ID)),
+        cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
 
-        precioCompra: Number(getByHeader('PRECIO_COMPRA') || 0),
-        precioVenta: Number(getByHeader('PRECIO_VENTA') || 0),
-        marca: String(getByHeader('MARCA') || ''),
-        material: String(getByHeader('MATERIAL') || ''),
-        color: String(getByHeader('COLOR') || ''),
-        codigo: String(getByHeader('CODIGO') || ''),
-        codigoMontura: String(getByHeader('CODIGO_MONTURA') || ''),
-        talla: String(getByHeader('TALLA') || ''),
+        precioCompra: Number(
+          getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA) || 0,
+        ),
+        precioVenta: Number(
+          getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA) || 0,
+        ),
+        marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA) || ''),
+        material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL) || ''),
+        color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR) || ''),
+        codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO) || ''),
+        codigoMontura: String(
+          getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA) || '',
+        ),
+        talla: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA) || ''),
       });
     });
 

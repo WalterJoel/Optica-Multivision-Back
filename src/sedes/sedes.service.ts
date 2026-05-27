@@ -50,11 +50,7 @@ export class SedesService {
    *   - col
    */
   private async inicializarStockParaSede(qr: QueryRunner, sedeId: number) {
-    const [lentes] = await Promise.all([
-      qr.manager.find(Montura),
-      qr.manager.find(Accesorio),
-      qr.manager.find(Lente),
-    ]);
+    const [lentes] = await Promise.all([qr.manager.find(Lente)]);
 
     const bulkLentes: Partial<Stock>[] = [];
 
