@@ -3,14 +3,33 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEnum,
-  IsInt,
   MaxLength,
   IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoProducto, FormaFacial, SexoMontura } from '../../common/constants';
+import { FormaFacial, SexoMontura } from '../../common/constants';
 
 export class CrearMonturaDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  codigo?: string; //Codigo que maneja el dueño, se puede repetir
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  codigoMontura?: string; //Codigo Montura que maneja el dueño, se puede repetir no es unico
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsOptional()
+  @Type(() => Number)
+  precioCompra?: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsOptional()
+  @Type(() => Number)
+  precioVenta?: number;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
@@ -18,18 +37,8 @@ export class CrearMonturaDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(50)
-  codigo: string;
-
-  @IsString()
-  @IsNotEmpty()
   @MaxLength(100)
   material: string;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  @Type(() => Number)
-  precio: number;
 
   @IsString()
   @IsNotEmpty()
@@ -37,15 +46,17 @@ export class CrearMonturaDto {
   medida: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(50)
-  color: string;
+  color?: string;
 
+  @IsOptional()
   @IsEnum(FormaFacial)
-  formaFacial: FormaFacial;
+  formaFacial?: FormaFacial;
 
   @IsEnum(SexoMontura)
-  sexo: SexoMontura;
+  @IsOptional()
+  sexo?: SexoMontura;
 
   @IsOptional()
   @IsString()

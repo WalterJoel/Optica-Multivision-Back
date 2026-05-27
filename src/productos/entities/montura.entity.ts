@@ -5,28 +5,29 @@ import {
   OneToOne,
   CreateDateColumn,
   JoinColumn,
-  Index,
 } from 'typeorm';
 import { Producto } from './producto.entity';
+import { FormaFacial, SexoMontura } from 'src/common/constants';
 
 @Entity('monturas')
-@Index('idx_montura_codigo', ['codigo'])
-@Index('idx_montura_qr', ['codigoQr'])
 export class Montura {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100 }) //Codigo que maneja el dueño
-  codigo: string;
-
-  @Column({ length: 100, unique: true })
-  codigoQr: string;
-
   @Column()
   productoId: number;
 
+  @Column({ length: 50, nullable: true }) //Codigo que maneja el dueño, se puede repetir
+  codigo: string;
+
+  @Column({ length: 50, nullable: true }) //Codigo Montura que maneja el dueño, se puede repetir no es unico
+  codigoMontura: string;
+
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  precio: number;
+  precioCompra: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  precioVenta: number;
 
   @Column({ length: 100 })
   marca: string;
@@ -34,16 +35,16 @@ export class Montura {
   @Column({ length: 100 })
   material: string;
 
-  @Column({ length: 100 })
-  medida: string;
+  @Column({ length: 100 }) //EJM 15-15-61
+  talla: string;
 
   @Column({ length: 50, default: 'negro' })
   color: string;
 
-  @Column({ length: 50 })
+  @Column({ length: 50, default: FormaFacial.OVALADO })
   formaFacial: string; // ovalado, cuadrado, redondo
 
-  @Column({ length: 20 })
+  @Column({ length: 20, default: SexoMontura.UNISEX })
   sexo: string; // M, F, Unisex
 
   @Column({ length: 255, nullable: true })

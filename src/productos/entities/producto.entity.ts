@@ -5,16 +5,21 @@ import {
   Index,
   CreateDateColumn,
   OneToOne,
-  OneToMany,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Montura } from './montura.entity';
 import { Accesorio } from './accesorio.entity';
-import { StockProducto } from './stockProductos.entity';
+import { Sede } from 'src/sedes/entities/sede.entity';
 
 @Entity('productos')
 export class Producto {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column()
+  sedeId: number;
 
   @Index()
   @Column({ length: 150 })
@@ -26,13 +31,23 @@ export class Producto {
   @Column({ length: 50 })
   tipo: string;
 
+  @Column('int', { default: 0 })
+  cantidad: number;
+
+  @Column({ length: 100, default: '' })
+  ubicacion: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+
   //Relations
 
-  @OneToMany(() => StockProducto, (stock) => stock.producto)
-  stocks: StockProducto[];
+  @ManyToOne(() => Sede)
+  @JoinColumn({ name: 'sedeId' })
+  sede: Sede;
 
   @OneToOne(() => Montura, (montura) => montura.producto)
   montura: Montura;

@@ -8,13 +8,7 @@ import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { Sede } from './entities/sede.entity';
 import { CrearSedeDto } from './dto/crear-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
-import {
-  Accesorio,
-  Lente,
-  Montura,
-  Stock,
-  StockProducto,
-} from 'src/productos/entities';
+import { Accesorio, Lente, Montura, Stock } from 'src/productos/entities';
 import { buildStockSeed } from 'src/seeds';
 
 @Injectable()
@@ -56,48 +50,17 @@ export class SedesService {
    *   - col
    */
   private async inicializarStockParaSede(qr: QueryRunner, sedeId: number) {
-    const [monturas, accesorios, lentes] = await Promise.all([
+    const [lentes] = await Promise.all([
       qr.manager.find(Montura),
       qr.manager.find(Accesorio),
       qr.manager.find(Lente),
     ]);
 
-    const bulkProductos: Partial<StockProducto>[] = [];
     const bulkLentes: Partial<Stock>[] = [];
-
-    // Monturas
-    for (const m of monturas) {
-      bulkProductos.push({
-        productoId: m.productoId,
-        sedeId,
-        cantidad: 0,
-        ubicacion: '',
-      });
-    }
-
-    // Accesorios
-    for (const a of accesorios) {
-      bulkProductos.push({
-        productoId: a.productoId,
-        sedeId,
-        cantidad: 0,
-        ubicacion: '',
-      });
-    }
 
     // Lentes
     for (const l of lentes) {
       bulkLentes.push(...buildStockSeed(l.id, sedeId));
-    }
-
-    if (bulkProductos.length) {
-      await qr.manager
-        .createQueryBuilder()
-        .insert()
-        .into(StockProducto)
-        .values(bulkProductos)
-        .orIgnore()
-        .execute();
     }
 
     if (bulkLentes.length) {

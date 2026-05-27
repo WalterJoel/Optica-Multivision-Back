@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
 import {
@@ -17,10 +20,11 @@ import {
   UpdateAccesorioDto,
 } from './dto';
 import { Public } from '../auth/public.decorator';
-import { monturas } from 'src/seeds/monturas/monturas';
 import { accesoriosSeed } from 'src/seeds/accesorios/accesorios';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 import { TipoProducto } from 'src/common/constants';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Controller('productos')
 export class ProductosController {
@@ -177,11 +181,36 @@ export class ProductosController {
   // ========================================================================================================
   // ========================================================================================================
 
+  /* Cargar monturas y crear monturas*/
   @Public()
-  @Post('/seedmonturas')
-  insertarMonturas() {
-    // return 'done';
-    return this.productosService.seedMonturas(monturas);
+  @Post('monturas/insertarMonturasExcel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+
+      limits: {
+        fileSize: 15 * 1024 * 1024, // 15MB
+      },
+    }),
+  )
+  async insertarMonturasExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.productosService.insertarMonturasExcel(file);
+  }
+
+  /* Cargar monturas y editar monturas*/
+  @Public()
+  @Post('monturas/editarMonturasExcel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+
+      limits: {
+        fileSize: 15 * 1024 * 1024, // 15MB
+      },
+    }),
+  )
+  async editarMonturasExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.productosService.editarMonturasExcel(file);
   }
 
   @Public()
@@ -221,9 +250,16 @@ export class ProductosController {
   }
 
   @Public()
-  @Get('monturas')
-  obtenerMonturas() {
-    return this.productosService.obtenerMonturas();
+  @Get('monturas/:sedeId')
+  obtenerMonturas(@Param('sedeId', ParseIntPipe) sedeId: number) {
+    // ParseIntPipe se encarga de transformarlo a número y tirar un error 400 si no lo envían
+    return this.productosService.obtenerMonturas(sedeId);
+  }
+
+  @Public()
+  @Get('monturas/obtenerMonturasExcel/:sedeId')
+  obtenerMonturasExcel(@Param('sedeId', ParseIntPipe) sedeId: number) {
+    return this.productosService.obtenerMonturasExcel(sedeId);
   }
 
   @Public()

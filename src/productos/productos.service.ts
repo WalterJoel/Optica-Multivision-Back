@@ -1,6 +1,6 @@
 import {
+  BadRequestException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -9,8 +9,8 @@ import {
   IsNull,
   MoreThan,
   LessThan,
-  Raw,
   Repository,
+  In,
 } from 'typeorm';
 import { v4 } from 'uuid';
 import {
@@ -20,15 +20,20 @@ import {
   UpdateMonturaDto,
   UpdateAccesorioDto,
 } from './dto';
-import { Producto, Lente, Stock, Montura, StockProducto } from './entities';
+import { Buffer } from 'buffer';
+import * as ExcelJS from 'exceljs';
+import { Producto, Lente, Stock, Montura } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
 import { Codigos, TipoProducto } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
-import { MonturaSeed } from 'src/seeds/monturas/monturas';
 import { AccesorioSeed } from 'src/seeds/accesorios/accesorios';
+import { validarExcelInsercion } from './utils/monturas/excel/validaciones';
+import { crearMonturasExcelSchema } from './utils/monturas/excel/crearMonturasExcelSchema';
+import { editarMonturasExcelSchema } from './utils/monturas/excel/editarMonturasExcelSchema';
+import { FilaExcelEditarMontura } from './types';
 
 type StockCell = {
   id: number;
@@ -43,6 +48,12 @@ type UpdateStockItem = {
   id: number;
   cantidad: number;
 };
+
+// 1. Interfaz extendida para meter los campos extras del Excel sin tocar tu DTO original
+interface FilaExcelMontura extends CrearMonturaDto {
+  sedeId: number;
+  cantidad: number;
+}
 @Injectable()
 export class ProductosService {
   constructor(
@@ -50,8 +61,6 @@ export class ProductosService {
     private dataSource: DataSource,
     @InjectRepository(Stock)
     private readonly stockRepository: Repository<Stock>,
-    @InjectRepository(StockProducto)
-    private readonly stockProductoRepository: Repository<StockProducto>,
     @InjectRepository(Accesorio)
     private readonly accesorioRepository: Repository<Accesorio>,
     @InjectRepository(Lente)
@@ -100,60 +109,6 @@ export class ProductosService {
     }
   }
 
-  async seedMonturas(data: MonturaSeed[]) {
-    return await this.dataSource.transaction(async (manager) => {
-      const sedes = await manager.find(Sede);
-
-      // 1. Productos
-      const productos = await manager.getRepository(Producto).save(
-        data.map((item) => ({
-          nombre: item.marca,
-          tipo: TipoProducto.MONTURA,
-        })),
-      );
-
-      // 2. Monturas
-      const monturas = await manager.getRepository(Montura).save(
-        data.map((item, idx) => ({
-          productoId: productos[idx].id,
-          codigoQr: v4() + Codigos.CODIGO_MONTURAS,
-          codigo: item.codigo,
-          precio: item.precio,
-          marca: item.marca,
-          material: item.material,
-          medida: item.medida,
-          color: item.color,
-          formaFacial: item.formaFacial,
-          sexo: item.sexo,
-          imagenUrl: item.imagenUrl,
-        })),
-      );
-
-      // 3. Stock
-      const stockBulk: Partial<StockProducto>[] = [];
-
-      for (const montura of monturas) {
-        for (const sede of sedes) {
-          stockBulk.push({
-            productoId: montura.productoId,
-            sedeId: sede.id,
-            cantidad: 1,
-            ubicacion: '',
-          });
-        }
-      }
-
-      if (stockBulk.length) {
-        await manager.getRepository(StockProducto).insert(stockBulk);
-      }
-
-      return {
-        productos: productos.length,
-        monturas: monturas.length,
-        stock: stockBulk.length,
-      };
-    });
-  }
   /**
    *
    * 1.- Se crea el producto
@@ -225,8 +180,6 @@ export class ProductosService {
     if (!lente) {
       throw new Error('Lente no encontrado');
     }
-
-    const productoId = lente.productoId;
 
     // Obtengo data para generar mi matriz
     const rows: (Stock & { esf: number | null; cyl: number | null })[] =
@@ -339,124 +292,110 @@ export class ProductosService {
   // ========================================================================================================
 
   async obtenerAccesorioPorCodigoUnico(codigo: string, sedeId: number) {
-    const accesorio = await this.accesorioRepository.findOne({
-      where: { codigo },
-      select: ['id', 'productoId', 'codigo', 'nombre', 'precio'],
-    });
-
-    if (!accesorio) {
-      throw new NotFoundException(
-        `No se encontró accesorio con codigo: ${codigo}`, //Retorna como message xDDDDD
-      );
-    }
-
-    const stock = await this.stockProductoRepository.findOne({
-      where: { productoId: accesorio.productoId, sedeId },
-      select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
-    });
-
-    return {
-      accesorio,
-      stock: stock || { cantidad: 0, ubicacion: '' },
-    };
+    // const accesorio = await this.accesorioRepository.findOne({
+    //   where: { codigo },
+    //   select: ['id', 'productoId', 'codigo', 'nombre', 'precio'],
+    // });
+    // if (!accesorio) {
+    //   throw new NotFoundException(
+    //     `No se encontró accesorio con codigo: ${codigo}`, //Retorna como message xDDDDD
+    //   );
+    // }
+    // const stock = await this.stockProductoRepository.findOne({
+    //   where: { productoId: accesorio.productoId, sedeId },
+    //   select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
+    // });
+    // return {
+    //   accesorio,
+    //   stock: stock || { cantidad: 0, ubicacion: '' },
+    // };
   }
 
   async seedAccesorios(data: AccesorioSeed[]) {
-    return await this.dataSource.transaction(async (manager) => {
-      const sedes = await manager.find(Sede);
-
-      // 1. Productos
-      const productos = await manager.getRepository(Producto).save(
-        data.map((item) => ({
-          nombre: item.nombre,
-          tipo: TipoProducto.ACCESORIO,
-        })),
-      );
-
-      // 2. Accesorios
-      const accesorios = await manager.getRepository(Accesorio).save(
-        data.map((item, idx) => ({
-          productoId: productos[idx].id,
-          nombre: item.nombre,
-          codigo: item.codigo,
-          precio: 10,
-        })),
-      );
-
-      // 3. Stock
-      const stockBulk: Partial<StockProducto>[] = [];
-
-      for (const [idx, accesorio] of accesorios.entries()) {
-        const original = data[idx];
-
-        for (const sede of sedes) {
-          stockBulk.push({
-            productoId: accesorio.productoId,
-            sedeId: sede.id,
-            cantidad: original.cantidad,
-            ubicacion: '',
-          });
-        }
-      }
-
-      if (stockBulk.length) {
-        await manager.getRepository(StockProducto).insert(stockBulk);
-      }
-
-      return {
-        productos: productos.length,
-        accesorios: accesorios.length,
-        stock: stockBulk.length,
-      };
-    });
+    // return await this.dataSource.transaction(async (manager) => {
+    //   const sedes = await manager.find(Sede);
+    //   // 1. Productos
+    //   const productos = await manager.getRepository(Producto).save(
+    //     data.map((item) => ({
+    //       nombre: item.nombre,
+    //       tipo: TipoProducto.ACCESORIO,
+    //     })),
+    //   );
+    //   // 2. Accesorios
+    //   const accesorios = await manager.getRepository(Accesorio).save(
+    //     data.map((item, idx) => ({
+    //       productoId: productos[idx].id,
+    //       nombre: item.nombre,
+    //       codigo: item.codigo,
+    //       precio: 10,
+    //     })),
+    //   );
+    //   // 3. Stock
+    //   const stockBulk: Partial<StockProducto>[] = [];
+    //   for (const [idx, accesorio] of accesorios.entries()) {
+    //     const original = data[idx];
+    //     for (const sede of sedes) {
+    //       stockBulk.push({
+    //         productoId: accesorio.productoId,
+    //         sedeId: sede.id,
+    //         cantidad: original.cantidad,
+    //         ubicacion: '',
+    //       });
+    //     }
+    //   }
+    //   if (stockBulk.length) {
+    //     await manager.getRepository(StockProducto).insert(stockBulk);
+    //   }
+    //   return {
+    //     productos: productos.length,
+    //     accesorios: accesorios.length,
+    //     stock: stockBulk.length,
+    //   };
+    // });
   }
   /*
     Se crea el accesorio y ademas:
       ✅ Se agrega stock 0 por cada sede existente
   */
   async crearAccesorio(crearAccesorioDto: CrearAccesorioDto) {
-    return this.dataSource.transaction(async (manager) => {
-      const producto = await manager.save(
-        manager.create(Producto, {
-          nombre: crearAccesorioDto.nombre,
-          tipo: TipoProducto.ACCESORIO,
-        }),
-      );
-
-      const accesorio = await manager.save(
-        manager.create(Accesorio, {
-          ...crearAccesorioDto,
-          producto,
-        }),
-      );
-      //Creo el stock de este nuevo accesorio en cada sede
-      const sedes = await manager.find(Sede);
-
-      const stockItems = sedes.map((sede) =>
-        manager.create(StockProducto, {
-          productoId: producto.id,
-          sedeId: sede.id,
-          cantidad: 0,
-          ubicacion: '',
-        }),
-      );
-
-      if (stockItems.length) {
-        await manager
-          .getRepository(StockProducto)
-          .createQueryBuilder()
-          .insert()
-          .values(stockItems)
-          .orIgnore()
-          .execute();
-      }
-
-      return {
-        producto,
-        accesorio,
-        stockItemsCount: stockItems.length,
-      };
-    });
+    // return this.dataSource.transaction(async (manager) => {
+    //   const producto = await manager.save(
+    //     manager.create(Producto, {
+    //       nombre: crearAccesorioDto.nombre,
+    //       tipo: TipoProducto.ACCESORIO,
+    //     }),
+    //   );
+    //   const accesorio = await manager.save(
+    //     manager.create(Accesorio, {
+    //       ...crearAccesorioDto,
+    //       producto,
+    //     }),
+    //   );
+    //   //Creo el stock de este nuevo accesorio en cada sede
+    //   const sedes = await manager.find(Sede);
+    //   const stockItems = sedes.map((sede) =>
+    //     manager.create(StockProducto, {
+    //       productoId: producto.id,
+    //       sedeId: sede.id,
+    //       cantidad: 0,
+    //       ubicacion: '',
+    //     }),
+    //   );
+    //   if (stockItems.length) {
+    //     await manager
+    //       .getRepository(StockProducto)
+    //       .createQueryBuilder()
+    //       .insert()
+    //       .values(stockItems)
+    //       .orIgnore()
+    //       .execute();
+    //   }
+    //   return {
+    //     producto,
+    //     accesorio,
+    //     stockItemsCount: stockItems.length,
+    //   };
+    // });
   }
 
   //* Buscar  accesorio ILIKE ... */
@@ -530,25 +469,21 @@ export class ProductosService {
   }
 
   async eliminarAccesorio(id: number) {
-    return this.dataSource.transaction(async (manager) => {
-      const accesorioRepo = manager.getRepository(Accesorio);
-      const productoRepo = manager.getRepository(Producto);
-      const stockProductoRepo = manager.getRepository(StockProducto);
-
-      const accesorio = await accesorioRepo.findOne({
-        where: { id },
-      });
-
-      if (!accesorio) {
-        throw new NotFoundException('Accesorio no encontrado');
-      }
-
-      await stockProductoRepo.delete({ productoId: accesorio.productoId });
-      await accesorioRepo.delete(id);
-      await productoRepo.delete(accesorio.productoId);
-
-      return { message: 'Accesorio eliminado correctamente' };
-    });
+    // return this.dataSource.transaction(async (manager) => {
+    //   const accesorioRepo = manager.getRepository(Accesorio);
+    //   const productoRepo = manager.getRepository(Producto);
+    //   const stockProductoRepo = manager.getRepository(StockProducto);
+    //   const accesorio = await accesorioRepo.findOne({
+    //     where: { id },
+    //   });
+    //   if (!accesorio) {
+    //     throw new NotFoundException('Accesorio no encontrado');
+    //   }
+    //   await stockProductoRepo.delete({ productoId: accesorio.productoId });
+    //   await accesorioRepo.delete(id);
+    //   await productoRepo.delete(accesorio.productoId);
+    //   return { message: 'Accesorio eliminado correctamente' };
+    // });
   }
 
   // ========================================================================================================
@@ -588,10 +523,147 @@ export class ProductosService {
   // │  ✅  SECCIÓN MONTURAS                        │
   // └───────────────────────────────────────────────┘
 
-  async obtenerMonturas() {
-    return this.monturaRepository.find({
-      order: { createdAt: 'DESC' },
+  async insertarMonturasExcel(file: Express.Multer.File) {
+    const workbook = new ExcelJS.Workbook();
+    const excelBuffer: any = Buffer.from(file.buffer);
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.worksheets[0];
+
+    const errores = validarExcelInsercion(worksheet, crearMonturasExcelSchema);
+    if (errores.length > 0) {
+      throw new BadRequestException({
+        message: `Excel inválido:\n${errores.join('\n')}`,
+      });
+    }
+
+    const headerRow = worksheet.getRow(1);
+    const values = headerRow.values as ExcelJS.CellValue[];
+    const headersExcel = values
+      .slice(1)
+      .map((value) => String(value ?? '').trim());
+
+    const rows: FilaExcelMontura[] = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Saltar cabecera
+
+      const getByHeader = (headerName: string) => {
+        const columnIndex = headersExcel.indexOf(headerName) + 1;
+        return row.getCell(columnIndex).value;
+      };
+
+      rows.push({
+        precioCompra: Number(getByHeader('PRECIO COMPRA')),
+        precioVenta: Number(getByHeader('PRECIO VENTA')),
+        medida: String(getByHeader('TALLA')),
+        codigo: String(getByHeader('CODIGO')),
+        codigoMontura: String(getByHeader('CODIGO MONTURA')),
+        marca: String(getByHeader('MARCA')),
+        color: String(getByHeader('COLOR')),
+        material: String(getByHeader('MATERIAL')),
+
+        // Capturamos los datos numéricos directamente del Excel
+        sedeId: Number(getByHeader('SEDE')),
+        cantidad: Number(getByHeader('CANTIDAD') || 0),
+      });
     });
+
+    return this.insertarMonturasMasivo(rows);
+  }
+
+  /* Inserta monturas de forma masiva para excel */
+  private async insertarMonturasMasivo(rows: FilaExcelMontura[]) {
+    if (rows.length === 0) {
+      throw new BadRequestException({
+        message: 'Excel inválido: no hay filas para procesar',
+      });
+    }
+
+    const sedeIdObjetivo = rows[0].sedeId;
+
+    return this.dataSource.transaction(async (manager) => {
+      // 1. validar sede
+      const sedeExiste = await manager.findOne(Sede, {
+        where: { id: sedeIdObjetivo },
+        select: ['id'],
+      });
+
+      if (!sedeExiste) {
+        throw new BadRequestException({
+          message: `La sede ${sedeIdObjetivo} no existe`,
+        });
+      }
+
+      // 2. validar que todo sea misma sede
+      const mismaSede = rows.every((r) => r.sedeId === sedeIdObjetivo);
+
+      if (!mismaSede) {
+        throw new BadRequestException({
+          message: 'Todas las filas deben pertenecer a la misma sede',
+        });
+      }
+
+      /*
+    =========================================
+    A. CREAR PRODUCTOS (YA INCLUYE STOCK)
+    =========================================
+    */
+
+      const productosDB: Producto[] = [];
+
+      for (const r of rows) {
+        const producto = await manager.save(
+          manager.create(Producto, {
+            nombre: r.marca,
+            tipo: TipoProducto.MONTURA,
+            sedeId: sedeIdObjetivo,
+            cantidad: r.cantidad,
+            ubicacion: '',
+          }),
+        );
+
+        productosDB.push(producto);
+      }
+
+      /*
+    =========================================
+    B. CREAR MONTURAS
+    =========================================
+    */
+
+      const monturas = rows.map((r, i) =>
+        manager.create(Montura, {
+          productoId: productosDB[i].id,
+          codigo: r.codigo,
+          codigoMontura: r.codigoMontura,
+          precioCompra: r.precioCompra,
+          precioVenta: r.precioVenta,
+          marca: r.marca,
+          material: r.material,
+          medida: r.medida,
+          color: r.color,
+        }),
+      );
+
+      await manager.save(Montura, monturas);
+
+      return {
+        ok: true,
+        productos: productosDB.length,
+        monturas: monturas.length,
+      };
+    });
+  }
+
+  async obtenerMonturas(sedeId: number) {
+    return this.monturaRepository
+      .createQueryBuilder('montura')
+      .innerJoinAndSelect('montura.producto', 'producto')
+      .innerJoinAndSelect('producto.sede', 'sede')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .addSelect(['producto.cantidad', 'producto.ubicacion'])
+      .orderBy('montura.createdAt', 'DESC')
+      .getMany();
   }
 
   async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
@@ -614,38 +686,249 @@ export class ProductosService {
     return { total, monturas };
   }
 
-  async obtenerMonturaPorQr(codigo: string, sedeId: number) {
-    const montura = await this.monturaRepository.findOne({
-      where: [{ codigoQr: codigo }, { codigo }],
-      select: ['id', 'productoId', 'codigo', 'codigoQr', 'marca', 'precio'],
-    });
-
-    if (!montura) {
-      throw new NotFoundException(
-        `No se encontró montura con codigoQr: ${codigo}`,
-      );
-    }
-
-    const stock = await this.stockProductoRepository.findOne({
-      where: { productoId: montura.productoId, sedeId },
-      select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
-    });
-
-    return {
-      montura,
-      stock: stock || { cantidad: 0, ubicacion: '' },
-    };
+  async obtenerMonturasExcel(sedeId: number) {
+    return this.monturaRepository
+      .createQueryBuilder('montura')
+      .innerJoin('montura.producto', 'producto')
+      .innerJoin('producto.sede', 'sede')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .select([
+        'producto.id AS "PRODUCTOID"',
+        'montura.precioCompra AS "PRECIO_COMPRA"',
+        'montura.precioVenta AS "PRECIO_VENTA"',
+        'montura.talla AS "TALLA"',
+        'montura.codigo AS "CODIGO"',
+        'montura.codigoMontura AS "CODIGO_MONTURA"',
+        'montura.marca AS "MARCA"',
+        'producto.cantidad AS "CANTIDAD"',
+        'montura.color AS "COLOR"',
+        'montura.material AS "MATERIAL"',
+        'producto.tipo AS "TIPO"',
+        'sede.nombre AS "SEDE_ACTUAL"',
+        'sede.id AS "SEDEID"',
+      ])
+      .orderBy('montura.createdAt', 'DESC')
+      .getRawMany();
   }
 
+  /* Edita monturas (SOLO SEDE Y CANTIDAD EN LA TABLA STOCK PRODUCTO) de forma masiva para excel */
+  async editarMonturasExcel(file: Express.Multer.File) {
+    const workbook = new ExcelJS.Workbook();
+    const excelBuffer: any = Buffer.from(file.buffer);
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.worksheets[0];
+    // Valida campos vacios, tipo de dato, etc  en excel
+    // Le pongo false para que al editar no valide que hay campos demas en el excel como nombre, etc ...
+    const noValidarOtrosHeaders = false;
+    const errores = validarExcelInsercion(
+      worksheet,
+      editarMonturasExcelSchema,
+      noValidarOtrosHeaders,
+    );
+
+    if (errores.length > 0) {
+      throw new BadRequestException({
+        message: `Excel inválido:\n${errores.join('\n')}`,
+      });
+    }
+
+    const headerRow = worksheet.getRow(1);
+
+    const values = headerRow.values as ExcelJS.CellValue[];
+
+    const headersExcel = values
+      .slice(1)
+      .map((value) => String(value ?? '').trim());
+
+    const rows: FilaExcelEditarMontura[] = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const getByHeader = (headerName: string) => {
+        const columnIndex = headersExcel.indexOf(headerName) + 1;
+
+        return row.getCell(columnIndex).value;
+      };
+
+      rows.push({
+        productoId: Number(getByHeader('PRODUCTOID')),
+        sedeId: Number(getByHeader('SEDEID')),
+        cantidad: Number(getByHeader('CANTIDAD') || 0),
+
+        precioCompra: Number(getByHeader('PRECIO_COMPRA') || 0),
+        precioVenta: Number(getByHeader('PRECIO_VENTA') || 0),
+        marca: String(getByHeader('MARCA') || ''),
+        material: String(getByHeader('MATERIAL') || ''),
+        color: String(getByHeader('COLOR') || ''),
+        codigo: String(getByHeader('CODIGO') || ''),
+        codigoMontura: String(getByHeader('CODIGO_MONTURA') || ''),
+        talla: String(getByHeader('TALLA') || ''),
+      });
+    });
+
+    return this.actualizarStockMasivo(rows);
+  }
+
+  private async actualizarStockMasivo(rows: FilaExcelEditarMontura[]) {
+    return this.dataSource.transaction(async (manager) => {
+      if (rows.length === 0) {
+        throw new BadRequestException({
+          message: 'No existen filas para actualizar',
+        });
+      }
+
+      // =========================
+      // IDS ÚNICOS
+      // =========================
+      const productoIds = [...new Set(rows.map((r) => r.productoId))];
+      const sedeIds = [...new Set(rows.map((r) => r.sedeId))];
+
+      // =========================
+      // VALIDAR PRODUCTOS
+      // =========================
+      const productosDB = await manager.find(Producto, {
+        where: { id: In(productoIds) },
+        select: ['id'],
+      });
+
+      const productoMap = new Map(productosDB.map((p) => [p.id, true]));
+
+      const productosFaltantes = productoIds.filter(
+        (id) => !productoMap.has(id),
+      );
+
+      if (productosFaltantes.length > 0) {
+        throw new BadRequestException({
+          message: `Los siguientes PRODUCTOS no existen: ${productosFaltantes.join(', ')}`,
+        });
+      }
+
+      // =========================
+      // VALIDAR SEDES
+      // =========================
+      const sedesDB = await manager.find(Sede, {
+        where: { id: In(sedeIds) },
+        select: ['id'],
+      });
+
+      const sedeMap = new Map(sedesDB.map((s) => [s.id, true]));
+
+      const sedesFaltantes = sedeIds.filter((id) => !sedeMap.has(id));
+
+      if (sedesFaltantes.length > 0) {
+        throw new BadRequestException({
+          message: `Las siguientes SEDES no existen: ${sedesFaltantes.join(', ')}`,
+        });
+      }
+
+      // =========================
+      // 1. UPDATE STOCK (PRODUCTOS)
+      // =========================
+      const productoIdsArr = rows.map((r) => r.productoId);
+      const sedeIdsArr = rows.map((r) => r.sedeId);
+      const cantidadesArr = rows.map((r) => r.cantidad);
+
+      await manager.query(
+        `
+      UPDATE productos AS p
+      SET cantidad = data.cantidad
+      FROM (
+        SELECT
+          unnest($1::int[]) AS productoId,
+          unnest($2::int[]) AS sedeId,
+          unnest($3::int[]) AS cantidad
+      ) AS data
+      WHERE p.id = data.productoId
+      AND p.sedeId = data.sedeId
+      `,
+        [productoIdsArr, sedeIdsArr, cantidadesArr],
+      );
+
+      // =========================
+      // 2. UPDATE MONTURAS
+      // =========================
+      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
+      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
+      const marcaArr = rows.map((r) => r.marca ?? null);
+      const materialArr = rows.map((r) => r.material ?? null);
+      const colorArr = rows.map((r) => r.color ?? null);
+      const codigoArr = rows.map((r) => r.codigo ?? null);
+      const codigoMonturaArr = rows.map((r) => r.codigoMontura ?? null);
+      const tallaArr = rows.map((r) => r.talla ?? null);
+
+      await manager.query(
+        `
+      UPDATE monturas AS m
+      SET
+        precioCompra = COALESCE(data.precioCompra, m.precioCompra),
+        precioVenta = COALESCE(data.precioVenta, m.precioVenta),
+        marca = COALESCE(data.marca, m.marca),
+        material = COALESCE(data.material, m.material),
+        color = COALESCE(data.color, m.color),
+        codigo = COALESCE(data.codigo, m.codigo),
+        codigoMontura = COALESCE(data.codigoMontura, m.codigoMontura),
+        talla = COALESCE(data.talla, m.talla)
+      FROM (
+        SELECT
+          unnest($1::int[]) AS productoId,
+          unnest($2::numeric[]) AS precioCompra,
+          unnest($3::numeric[]) AS precioVenta,
+          unnest($4::text[]) AS marca,
+          unnest($5::text[]) AS material,
+          unnest($6::text[]) AS color,
+          unnest($7::text[]) AS codigo,
+          unnest($8::text[]) AS codigoMontura,
+          unnest($9::text[]) AS talla
+      ) AS data
+      WHERE m.productoId = data.productoId
+      `,
+        [
+          productoIdsArr,
+          precioCompraArr,
+          precioVentaArr,
+          marcaArr,
+          materialArr,
+          colorArr,
+          codigoArr,
+          codigoMonturaArr,
+          tallaArr,
+        ],
+      );
+
+      return {
+        ok: true,
+        actualizados: rows.length,
+      };
+    });
+  }
+
+  async obtenerMonturaPorQr(codigo: string, sedeId: number) {
+    //   const montura = await this.monturaRepository.findOne({
+    //     where: [{ codigo: codigo }, { codigo }],
+    //     select: ['id', 'productoId', 'codigo', 'codigo', 'marca', 'precioCompra'],
+    //   });
+    //   if (!montura) {
+    //     throw new NotFoundException(
+    //       `No se encontró montura con codigoQr: ${codigo}`,
+    //     );
+    //   }
+    //   const stock = await this.stockProductoRepository.findOne({
+    //     where: { productoId: montura.productoId, sedeId },
+    //     select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
+    //   });
+    //   return {
+    //     montura,
+    //     stock: stock || { cantidad: 0, ubicacion: '' },
+    //   };
+  }
   async obtenerMonturaPorId(id: number) {
     const montura = await this.monturaRepository.findOne({
       where: { id },
     });
-
     if (!montura) {
       throw new NotFoundException('Montura no encontrada');
     }
-
     return montura;
   }
 
@@ -679,25 +962,21 @@ export class ProductosService {
   }
 
   async eliminarMontura(id: number) {
-    return this.dataSource.transaction(async (manager) => {
-      const monturaRepo = manager.getRepository(Montura);
-      const productoRepo = manager.getRepository(Producto);
-      const stockProductoRepo = manager.getRepository(StockProducto);
-
-      const montura = await monturaRepo.findOne({
-        where: { id },
-      });
-
-      if (!montura) {
-        throw new NotFoundException('Montura no encontrada');
-      }
-
-      await stockProductoRepo.delete({ productoId: montura.productoId });
-      await monturaRepo.delete(id);
-      await productoRepo.delete(montura.productoId);
-
-      return { message: 'Montura eliminada correctamente' };
-    });
+    // return this.dataSource.transaction(async (manager) => {
+    //   const monturaRepo = manager.getRepository(Montura);
+    //   const productoRepo = manager.getRepository(Producto);
+    //   const stockProductoRepo = manager.getRepository(StockProducto);
+    //   const montura = await monturaRepo.findOne({
+    //     where: { id },
+    //   });
+    //   if (!montura) {
+    //     throw new NotFoundException('Montura no encontrada');
+    //   }
+    //   await stockProductoRepo.delete({ productoId: montura.productoId });
+    //   await monturaRepo.delete(id);
+    //   await productoRepo.delete(montura.productoId);
+    //   return { message: 'Montura eliminada correctamente' };
+    // });
   }
   /*
     Se crea la montura y ademas:
@@ -717,7 +996,7 @@ export class ProductosService {
           productoId: producto.id,
           codigoQr: v4() + Codigos.CODIGO_MONTURAS,
           codigo: crearMonturaDto.codigo,
-          precio: crearMonturaDto.precio,
+          precio: crearMonturaDto.precioCompra,
           marca: crearMonturaDto.marca,
           material: crearMonturaDto.material,
           medida: crearMonturaDto.medida,
@@ -730,29 +1009,29 @@ export class ProductosService {
 
       const sedes = await manager.find(Sede);
 
-      const stockItems = sedes.map((sede) =>
-        manager.create(StockProducto, {
-          productoId: producto.id,
-          sedeId: sede.id,
-          cantidad: 0,
-          ubicacion: '',
-        }),
-      );
+      // const stockItems = sedes.map((sede) =>
+      //   manager.create(StockProducto, {
+      //     productoId: producto.id,
+      //     sedeId: sede.id,
+      //     cantidad: 0,
+      //     ubicacion: '',
+      //   }),
+      // );
 
-      if (stockItems.length) {
-        await manager
-          .getRepository(StockProducto)
-          .createQueryBuilder()
-          .insert()
-          .values(stockItems)
-          .orIgnore()
-          .execute();
-      }
+      // if (stockItems.length) {
+      //   await manager
+      //     .getRepository(StockProducto)
+      //     .createQueryBuilder()
+      //     .insert()
+      //     .values(stockItems)
+      //     .orIgnore()
+      //     .execute();
+      // }
 
       return {
         producto,
         montura,
-        stockItemsCount: stockItems.length,
+        // stockItemsCount: stockItems.length,
       };
     });
   }
@@ -767,34 +1046,30 @@ export class ProductosService {
   */
 
   async actualizarStockProductos(dto: ActualizarStockProductosDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      for (const item of dto.items) {
-        await queryRunner.manager.update(
-          StockProducto,
-          { id: item.stockId },
-          { cantidad: item.cantidad },
-        );
-      }
-
-      await queryRunner.commitTransaction();
-
-      return {
-        ok: true,
-        count: dto.items.length,
-        message: 'Stock actualizado correctamente',
-      };
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Error al actualizar stock';
-
-      throw new Error(message);
-    } finally {
-      await queryRunner.release();
-    }
+    // const queryRunner = this.dataSource.createQueryRunner();
+    // await queryRunner.connect();
+    // await queryRunner.startTransaction();
+    // try {
+    //   for (const item of dto.items) {
+    //     await queryRunner.manager.update(
+    //       StockProducto,
+    //       { id: item.stockId },
+    //       { cantidad: item.cantidad },
+    //     );
+    //   }
+    //   await queryRunner.commitTransaction();
+    //   return {
+    //     ok: true,
+    //     count: dto.items.length,
+    //     message: 'Stock actualizado correctamente',
+    //   };
+    // } catch (error: unknown) {
+    //   const message =
+    //     error instanceof Error ? error.message : 'Error al actualizar stock';
+    //   throw new Error(message);
+    // } finally {
+    //   await queryRunner.release();
+    // }
   }
 
   /*
@@ -807,37 +1082,37 @@ export class ProductosService {
   async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
     const inicioHoy = new Date();
 
-    console.log(inicioHoy, ' INICIO HOY');
-    inicioHoy.setHours(0, 0, 0, 0);
+    //   console.log(inicioHoy, ' INICIO HOY');
+    //   inicioHoy.setHours(0, 0, 0, 0);
 
-    const data = await this.stockProductoRepository.find({
-      where: {
-        sedeId: idSede,
+    //   const data = await this.stockProductoRepository.find({
+    //     where: {
+    //       sedeId: idSede,
 
-        // Productos actualizados ayer o antes
-        updatedAt: LessThan(inicioHoy),
+    //       // Productos actualizados ayer o antes
+    //       updatedAt: LessThan(inicioHoy),
 
-        producto: {
-          tipo: tipoProducto,
-        },
+    //       producto: {
+    //         tipo: tipoProducto,
+    //       },
 
-        cantidad: MoreThan(0),
-      },
+    //       cantidad: MoreThan(0),
+    //     },
 
-      relations: {
-        producto: {
-          montura: true,
-          accesorio: true,
-        },
-      },
+    //     relations: {
+    //       producto: {
+    //         montura: true,
+    //         accesorio: true,
+    //       },
+    //     },
 
-      order: {
-        updatedAt: 'ASC',
-      },
-    });
+    //     order: {
+    //       updatedAt: 'ASC',
+    //     },
+    //   });
 
-    console.log(data, 'DATA');
+    //   console.log(data, 'DATA');
 
-    return data;
+    //   return data;
   }
 }
