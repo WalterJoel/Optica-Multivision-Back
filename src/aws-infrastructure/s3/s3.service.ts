@@ -23,7 +23,7 @@ export class S3Service {
    */
   async uploadFile(file: Express.Multer.File, folder?: string): Promise<{ url: string; key: string }> {
     if (!this.bucketName) {
-      throw new BadRequestException({ message: 'El nombre del bucket de S3 (AWS_S3_BUCKET) no está configurado.' });
+      throw new BadRequestException({ message: 'El nombre del bucket de S3 (FOTOS_S3_BUCKET) no está configurado.' });
     }
 
     const uniqueId = Date.now() + '-' + Math.round(Math.random() * 1e9);
