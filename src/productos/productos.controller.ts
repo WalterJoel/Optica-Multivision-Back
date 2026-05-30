@@ -15,7 +15,7 @@ import { ProductosService } from './productos.service';
 import {
   CrearLenteDto,
   CrearAccesorioDto,
-  CrearMonturaDto,
+  DatosParaCrearMonturaDto,
   UpdateMonturaDto,
   UpdateAccesorioDto,
 } from './dto';
@@ -28,16 +28,16 @@ import { memoryStorage } from 'multer';
 
 @Controller('productos')
 export class ProductosController {
-  constructor(private readonly productosService: ProductosService) {}
+  constructor(private readonly productosService: ProductosService) { }
 
   @Post('crearLente')
   crearLente(@Body() crearLenteDto: CrearLenteDto) {
     return this.productosService.crearLente(crearLenteDto);
   }
 
-  @Post('crearMontura')
-  crearMontura(@Body() crearMonturaDto: CrearMonturaDto) {
-    return this.productosService.crearMontura(crearMonturaDto);
+  @Post('/monturas/crearMontura')
+  crearMontura(@Body() DatosParaCrearMonturaDto: DatosParaCrearMonturaDto) {
+    return this.productosService.crearMontura(DatosParaCrearMonturaDto);
   }
 
   @Get('lentes')

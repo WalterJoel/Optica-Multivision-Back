@@ -8,27 +8,22 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FormaFacial, SexoMontura } from '../../common/constants';
+import { OmitType } from '@nestjs/mapped-types';
 
-export class CrearMonturaDto {
+export class DatosParaCrearMonturaDto {
   @IsString()
-  @IsOptional()
-  @MaxLength(50)
-  codigo?: string; //Codigo que maneja el dueño, se puede repetir
+  codigo: string; //Codigo que maneja el dueño, se puede repetir
 
   @IsString()
-  @IsOptional()
-  @MaxLength(50)
-  codigoMontura?: string; //Codigo Montura que maneja el dueño, se puede repetir no es unico
+  codigoMontura: string; //Codigo Montura que maneja el dueño, se puede repetir no es unico
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsOptional()
   @Type(() => Number)
-  precioCompra?: number;
+  precioCompra: number;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsOptional()
   @Type(() => Number)
-  precioVenta?: number;
+  precioVenta: number;
 
   @IsString()
   @IsNotEmpty()
@@ -43,23 +38,40 @@ export class CrearMonturaDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
-  medida: string;
+  talla: string;
+
+  @IsString()
+  @MaxLength(50)
+  color: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  cantidad: number;
 
   @IsString()
   @IsOptional()
   @MaxLength(50)
-  color?: string;
+  ubicacion?: string;
 
-  @IsOptional()
   @IsEnum(FormaFacial)
-  formaFacial?: FormaFacial;
+  formaFacial: FormaFacial;
 
   @IsEnum(SexoMontura)
-  @IsOptional()
-  sexo?: SexoMontura;
+  sexo: SexoMontura;
 
   @IsOptional()
   @IsString()
-  @MaxLength(255)
   imagenUrl?: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  sedeId: number;
+
+}
+
+export class CrearMonturaDto extends OmitType(DatosParaCrearMonturaDto, [
+  'cantidad', 'ubicacion', 'sedeId'
+] as const) {
+  @IsNumber()
+  productoId: number;
 }

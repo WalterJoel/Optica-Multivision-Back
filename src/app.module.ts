@@ -17,6 +17,7 @@ import { KitsModule } from './kits/kits.module';
 import { DescuentosModule } from './descuentos/descuentos.module';
 import { VentasModule } from './ventas/ventas.module';
 import { CajaModule } from './caja/caja.module';
+import { S3Module } from './aws-infrastructure/s3/s3.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { CajaModule } from './caja/caja.module';
     DescuentosModule,
     VentasModule,
     CajaModule,
+    S3Module,
   ],
 
   controllers: [AppController],

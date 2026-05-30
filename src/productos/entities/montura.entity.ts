@@ -17,10 +17,10 @@ export class Montura {
   @Column()
   productoId: number;
 
-  @Column({ length: 50, nullable: true }) //Codigo que maneja el dueño, se puede repetir
+  @Column({ length: 50 }) //Codigo que maneja el dueño, se puede repetir
   codigo: string;
 
-  @Column({ length: 50, nullable: true }) //Codigo Montura que maneja el dueño, se puede repetir no es unico
+  @Column({ length: 50 }) //Codigo Montura que maneja el dueño, se puede repetir no es unico
   codigoMontura: string;
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })

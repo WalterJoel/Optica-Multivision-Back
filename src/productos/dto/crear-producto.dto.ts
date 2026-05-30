@@ -1,12 +1,13 @@
 import {
   IsString,
   IsNotEmpty,
-  IsBoolean,
-  IsOptional,
   MaxLength,
   IsEnum,
+  IsNumber,
+  IsOptional,
 } from 'class-validator';
 import { TipoProducto } from '../../common/constants';
+import { Type } from 'class-transformer';
 
 export class CrearProductoDto {
   @IsString()
@@ -16,4 +17,18 @@ export class CrearProductoDto {
 
   @IsEnum(TipoProducto)
   tipo: TipoProducto;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  cantidad: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  sedeId: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  ubicacion?: string;
+
 }

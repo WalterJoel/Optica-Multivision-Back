@@ -1,34 +1,36 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
 import { S3Service } from './s3.service';
-import { CreateS3Dto } from './dto/create-s3.dto';
-import { UpdateS3Dto } from './dto/update-s3.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Public } from '../../auth/public.decorator';
 
 @Controller('s3')
 export class S3Controller {
-  constructor(private readonly s3Service: S3Service) {}
+  constructor(private readonly s3Service: S3Service) { }
 
-  @Post()
-  create(@Body() createS3Dto: CreateS3Dto) {
-    return this.s3Service.create(createS3Dto);
+  /**
+   * Endpoint para subir archivos directamente a través del servidor NestJS.
+   * El archivo se recibe en memoria (buffer) y se envía a S3.
+   * Método: POST /s3/upload
+   */
+  @Public() // Hacemos público el endpoint por ahora, o puedes remover esta línea para protegerlo con JWT
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('folder') folder?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException({ message: 'No se ha proporcionado ningún archivo para subir.' });
+    }
+    return this.s3Service.uploadFile(file, folder);
   }
 
-  @Get()
-  findAll() {
-    return this.s3Service.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.s3Service.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateS3Dto: UpdateS3Dto) {
-    return this.s3Service.update(+id, updateS3Dto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.s3Service.remove(+id);
-  }
 }
+

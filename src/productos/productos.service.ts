@@ -19,6 +19,8 @@ import {
   CrearAccesorioDto,
   UpdateMonturaDto,
   UpdateAccesorioDto,
+  DatosParaCrearMonturaDto,
+  CrearProductoDto,
 } from './dto';
 import { Buffer } from 'buffer';
 import * as ExcelJS from 'exceljs';
@@ -43,7 +45,7 @@ type StockCell = {
   cantidad: number;
   esf: number | null;
   cyl: number | null;
-  productoId: number;
+  // productoId: number;
   nombreProducto: string;
 };
 
@@ -70,7 +72,7 @@ export class ProductosService {
     private readonly lenteRepository: Repository<Lente>,
     @InjectRepository(Montura)
     private readonly monturaRepository: Repository<Montura>,
-  ) {}
+  ) { }
 
   /**
    * Actualiza varias celdas de stock de lentes de manera eficiente
@@ -127,15 +129,15 @@ export class ProductosService {
 
     try {
       // ✅ 1️  PRODUCTO
-      const producto = qr.manager.create(Producto, {
-        nombre: crearLenteDto.marca,
-        tipo: crearLenteDto.tipo,
-      });
-      await qr.manager.save(producto);
+      // const producto = qr.manager.create(Producto, {
+      //   nombre: crearLenteDto.marca,
+      //   tipo: crearLenteDto.tipo,
+      // });
+      // await qr.manager.save(producto);
 
       // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
-        producto: { id: producto.id },
+        // producto: { id: producto.id },
         marca: crearLenteDto.marca,
         material: crearLenteDto.material,
         precio_serie1: crearLenteDto.precio_serie1,
@@ -159,7 +161,7 @@ export class ProductosService {
       await stockRepo.insert(bulk);
 
       await qr.commitTransaction();
-      return { producto, lente };
+      return { lente };
     } catch (e) {
       await qr.rollbackTransaction();
       throw e;
@@ -205,7 +207,7 @@ export class ProductosService {
         cantidad: cell.cantidad,
         esf: cell.esf,
         cyl: cell.cyl,
-        productoId: lente.productoId,
+        // productoId: lente.productoId,
         nombreProducto: lente.marca,
       };
     }
@@ -498,9 +500,9 @@ export class ProductosService {
   async buscarLente(busqueda?: string, limite = 50, desplazamiento = 0) {
     const where = busqueda
       ? [
-          { marca: ILike(`%${busqueda}%`) },
-          { material: ILike(`%${busqueda}%`) },
-        ]
+        { marca: ILike(`%${busqueda}%`) },
+        { material: ILike(`%${busqueda}%`) },
+      ]
       : {};
 
     const [lentes, total] = await this.lenteRepository.findAndCount({
@@ -509,7 +511,7 @@ export class ProductosService {
       skip: desplazamiento,
       select: [
         'id',
-        'productoId',
+        // 'productoId',
         'marca',
         'material',
         'precio_serie1',
@@ -555,22 +557,22 @@ export class ProductosService {
         return row.getCell(columnIndex).value;
       };
 
-      rows.push({
-        precioCompra: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA)),
-        precioVenta: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA)),
-        medida: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA)),
-        codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO)),
-        codigoMontura: String(
-          getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA),
-        ),
-        marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA)),
-        color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR)),
-        material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL)),
+      // rows.push({
+      //   precioCompra: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA)),
+      //   precioVenta: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA)),
+      //   talla: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA)),
+      //   codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO)),
+      //   codigoMontura: String(
+      //     getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA),
+      //   ),
+      //   marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA)),
+      //   color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR)),
+      //   material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL)),
 
-        // Capturamos los datos numéricos directamente del Excel
-        sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE)),
-        cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
-      });
+      //   // Capturamos los datos numéricos directamente del Excel
+      //   sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE)),
+      //   cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
+      // });
     });
 
     return this.insertarMonturasMasivo(rows);
@@ -641,7 +643,7 @@ export class ProductosService {
           precioVenta: r.precioVenta,
           marca: r.marca,
           material: r.material,
-          medida: r.medida,
+          talla: r.talla,
           color: r.color,
         }),
       );
@@ -670,11 +672,11 @@ export class ProductosService {
   async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
     const where = busqueda
       ? [
-          { marca: ILike(`%${busqueda}%`) },
-          { material: ILike(`%${busqueda}%`) },
-          { color: ILike(`%${busqueda}%`) },
-          { medida: ILike(`%${busqueda}%`) },
-        ]
+        { marca: ILike(`%${busqueda}%`) },
+        { material: ILike(`%${busqueda}%`) },
+        { color: ILike(`%${busqueda}%`) },
+        { talla: ILike(`%${busqueda}%`) },
+      ]
       : {};
 
     const [monturas, total] = await this.monturaRepository.findAndCount({
@@ -754,9 +756,8 @@ export class ProductosService {
 
       rows.push({
         productoId: Number(getByHeader(HEADERS_CREAR_MONTURA.PRODUCTO_ID)),
-        sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE_ID)),
+        sedeDestinoId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE_ID)),
         cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
-
         precioCompra: Number(
           getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA) || 0,
         ),
@@ -789,7 +790,7 @@ export class ProductosService {
       // IDS ÚNICOS
       // =========================
       const productoIds = [...new Set(rows.map((r) => r.productoId))];
-      const sedeIds = [...new Set(rows.map((r) => r.sedeId))];
+      const sedeIds = [...new Set(rows.map((r) => r.sedeDestinoId))];
 
       // =========================
       // VALIDAR PRODUCTOS
@@ -833,7 +834,7 @@ export class ProductosService {
       // 1. UPDATE STOCK (PRODUCTOS)
       // =========================
       const productoIdsArr = rows.map((r) => r.productoId);
-      const sedeIdsArr = rows.map((r) => r.sedeId);
+      const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
       const cantidadesArr = rows.map((r) => r.cantidad);
 
       await manager.query(
@@ -989,56 +990,48 @@ export class ProductosService {
     Se crea la montura y ademas:
       ✅ Se agrega stock 0 por cada sede existente
   */
-  async crearMontura(crearMonturaDto: CrearMonturaDto) {
+
+  // ✅  METODO REVISADO CON TODOS SUS SUS DTOS Y ENTITIES
+  async crearMontura(datosParaCrearMonturaDto: DatosParaCrearMonturaDto) {
     return this.dataSource.transaction(async (manager) => {
+
+      // Crea Producto
+      const nuevoProducto: CrearProductoDto = {
+        nombre: datosParaCrearMonturaDto.marca,
+        tipo: TipoProducto.MONTURA,
+        cantidad: datosParaCrearMonturaDto.cantidad,
+        sedeId: datosParaCrearMonturaDto.sedeId,
+        ubicacion: datosParaCrearMonturaDto.ubicacion,
+      }
+
       const producto = await manager.save(
-        manager.create(Producto, {
-          nombre: crearMonturaDto.marca,
-          tipo: TipoProducto.MONTURA,
-        }),
+        manager.create(Producto, nuevoProducto)
       );
+
+      // Crea Montura
+      const datosMontura: CrearMonturaDto = {
+        productoId: producto.id,
+        codigo: datosParaCrearMonturaDto.codigo,
+        codigoMontura: datosParaCrearMonturaDto.codigoMontura,
+        precioCompra: datosParaCrearMonturaDto.precioCompra,
+        precioVenta: datosParaCrearMonturaDto.precioVenta,
+        marca: datosParaCrearMonturaDto.marca,
+        material: datosParaCrearMonturaDto.material,
+        talla: datosParaCrearMonturaDto.talla,
+        color: datosParaCrearMonturaDto.color,
+        formaFacial: datosParaCrearMonturaDto.formaFacial,
+        sexo: datosParaCrearMonturaDto.sexo,
+        imagenUrl: datosParaCrearMonturaDto.imagenUrl,
+      };
+
 
       const montura = await manager.save(
-        manager.create(Montura, {
-          productoId: producto.id,
-          codigoQr: v4() + Codigos.CODIGO_MONTURAS,
-          codigo: crearMonturaDto.codigo,
-          precio: crearMonturaDto.precioCompra,
-          marca: crearMonturaDto.marca,
-          material: crearMonturaDto.material,
-          medida: crearMonturaDto.medida,
-          color: crearMonturaDto.color,
-          formaFacial: crearMonturaDto.formaFacial,
-          sexo: crearMonturaDto.sexo,
-          imagenUrl: crearMonturaDto.imagenUrl,
-        }),
+        manager.create(Montura, datosMontura)
       );
-
-      const sedes = await manager.find(Sede);
-
-      // const stockItems = sedes.map((sede) =>
-      //   manager.create(StockProducto, {
-      //     productoId: producto.id,
-      //     sedeId: sede.id,
-      //     cantidad: 0,
-      //     ubicacion: '',
-      //   }),
-      // );
-
-      // if (stockItems.length) {
-      //   await manager
-      //     .getRepository(StockProducto)
-      //     .createQueryBuilder()
-      //     .insert()
-      //     .values(stockItems)
-      //     .orIgnore()
-      //     .execute();
-      // }
 
       return {
         producto,
         montura,
-        // stockItemsCount: stockItems.length,
       };
     });
   }
