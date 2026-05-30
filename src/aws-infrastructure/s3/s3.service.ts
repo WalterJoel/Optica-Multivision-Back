@@ -8,7 +8,12 @@ export class S3Service {
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
-    this.bucketName = this.configService.get<string>('FOTOS_S3_BUCKET') || '';
+    this.bucketName =
+      process.env.FOTOS_S3_BUCKET ||
+      this.configService.get<string>('FOTOS_S3_BUCKET') ||
+      '';
+
+    console.log('📦 [S3Service] Bucket Name inicializado:', this.bucketName);
 
     // Inicializa el S3Client sin pasar ninguna opción de credenciales o región.
     // Esto permite que el SDK resuelva la región y las credenciales automáticamente

@@ -14,6 +14,7 @@ async function bootstrap() {
       process.env.DATABASE_URL = await getAwsParameter('opticabd');
       process.env.NODE_ENV = await getAwsParameter('entorno');
       process.env.FOTOS_S3_BUCKET = await getAwsParameter('FOTOS_S3_BUCKET');
+      console.log('FOTOS_S3_BUCKET cargada de SSM:', process.env.FOTOS_S3_BUCKET);
       process.env.AWS_REGION = await getAwsParameter('AWS_REGION');
 
       console.log('✅ Todos los parámetros de AWS cargados con éxito.');
