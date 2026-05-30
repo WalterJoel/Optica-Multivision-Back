@@ -4,6 +4,10 @@ import { join } from 'path';
 import * as express from 'express';
 import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 import { ValidationPipe } from '@nestjs/common';
+import * as dotenv from 'dotenv';
+
+// ✅ Cargar variables de entorno locales de inmediato para poder leer NODE_ENV antes de bootstrap
+dotenv.config();
 
 async function bootstrap() {
   // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
