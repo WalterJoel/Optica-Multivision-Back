@@ -7,6 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
+  console.log(process.env.NODE_ENV, ' dondeeeeeeee')
   if (process.env.NODE_ENV === 'production') {
     try {
       console.log('Cargando parámetros desde AWS SSM ');
