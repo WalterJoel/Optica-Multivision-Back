@@ -4,18 +4,21 @@ import { join } from 'path';
 import * as express from 'express';
 import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 import { ValidationPipe } from '@nestjs/common';
+import * as dotenv from 'dotenv';
 
+// ✅ Cargar variables de entorno locales de inmediato para poder leer NODE_ENV antes de bootstrap
+dotenv.config();
 
 async function bootstrap() {
   // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
-  process.env.NODE_ENV = await getAwsParameter('entorno');
-  console.log(process.env.NODE_ENV, ' dondeeeeeeee')
+  console.log('Entorno inicial detectado:', process.env.NODE_ENV);
+  
   if (process.env.NODE_ENV === 'production') {
     try {
       console.log('Cargando parámetros desde AWS SSM ');
 
       process.env.DATABASE_URL = await getAwsParameter('opticabd');
-
+      process.env.NODE_ENV = await getAwsParameter('entorno');
       process.env.FOTOS_S3_BUCKET = await getAwsParameter('FOTOS_S3_BUCKET');
       console.log('FOTOS_S3_BUCKET cargada de SSM:', process.env.FOTOS_S3_BUCKET);
       process.env.AWS_REGION = await getAwsParameter('AWS_REGION');
