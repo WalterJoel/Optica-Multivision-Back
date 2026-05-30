@@ -15,10 +15,14 @@ export class S3Service {
 
     console.log('📦 [S3Service] Bucket Name inicializado:', this.bucketName);
 
-    // Inicializa el S3Client sin pasar ninguna opción de credenciales o región.
-    // Esto permite que el SDK resuelva la región y las credenciales automáticamente
-    // usando el Rol de IAM asignado a la instancia EC2 o las variables de entorno por defecto.
-    this.s3Client = new S3Client({});
+    // Inicializa el S3Client definiendo la región.
+    // Busca en process.env, en el configService o usa 'us-east-1' por defecto.
+    this.s3Client = new S3Client({
+      region:
+        process.env.AWS_REGION ||
+        this.configService.get<string>('AWS_REGION') ||
+        'us-east-1',
+    });
   }
 
   /**
