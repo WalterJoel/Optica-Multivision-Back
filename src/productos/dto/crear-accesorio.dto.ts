@@ -9,8 +9,9 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoProducto } from '../../common/constants';
+import { OmitType } from '@nestjs/mapped-types';
 
-export class CrearAccesorioDto {
+export class DatosParaCrearAccesorioDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
@@ -24,27 +25,43 @@ export class CrearAccesorioDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  codigo: string;
+  codigoAccesorio: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
   @Type(() => Number)
-  precio: number;
+  precioCompra: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  precioVenta: number;
 
   @IsString()
   @IsOptional()
   @MaxLength(50)
   atributo?: string;
 
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  cantidad: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  ubicacion?: string;
+
   @IsOptional()
   @IsString()
-  @MaxLength(255)
   imagenUrl?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  basico?: boolean;
+  @IsNumber()
+  @Type(() => Number)
+  sedeId: number;
 
-  @IsEnum(TipoProducto)
-  tipo: TipoProducto;
+}
+
+export class CrearAccesorioDto extends OmitType(DatosParaCrearAccesorioDto, [
+  'cantidad', 'ubicacion', 'sedeId'
+] as const) {
+  @IsNumber()
+  productoId: number;
 }

@@ -13,26 +13,24 @@ export class Accesorio {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100, unique: true }) //Codigo que maneja el dueño
-  codigo: string;
+  @Column({ length: 100 }) //Codigo que maneja el dueño, se puede repetir
+  codigoAccesorio: string;
 
   @Column()
   productoId: number;
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  precio: number;
+  precioCompra: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  precioVenta: number;
 
   @Column({ length: 100 })
   nombre: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ length: 50, default: 'negro' })
   color: string;
 
-  /*Si queremos que se muestre al vender como accesorios basicos*/
-  @Column({
-    default: false,
-  })
-  basico: boolean;
 
   /**
    * Campo flexible para almacenar una característica adicional
