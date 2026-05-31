@@ -44,26 +44,26 @@ export class ClientesService {
   constructor(
     @InjectRepository(Cliente)
     private clienteRepository: Repository<Cliente>,
-  ) {}
+  ) { }
 
   private validarDatosCliente(dto: DatosClienteValidacion) {
     if (dto.tipoCliente === 'PERSONA') {
       if (dto.tipoDoc && dto.tipoDoc !== 'DNI') {
-        throw new BadRequestException('Persona debe tener DNI');
+        throw new BadRequestException({ message: 'Persona debe tener DNI' });
       }
 
       if (dto.numeroDoc && !/^\d{8}$/.test(dto.numeroDoc)) {
-        throw new BadRequestException('DNI debe tener 8 dígitos');
+        throw new BadRequestException({ message: 'DNI debe tener 8 dígitos' });
       }
     }
 
     if (dto.tipoCliente === 'EMPRESA') {
       if (dto.tipoDoc && dto.tipoDoc !== 'RUC') {
-        throw new BadRequestException('Empresa debe tener RUC');
+        throw new BadRequestException({ message: 'Empresa debe tener RUC' });
       }
 
       if (dto.numeroDoc && !/^\d{11}$/.test(dto.numeroDoc)) {
-        throw new BadRequestException('RUC debe tener 11 dígitos');
+        throw new BadRequestException({ message: 'RUC debe tener 11 dígitos' });
       }
     }
 
@@ -72,7 +72,7 @@ export class ClientesService {
       dto.odEje !== null &&
       (dto.odEje < 0 || dto.odEje > 180)
     ) {
-      throw new BadRequestException('OD Eje debe estar entre 0 y 180');
+      throw new BadRequestException({ message: 'OD Eje debe estar entre 0 y 180' });
     }
 
     if (
@@ -80,7 +80,7 @@ export class ClientesService {
       dto.oiEje !== null &&
       (dto.oiEje < 0 || dto.oiEje > 180)
     ) {
-      throw new BadRequestException('OI Eje debe estar entre 0 y 180');
+      throw new BadRequestException({ message: 'OI Eje debe estar entre 0 y 180' });
     }
   }
 
@@ -129,11 +129,11 @@ export class ClientesService {
     this.validarDatosCliente(dto);
 
     if (dto.tipoCliente === 'PERSONA' && !dto.nombres?.trim()) {
-      throw new BadRequestException('Nombres son requeridos');
+      throw new BadRequestException({ message: 'Nombres son requeridos' });
     }
 
     if (dto.tipoCliente === 'EMPRESA' && !dto.razonSocial?.trim()) {
-      throw new BadRequestException('Razón social es requerida');
+      throw new BadRequestException({ message: 'Razón social es requerida' });
     }
 
     const existe = await this.clienteRepository.findOne({
@@ -141,7 +141,7 @@ export class ClientesService {
     });
 
     if (existe) {
-      throw new ConflictException('Ya existe un cliente con ese documento');
+      throw new ConflictException({ message: 'Ya existe un cliente con ese documento' });
     }
 
     const cliente = this.clienteRepository.create({
@@ -207,7 +207,7 @@ export class ClientesService {
     });
 
     if (!cliente) {
-      throw new NotFoundException('Cliente no existe');
+      throw new NotFoundException({ message: 'Cliente no existe' });
     }
 
     return cliente;
@@ -220,46 +220,24 @@ export class ClientesService {
     const tipoDocFinal = dto.tipoDoc ?? cliente.tipoDoc;
     const numeroDocFinal = dto.numeroDoc ?? cliente.numeroDoc;
 
+    // 1. Validar combinando los datos existentes y los nuevos del DTO
     this.validarDatosCliente({
+      ...cliente,
+      ...dto,
       tipoCliente: tipoClienteFinal,
       tipoDoc: tipoDocFinal,
       numeroDoc: numeroDocFinal,
-
-      nombres: dto.nombres ?? cliente.nombres,
-      apellidos: dto.apellidos ?? cliente.apellidos,
-      razonSocial: dto.razonSocial ?? cliente.razonSocial,
-
-      telefono: dto.telefono ?? cliente.telefono,
-      correo: dto.correo ?? cliente.correo,
-      direccion: dto.direccion ?? cliente.direccion,
-
-      fechaNacimiento: dto.fechaNacimiento ?? cliente.fechaNacimiento,
-      antecedentes: dto.antecedentes ?? cliente.antecedentes,
-
-      add: dto.add ?? cliente.add,
-
-      odEsf: dto.odEsf ?? cliente.odEsf,
-      odCyl: dto.odCyl ?? cliente.odCyl,
-      odEje: dto.odEje ?? cliente.odEje,
-      dipOd: dto.dipOd ?? cliente.dipOd,
-
-      oiEsf: dto.oiEsf ?? cliente.oiEsf,
-      oiCyl: dto.oiCyl ?? cliente.oiCyl,
-      oiEje: dto.oiEje ?? cliente.oiEje,
-      dipOi: dto.dipOi ?? cliente.dipOi,
     });
 
     if (tipoClienteFinal === 'PERSONA' && !(dto.nombres ?? cliente.nombres)) {
-      throw new BadRequestException('Nombres son requeridos');
+      throw new BadRequestException({ message: 'Nombres son requeridos' });
     }
 
-    if (
-      tipoClienteFinal === 'EMPRESA' &&
-      !(dto.razonSocial ?? cliente.razonSocial)
-    ) {
-      throw new BadRequestException('Razón social es requerida');
+    if (tipoClienteFinal === 'EMPRESA' && !(dto.razonSocial ?? cliente.razonSocial)) {
+      throw new BadRequestException({ message: 'Razón social es requerida' });
     }
 
+    // 2. Validar unicidad de documento
     if (dto.numeroDoc && dto.numeroDoc !== cliente.numeroDoc) {
       const existe = await this.clienteRepository.findOne({
         where: {
@@ -269,42 +247,22 @@ export class ClientesService {
       });
 
       if (existe) {
-        throw new ConflictException('Ya existe un cliente con ese documento');
+        throw new ConflictException({ message: 'Ya existe un cliente con ese documento' });
       }
     }
 
-    Object.assign(
-      cliente,
-      this.mapearCampos({
-        tipoCliente: tipoClienteFinal,
-        tipoDoc: tipoDocFinal,
-        numeroDoc: numeroDocFinal,
+    // 3. Asignar los campos enviados (no undefined) directamente
+    for (const key of Object.keys(dto)) {
+      if (dto[key] !== undefined) {
+        if (key === 'fechaNacimiento') {
+          cliente.fechaNacimiento = this.convertirFecha(dto.fechaNacimiento);
+        } else {
+          cliente[key] = dto[key];
+        }
+      }
+    }
 
-        nombres: dto.nombres ?? cliente.nombres,
-        apellidos: dto.apellidos ?? cliente.apellidos,
-        razonSocial: dto.razonSocial ?? cliente.razonSocial,
-
-        telefono: dto.telefono ?? cliente.telefono,
-        correo: dto.correo ?? cliente.correo,
-        direccion: dto.direccion ?? cliente.direccion,
-
-        fechaNacimiento: dto.fechaNacimiento ?? cliente.fechaNacimiento,
-        antecedentes: dto.antecedentes ?? cliente.antecedentes,
-
-        add: dto.add ?? cliente.add,
-
-        odEsf: dto.odEsf ?? cliente.odEsf,
-        odCyl: dto.odCyl ?? cliente.odCyl,
-        odEje: dto.odEje ?? cliente.odEje,
-        dipOd: dto.dipOd ?? cliente.dipOd,
-
-        oiEsf: dto.oiEsf ?? cliente.oiEsf,
-        oiCyl: dto.oiCyl ?? cliente.oiCyl,
-        oiEje: dto.oiEje ?? cliente.oiEje,
-        dipOi: dto.dipOi ?? cliente.dipOi,
-      }),
-    );
-
+    // 4. Actualizar fecha de medición si cambió alguna medida
     if (
       dto.odEsf !== undefined ||
       dto.odCyl !== undefined ||

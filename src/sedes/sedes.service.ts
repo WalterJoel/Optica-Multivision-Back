@@ -105,7 +105,7 @@ export class SedesService {
 
   async findOne(id: number) {
     const sede = await this.sedeRepository.findOne({ where: { id } });
-    if (!sede) throw new NotFoundException('Sede no existe');
+    if (!sede) throw new NotFoundException({ message: 'Sede no existe' });
     return sede;
   }
 
@@ -116,7 +116,7 @@ export class SedesService {
       const exists = await this.sedeRepository.findOne({
         where: { ruc: (dto as any).ruc },
       });
-      if (exists) throw new ConflictException('Ya existe una sede con ese RUC');
+      if (exists) throw new ConflictException({ message: 'Ya existe una sede con ese RUC' });
     }
 
     Object.assign(sede, dto as any);

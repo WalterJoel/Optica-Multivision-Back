@@ -10,6 +10,7 @@ import {
   Max,
   IsInt,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -119,4 +120,8 @@ export class CrearClienteDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   dipOi?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
 }

@@ -30,6 +30,9 @@ export class VentasService {
         // 1. Validar y descontar stock antes de crear la venta (Fail-Fast)
         await this.descontarStock(manager, productos);
 
+        // 1.1 Validar y descontar stock de los accesorios incluidos en los KITS de los lentes vendidos (si aplica)
+        await this.descontarStockKitsLente(manager, productos);
+
         // 2. Crear y guardar la venta con sus productos en cascada (Instanciación Explícita Tipo-Segura)
         const venta = manager.getRepository(Venta).create(ventaData);
 
@@ -87,6 +90,7 @@ export class VentasService {
         });
 
         if (!stock || stock.cantidad < p.cantidad) {
+          console.log()
           throw new ConflictException({
             message: `Stock insuficiente para el lente solicitado.`,
           });
@@ -100,7 +104,7 @@ export class VentasService {
           where: { id: p.productoId },
           lock: { mode: 'pessimistic_write' },
         });
-
+        console.log(producto?.cantidad, ' EN BD', p.cantidad, 'EN LOTE')
         if (!producto || producto.cantidad < p.cantidad) {
           throw new ConflictException({
             message: `Stock insuficiente para el producto: ${producto?.nombre || p.productoId}`,
@@ -114,8 +118,9 @@ export class VentasService {
   }
 
 
-  async obtenerVentas() {
+  async obtenerVentas(sedeId: number) {
     return await this.ventaRepository.find({
+      where: { sedeId },
       relations: {
         productos: true,
       },
@@ -155,11 +160,11 @@ export class VentasService {
         });
 
         if (!venta) {
-          throw new ConflictException('Venta no encontrada.');
+          throw new ConflictException({ message: 'Venta no encontrada.' });
         }
 
         if (!venta.activo) {
-          throw new ConflictException('La venta ya se encuentra anulada.');
+          throw new ConflictException({ message: 'La venta ya se encuentra anulada.' });
         }
 
         // 2. Revertir el stock de forma segura para cada detalle de la venta
@@ -188,6 +193,9 @@ export class VentasService {
             }
           }
         }
+
+        // 2.1 Revertir el stock de accesorios incluidos en los KITS de los lentes vendidos (si aplica)
+        await this.revertirStockKitsLente(manager, venta.productos);
 
         // 3. Registrar contra-movimiento (EGRESO) en la caja para la devolución
         if (Number(venta.montoPagado) > 0) {
@@ -270,6 +278,79 @@ export class VentasService {
       };
       seguimiento.historial = [...(seguimiento.historial || []), nuevoHistorial];
       await manager.getRepository(SeguimientoPedido).save(seguimiento);
+    }
+  }
+
+  /**
+   * Valida y descuenta de manera segura el stock de los accesorios incluidos en los kits de los lentes vendidos.
+   */
+  private async descontarStockKitsLente(manager: EntityManager, productos: VentaProductoDto[]) {
+    for (const p of productos) {
+      if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
+        // 1. Obtener la fila de stock del lente, cargando su lente, el kit asignado y sus accesorios de forma recursiva
+        const stock = await manager.getRepository(Stock).findOne({
+          where: { id: p.stockId },
+          relations: ['lente', 'lente.kit', 'lente.kit.accesorios', 'lente.kit.accesorios.accesorio'],
+        });
+
+        // 2. Si el lente tiene un kit asignado y tiene accesorios asociados
+        if (stock?.lente?.kit?.accesorios?.length) {
+          for (const ka of stock.lente.kit.accesorios) {
+            const cantidadADescontar = ka.cantidad * p.cantidad;
+
+            // 3. Buscar el producto general correspondiente al accesorio del kit para descontar su stock
+            if (ka.accesorio?.productoId) {
+              const productoAccesorio = await manager.getRepository(Producto).findOne({
+                where: { id: ka.accesorio.productoId },
+                lock: { mode: 'pessimistic_write' },
+              });
+
+              if (!productoAccesorio || productoAccesorio.cantidad < cantidadADescontar) {
+                throw new ConflictException(
+                  `Stock insuficiente para el accesorio '${ka.accesorio.nombre}' del kit '${stock.lente.kit.nombre}' (requerido: ${cantidadADescontar}, disponible: ${productoAccesorio?.cantidad || 0}).`
+                );
+              }
+
+              productoAccesorio.cantidad -= cantidadADescontar;
+              await manager.getRepository(Producto).save(productoAccesorio);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Revierte el stock de los accesorios incluidos en los kits de los lentes vendidos cuando se anula una venta.
+   */
+  private async revertirStockKitsLente(manager: EntityManager, productos: VentaProducto[]) {
+    for (const p of productos) {
+      if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
+        // 1. Obtener el lente y su kit con sus accesorios
+        const stock = await manager.getRepository(Stock).findOne({
+          where: { id: p.stockId },
+          relations: ['lente', 'lente.kit', 'lente.kit.accesorios', 'lente.kit.accesorios.accesorio'],
+        });
+
+        // 2. Si tiene un kit y tiene accesorios, sumamos de vuelta al stock general
+        if (stock?.lente?.kit?.accesorios?.length) {
+          for (const ka of stock.lente.kit.accesorios) {
+            const cantidadARevertir = ka.cantidad * p.cantidad;
+
+            if (ka.accesorio?.productoId) {
+              const productoAccesorio = await manager.getRepository(Producto).findOne({
+                where: { id: ka.accesorio.productoId },
+                lock: { mode: 'pessimistic_write' },
+              });
+
+              if (productoAccesorio) {
+                productoAccesorio.cantidad += cantidadARevertir;
+                await manager.getRepository(Producto).save(productoAccesorio);
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

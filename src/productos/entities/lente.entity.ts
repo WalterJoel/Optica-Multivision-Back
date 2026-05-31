@@ -16,10 +16,7 @@ export class Lente {
   id: number;
 
   @Column({ nullable: true })
-  kitId: number;
-
-  // @Column()
-  // productoId: number;
+  kitId?: number | null;
 
   @Column({ length: 100 })
   marca: string;
@@ -56,12 +53,7 @@ export class Lente {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  /*Relacion*/
-  // @OneToOne(() => Producto, { onDelete: 'CASCADE' })
-  // @JoinColumn({ name: 'productoId' })
-  // producto: Producto;
-
   @ManyToOne(() => Kit, { nullable: true }) //Un mismo kit puede estar en muchos lentes
   @JoinColumn({ name: 'kitId' })
-  kit: Kit;
+  kit?: Kit | null;
 }

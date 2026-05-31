@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -20,18 +21,18 @@ export class UsersService {
 
     @InjectRepository(Sede)
     private sedeRepo: Repository<Sede>,
-  ) {}
+  ) { }
 
   async create(dto: CreateUserDto) {
-    if (!dto.password) throw new Error('Password es requerido');
+    if (!dto.password) throw new BadRequestException({ message: 'Password es requerido' });
 
     // ✅ validar sede
     const sede = await this.sedeRepo.findOne({ where: { id: dto.sedeId } });
-    if (!sede) throw new NotFoundException('Sede no existe');
+    if (!sede) throw new NotFoundException({ message: 'Sede no existe' });
 
     // ✅ validar email único
     const exists = await this.userRepo.findOne({ where: { email: dto.email } });
-    if (exists) throw new ConflictException('Email ya existe');
+    if (exists) throw new ConflictException({ message: 'Email ya existe' });
 
     const user = this.userRepo.create({
       ...dto,
@@ -85,13 +86,13 @@ export class UsersService {
       },
     });
 
-    if (!user) throw new NotFoundException('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
     return user;
   }
   //valdair si esta activo o no
   async updateStatus(id: number, activo: boolean) {
     const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     user.activo = !!activo;
     await this.userRepo.save(user);
@@ -101,13 +102,13 @@ export class UsersService {
 
   async update(id: number, dto: UpdateUserDto) {
     const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     // validar y setear sedeId si viene
     if (dto.sedeId !== undefined) {
       const sedeId = Number(dto.sedeId);
       const sede = await this.sedeRepo.findOne({ where: { id: sedeId } });
-      if (!sede) throw new NotFoundException('Sede no existe');
+      if (!sede) throw new NotFoundException({ message: 'Sede no existe' });
       user.sedeId = sedeId;
     }
 
@@ -124,7 +125,7 @@ export class UsersService {
 
   async remove(id: number) {
     const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     await this.userRepo.remove(user);
     return { message: 'Usuario eliminado' };
@@ -132,7 +133,7 @@ export class UsersService {
 
   async setAvatar(userId: number, filename: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     user.avatarUrl = `/uploads/avatars/${filename}`;
     await this.userRepo.save(user);

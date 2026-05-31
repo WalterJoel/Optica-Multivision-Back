@@ -24,7 +24,7 @@ export class KitsService {
 
     @InjectRepository(Accesorio)
     private readonly accesorioRepository: Repository<Accesorio>,
-  ) {}
+  ) { }
 
   async create(
     createKitDto: CrearKitDto,
@@ -45,9 +45,9 @@ export class KitsService {
             });
 
             if (!accesorio) {
-              throw new NotFoundException(
-                `Accesorio con id ${item.accesorioId} no encontrado`,
-              );
+              throw new NotFoundException({
+                message: `Accesorio con id ${item.accesorioId} no encontrado`,
+              });
             }
 
             const kitAccesorio = manager.create(KitAccesorio, {
@@ -86,7 +86,7 @@ export class KitsService {
     });
 
     if (!kit) {
-      throw new NotFoundException(`Kit con id ${id} no encontrado`);
+      throw new NotFoundException({ message: `Kit con id ${id} no encontrado` });
     }
 
     return kit;
@@ -96,7 +96,7 @@ export class KitsService {
   async update(id: number, updateKitDto: ActualizarKitDto): Promise<Kit> {
     const kit = await this.kitRepository.findOne({ where: { id } });
     if (!kit) {
-      throw new NotFoundException(`Kit con id ${id} no encontrado`);
+      throw new NotFoundException({ message: `Kit con id ${id} no encontrado` });
     }
 
     // Actualizar datos del kit
@@ -114,9 +114,9 @@ export class KitsService {
           where: { id: item.accesorioId },
         });
         if (!accesorio) {
-          throw new NotFoundException(
-            `Accesorio con id ${item.accesorioId} no encontrado`,
-          );
+          throw new NotFoundException({
+            message: `Accesorio con id ${item.accesorioId} no encontrado`,
+          });
         }
 
         const kitAccesorio = this.kitAccesorioRepository.create({
@@ -135,7 +135,7 @@ export class KitsService {
   async remove(id: number): Promise<void> {
     const kit = await this.kitRepository.findOne({ where: { id } });
     if (!kit) {
-      throw new NotFoundException(`Kit con id ${id} no encontrado`);
+      throw new NotFoundException({ message: `Kit con id ${id} no encontrado` });
     }
     await this.kitRepository.remove(kit);
   }

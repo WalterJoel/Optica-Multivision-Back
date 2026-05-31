@@ -23,7 +23,7 @@ export class CajaService {
     const { tipo, monto } = dto;
 
     if (monto <= 0) {
-      throw new ConflictException('El monto debe ser mayor a 0');
+      throw new ConflictException({ message: 'El monto debe ser mayor a 0' });
     }
 
     const movimiento = this.movimientoRepository.create({
@@ -49,7 +49,7 @@ export class CajaService {
     const { tipo, monto } = dto;
 
     if (monto <= 0) {
-      throw new ConflictException('El monto debe ser mayor a 0');
+      throw new ConflictException({ message: 'El monto debe ser mayor a 0' });
     }
 
     const movimiento = manager.getRepository(MovimientoCaja).create({

@@ -24,9 +24,9 @@ export class VentasController {
   }
 
   @Public()
-  @Get('ventas')
-  obtenerVentas() {
-    return this.ventasService.obtenerVentas();
+  @Get('ventas/:sedeId')
+  obtenerVentas(@Param('sedeId') sedeId: string) {
+    return this.ventasService.obtenerVentas(Number(sedeId));
   }
 
   @Post('anularVenta/:id')

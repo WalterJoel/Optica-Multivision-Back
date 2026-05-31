@@ -88,7 +88,7 @@ export class ProductosService {
       select: ['lenteId', 'matrix', 'esf', 'cyl'],
     });
 
-    if (!base) throw new NotFoundException('Stock no encontrado');
+    if (!base) throw new NotFoundException({ message: 'Stock no encontrado' });
 
     const data = await this.stockRepository.find({
       where: {
@@ -317,7 +317,7 @@ export class ProductosService {
     });
 
     if (!lente) {
-      throw new Error('Lente no encontrado');
+      throw new NotFoundException({ message: 'Lente no encontrado' });
     }
 
     // Obtengo data para generar mi matriz
@@ -475,7 +475,7 @@ export class ProductosService {
       where: { id },
     });
     if (!montura) {
-      throw new NotFoundException('Montura no encontrada');
+      throw new NotFoundException({ message: 'Montura no encontrada' });
     }
     return montura;
   }
@@ -510,7 +510,7 @@ export class ProductosService {
       });
 
       if (!montura) {
-        throw new NotFoundException('Montura no encontrada');
+        throw new NotFoundException({ message: 'Montura no encontrada' });
       }
 
       await monturaRepo.update(id, {
@@ -975,7 +975,7 @@ export class ProductosService {
     });
 
     if (!accesorio) {
-      throw new NotFoundException('Accesorio no encontrado');
+      throw new NotFoundException({ message: 'Accesorio no encontrado' });
     }
 
     return accesorio;
@@ -1014,7 +1014,7 @@ export class ProductosService {
       });
 
       if (!accesorio) {
-        throw new NotFoundException('Accesorio no encontrado');
+        throw new NotFoundException({ message: 'Accesorio no encontrado' });
       }
 
       await accesorioRepo.update(id, {
