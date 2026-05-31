@@ -41,6 +41,13 @@ export enum MetodoPago {
   TRANSFERENCIA = 'TRANSFERENCIA',
 }
 
+export enum diasCompromisoPago {
+  UNO = 1,
+  SIETE = 7,
+  QUINCE = 15,
+  TREINTA = 30,
+}
+
 // ✅ CONSTANTES PARA SEGUIMIENTO DE PEDIDO, ❌ NO MODIFICAR, DEBE SER IGUAL EN EL FRONT
 
 export enum EstadoProceso {

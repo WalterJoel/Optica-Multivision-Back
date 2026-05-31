@@ -7,7 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Venta } from './venta.entity';
-import { Producto } from '../../productos/entities';
+import { Producto, Stock } from '../../productos/entities';
 
 @Entity('venta_productos')
 export class VentaProducto {
@@ -17,8 +17,8 @@ export class VentaProducto {
   @Column()
   ventaId: number;
 
-  @Column()
-  productoId: number;
+  @Column({ nullable: true })
+  productoId?: number; //SOLO PARA MONTURA Y ACCESORIO, CASO CONTRARIO NULO
 
   @Column({ length: 50 })
   tipoProducto: string; // LENTE, MONTURA, ACCESORIO
@@ -26,16 +26,17 @@ export class VentaProducto {
   @Column('decimal', { precision: 10, scale: 2 })
   precioUnitario: number;
 
+  @Column('int')
+  cantidad: number;
+
   @Column('decimal', { precision: 10, scale: 2 })
   subtotal: number; // 🔶 PRECIO UNITARIO * CANTIDAD
 
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   descuento?: number; // 🔶 NO VINCULO CON EL ID, PORQUE LOS DESCUENTOS PUEDEN CAMBIAR SE ACTIVAN EN EL MOMENTO DE LA VENTA NADA MAS
 
-  @Column('int')
-  cantidad: number;
 
-  // STOCK PARA LENTES
+  //De aqui sacamos toda la info de lentes
   @Column({ nullable: true })
   stockId?: number; // lentes
 
@@ -45,9 +46,6 @@ export class VentaProducto {
   @Column('decimal', { precision: 5, scale: 2, nullable: true })
   cyl?: number;
 
-  // STOCK PARA MONTURAS Y ACCESORIOS
-  @Column({ nullable: true })
-  stockProductoId?: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -62,7 +60,15 @@ export class VentaProducto {
 
   @ManyToOne(() => Producto, {
     eager: false,
+    nullable: true,
   })
+
   @JoinColumn({ name: 'productoId' })
-  producto: Producto;
+  producto?: Producto;
+  @ManyToOne(() => Stock, {
+    eager: false,
+    nullable: true,
+  })
+  @JoinColumn({ name: 'stockId' })
+  stock?: Stock;
 }

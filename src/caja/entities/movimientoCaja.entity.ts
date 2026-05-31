@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   JoinColumn,
 } from 'typeorm';
-import { Caja } from './caja.entity';
+
 import { Venta } from 'src/ventas/entities/venta.entity';
 import { Sede } from 'src/sedes/entities/sede.entity';
 

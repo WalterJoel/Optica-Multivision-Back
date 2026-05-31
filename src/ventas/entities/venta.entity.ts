@@ -7,12 +7,18 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { VentaProducto } from './ventaProducto.entity';
-import { TipoVenta } from 'src/common/constants';
+
 
 @Entity('ventas')
 export class Venta {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column()
+  sedeId: number;
+
+  @Column()
+  userId: number; // Es el responsable de la venta
 
   @Column({ default: true })
   activo: boolean;
@@ -26,23 +32,14 @@ export class Venta {
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   deuda: number;
 
-  @Column({ nullable: true })
-  kitId?: number;
-
-  @Column()
-  sedeId: number;
-
-  @Column()
-  userId: number;
-
-  @Column({ length: 150, nullable: true })
-  responsableVenta?: string;
-
-  @Column({ length: 50, default: TipoVenta.CONTADO })
+  @Column({ length: 50 })
   tipoVenta: string; // CONTADO | CREDITO
 
   @Column({ length: 50 })
   estadoPago: string; // PAGADO | PENDIENTE
+
+  @Column({ type: 'int', nullable: true })
+  diasCompromisoPago: number; //1 7 15 30 dias
 
   @Column({ default: false })
   montaje: boolean;
