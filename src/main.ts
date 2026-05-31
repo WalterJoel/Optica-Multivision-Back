@@ -7,7 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
-  // process.env.NODE_ENV = await getAwsParameter('entorno');
+  process.env.NODE_ENV = await getAwsParameter('entorno');
   console.log('Entorno inicial detectado:', process.env.NODE_ENV);
 
   if (process.env.NODE_ENV === 'production') {
