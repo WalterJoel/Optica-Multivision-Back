@@ -33,8 +33,8 @@ export class CrearMovimientoCajaDto {
   @IsNumber()
   ventaId?: number;
 
-  // EFECTIVO | YAPE | PLIN | TARJETA
+  // EFECTIVO | YAPE | PLIN | TRANSFERENCIA
   @IsOptional()
-  @IsString()
+  @IsEnum(MetodoPago)
   metodoPago?: MetodoPago;
 }

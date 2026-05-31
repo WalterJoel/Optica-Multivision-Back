@@ -1,7 +1,11 @@
-import { IsInt } from 'class-validator';
+import { IsInt, IsNotEmpty, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
 
-// ✅ DTO simplificado para crear seguimiento de pedido
+// ✅ DTO para la creación e inicialización del seguimiento de un pedido
 export class CrearSeguimientoPedidoDto {
+  @IsNotEmpty()
+  @Type(() => Number)
   @IsInt()
+  @IsPositive()
   ventaId: number;
 }

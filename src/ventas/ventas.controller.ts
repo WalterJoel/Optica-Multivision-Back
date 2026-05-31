@@ -28,6 +28,11 @@ export class VentasController {
   obtenerVentas() {
     return this.ventasService.obtenerVentas();
   }
+
+  @Post('anularVenta/:id')
+  anularVenta(@Param('id') id: string) {
+    return this.ventasService.anularVenta(Number(id));
+  }
   // ┌───────────────────────────────────────────────┐
   // │  📦 SECCIÓN: SEGUIMIENTO DE PEDIDOS          │
   // └───────────────────────────────────────────────┘

@@ -15,7 +15,7 @@ export interface HistorialEstado {
   observaciones?: string; //FEHCHA Y HORA
   usuarioId?: number;
 }
-
+//MODELO RESTAURANT
 @Entity('seguimiento_pedido')
 export class SeguimientoPedido {
   @PrimaryGeneratedColumn()
