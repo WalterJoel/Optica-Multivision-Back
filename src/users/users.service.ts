@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, ILike } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { User } from './entities/user.entity';
@@ -31,16 +31,26 @@ export class UsersService {
     if (!sede) throw new NotFoundException({ message: 'Sede no existe' });
 
     // ✅ validar email único
-    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    const emailFormateado = dto.email.trim().toLowerCase();
+    const exists = await this.userRepo.findOne({
+      where: { email: ILike(emailFormateado) },
+    });
     if (exists) throw new ConflictException({ message: 'Email ya existe' });
 
     const user = this.userRepo.create({
       ...dto,
-      email: dto.email.trim().toLowerCase(),
+      email: emailFormateado,
       password: await bcrypt.hash(dto.password, 10),
     });
 
-    await this.userRepo.save(user);
+    try {
+      await this.userRepo.save(user);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException({ message: 'Email ya existe' });
+      }
+      throw error;
+    }
 
     // ✅ devolver sin password + con sede (para el front)
     return this.findOne(user.id);
@@ -52,8 +62,9 @@ export class UsersService {
       select: {
         id: true,
         email: true,
+        nombre: true,
+        apellido: true,
         role: true,
-        avatarUrl: true,
         activo: true, // ✅ AQUI
         createdAt: true,
         sedeId: true,
@@ -73,8 +84,9 @@ export class UsersService {
       select: {
         id: true,
         email: true,
+        nombre: true,
+        apellido: true,
         role: true,
-        avatarUrl: true,
         activo: true, // ✅ AQUI
 
         createdAt: true,
@@ -112,14 +124,36 @@ export class UsersService {
       user.sedeId = sedeId;
     }
 
-    if (dto.email) user.email = dto.email.trim().toLowerCase();
+    if (dto.email) {
+      const emailFormateado = dto.email.trim().toLowerCase();
+      if (emailFormateado !== user.email) {
+        const exists = await this.userRepo.findOne({
+          where: {
+            email: ILike(emailFormateado),
+            id: Not(id),
+          },
+        });
+        if (exists) throw new ConflictException({ message: 'Email ya existe' });
+      }
+      user.email = emailFormateado;
+    }
     if (dto.role) user.role = dto.role;
+    if (dto.nombre !== undefined) user.nombre = dto.nombre;
+    if (dto.apellido !== undefined) user.apellido = dto.apellido;
+    if (dto.activo !== undefined) user.activo = dto.activo;
 
     if (dto.password) {
       user.password = await bcrypt.hash(dto.password, 10);
     }
 
-    await this.userRepo.save(user);
+    try {
+      await this.userRepo.save(user);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException({ message: 'Email ya existe' });
+      }
+      throw error;
+    }
     return this.findOne(id);
   }
 
@@ -129,15 +163,5 @@ export class UsersService {
 
     await this.userRepo.remove(user);
     return { message: 'Usuario eliminado' };
-  }
-
-  async setAvatar(userId: number, filename: string) {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
-
-    user.avatarUrl = `/uploads/avatars/${filename}`;
-    await this.userRepo.save(user);
-
-    return { ok: true, avatarUrl: user.avatarUrl };
   }
 }

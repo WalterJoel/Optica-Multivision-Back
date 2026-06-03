@@ -88,12 +88,15 @@ export class DescuentosService {
   }
 
   async findAll() {
-    return await this.descuentoRepository.find();
+    return await this.descuentoRepository.find({
+      relations: ['producto', 'lente'],
+    });
   }
 
   async findOne(id: number) {
     return await this.descuentoRepository.findOne({
       where: { id },
+      relations: ['producto', 'lente'],
     });
   }
 

@@ -19,17 +19,15 @@ export class User {
   @Column()
   password: string;
 
-  @Column({ default: '' })
+  @Column()
   nombre: string;
 
-  @Column({ default: '' })
+  @Column()
   apellido: string;
 
   @Column()
   role: string;
 
-  @Column({ nullable: true })
-  avatarUrl?: string;
   @Column({ default: true })
   activo: boolean;
 

@@ -156,16 +156,16 @@ export class ClientesService {
   }
 
   async buscarCliente(busqueda?: string, limite = 50, desplazamiento = 0) {
-    let where: any = {};
+    let where: any = { activo: true };
 
     if (busqueda?.trim()) {
       const palabras = busqueda.trim().split(/\s+/);
 
       where = palabras.flatMap((palabra) => [
-        { numeroDoc: ILike(`%${palabra}%`) },
-        { nombres: ILike(`%${palabra}%`) },
-        { apellidos: ILike(`%${palabra}%`) },
-        { razonSocial: ILike(`%${palabra}%`) },
+        { numeroDoc: ILike(`%${palabra}%`), activo: true },
+        { nombres: ILike(`%${palabra}%`), activo: true },
+        { apellidos: ILike(`%${palabra}%`), activo: true },
+        { razonSocial: ILike(`%${palabra}%`), activo: true },
       ]);
     }
 

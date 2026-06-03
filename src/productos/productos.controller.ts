@@ -256,7 +256,7 @@ export class ProductosController {
 
 
 
-  @Public()
+  //Para las busquedas para crear mantenimiento
   @Get('/accesorios/buscarAccesorio/:sedeId')
   async buscarAccesorio(
     @Param('sedeId') sedeId: string,
