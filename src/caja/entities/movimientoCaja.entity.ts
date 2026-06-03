@@ -40,8 +40,8 @@ export class MovimientoCaja {
   @Column({ nullable: true })
   ventaId?: number;
 
-  @Column({ length: 50, nullable: true })
-  metodoPago?: string; // EFECTIVO | YAPE | PLIN | TARJETA
+  @Column({ length: 50 })
+  metodoPago: string; // EFECTIVO | YAPE | PLIN | TARJETA
 
   @CreateDateColumn()
   createdAt: Date;

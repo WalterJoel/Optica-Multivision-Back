@@ -6,3 +6,4 @@ export * from './crear-producto.dto';
 //exportamos los update
 export * from './update-montura.dto';
 export * from './update-accesorio.dto';
+export * from './update-lente.dto';

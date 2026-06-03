@@ -23,6 +23,7 @@ import {
   DatosParaCrearMonturaDto,
   CrearProductoDto,
   DatosParaCrearAccesorioDto,
+  UpdateLenteDto,
 } from './dto';
 import { Buffer } from 'buffer';
 import * as ExcelJS from 'exceljs';
@@ -245,6 +246,7 @@ export class ProductosService {
       // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
         // producto: { id: producto.id },
+        kitId: crearLenteDto.kitId,
         marca: crearLenteDto.marca,
         material: crearLenteDto.material,
         precio_serie1: crearLenteDto.precio_serie1,
@@ -282,6 +284,70 @@ export class ProductosService {
       where: { activo: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async obtenerLentePorId(id: number) {
+    const lente = await this.lenteRepository.findOne({
+      where: { id },
+      relations: ['kit'],
+    });
+
+    if (!lente) {
+      throw new NotFoundException({ message: 'Lente no encontrado' });
+    }
+
+    return lente;
+  }
+
+  async actualizarLente(id: number, dto: UpdateLenteDto) {
+    try {
+      const lente = await this.lenteRepository.findOne({
+        where: { id },
+      });
+
+      if (!lente) {
+        throw new NotFoundException({ message: 'Lente no encontrado' });
+      }
+
+      const updatedLente = this.lenteRepository.merge(lente, dto);
+      await this.lenteRepository.save(updatedLente);
+
+      return {
+        message: 'Lente actualizado correctamente',
+        data: updatedLente,
+      };
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException({
+        message: 'Error al actualizar el lente: ' + error.message,
+      });
+    }
+  }
+
+  async eliminarLente(id: number) {
+    try {
+      const lente = await this.lenteRepository.findOne({
+        where: { id },
+      });
+
+      if (!lente) {
+        throw new NotFoundException({ message: 'Lente no encontrado' });
+      }
+
+      lente.activo = false;
+      await this.lenteRepository.save(lente);
+
+      return { message: 'Lente eliminado/desactivado correctamente' };
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException({
+        message: 'Error al desactivar el lente: ' + error.message,
+      });
+    }
   }
 
   async buscarLente(busqueda?: string, limite = 50, desplazamiento = 0) {

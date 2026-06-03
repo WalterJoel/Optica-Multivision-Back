@@ -18,6 +18,7 @@ import {
   UpdateMonturaDto,
   UpdateAccesorioDto,
   DatosParaCrearAccesorioDto,
+  UpdateLenteDto,
 } from './dto';
 import { Public } from '../auth/public.decorator';
 import { accesoriosSeed } from 'src/seeds/accesorios/accesorios';
@@ -76,7 +77,7 @@ export class ProductosController {
   // ========================================================================================================
   // ========================================================================================================
 
-  @Post('crearLente')
+  @Post('/lentes/crearLente')
   crearLente(@Body() crearLenteDto: CrearLenteDto) {
     return this.productosService.crearLente(crearLenteDto);
   }
@@ -84,6 +85,27 @@ export class ProductosController {
   @Get('lentes')
   getLenses() {
     return this.productosService.getLenses();
+  }
+
+  @Public()
+  @Get('lente/:id')
+  obtenerLentePorId(@Param('id') id: string) {
+    return this.productosService.obtenerLentePorId(+id);
+  }
+
+  @Public()
+  @Patch('/lentes/actualizar/:id')
+  actualizarLente(
+    @Param('id') id: string,
+    @Body() updateLenteDto: UpdateLenteDto,
+  ) {
+    return this.productosService.actualizarLente(+id, updateLenteDto);
+  }
+
+  @Public()
+  @Delete('/lentes/eliminar/:id')
+  eliminarLente(@Param('id') id: string) {
+    return this.productosService.eliminarLente(+id);
   }
 
   @Public()

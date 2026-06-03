@@ -34,7 +34,6 @@ export class CrearMovimientoCajaDto {
   ventaId?: number;
 
   // EFECTIVO | YAPE | PLIN | TRANSFERENCIA
-  @IsOptional()
   @IsEnum(MetodoPago)
-  metodoPago?: MetodoPago;
+  metodoPago: MetodoPago;
 }
