@@ -14,7 +14,7 @@ import { Public } from 'src/auth/public.decorator';
 
 @Controller('kits')
 export class KitsController {
-  constructor(private readonly kitsService: KitsService) {}
+  constructor(private readonly kitsService: KitsService) { }
 
   @Post('crearKit')
   create(@Body() createKitDto: CrearKitDto) {
@@ -32,7 +32,7 @@ export class KitsController {
     return this.kitsService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Patch('/actualizar/:id')
   update(@Param('id') id: string, @Body() updateKitDto: ActualizarKitDto) {
     return this.kitsService.update(+id, updateKitDto);
   }

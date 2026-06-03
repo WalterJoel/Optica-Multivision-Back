@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   DataSource,
@@ -445,6 +446,7 @@ export class ProductosService {
       .innerJoinAndSelect('montura.producto', 'producto')
       .innerJoinAndSelect('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
       .addSelect(['producto.cantidad', 'producto.ubicacion'])
       .orderBy('montura.createdAt', 'DESC')
       .getMany();
@@ -473,6 +475,7 @@ export class ProductosService {
   async obtenerMonturaPorId(id: number) {
     const montura = await this.monturaRepository.findOne({
       where: { id },
+      relations: ['producto'],
     });
     if (!montura) {
       throw new NotFoundException({ message: 'Montura no encontrada' });
@@ -501,11 +504,52 @@ export class ProductosService {
   }
 
   async actualizarMontura(id: number, updateMonturaDto: UpdateMonturaDto) {
-    return this.dataSource.transaction(async (manager) => {
-      const monturaRepo = manager.getRepository(Montura);
-      const productoRepo = manager.getRepository(Producto);
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const monturaRepo = manager.getRepository(Montura);
+        const productoRepo = manager.getRepository(Producto);
 
-      const montura = await monturaRepo.findOne({
+        const montura = await monturaRepo.findOne({
+          where: { id },
+        });
+
+        if (!montura) {
+          throw new NotFoundException({ message: 'Montura no encontrada' });
+        }
+
+        // Separar los campos específicos de Producto (cantidad, productoId) y los específicos de Montura
+        const { ubicacion, cantidad, productoId, ...datosMontura } = updateMonturaDto;
+
+        try {
+          // 1. Actualizar Montura
+          await monturaRepo.update(id, datosMontura);
+
+          // 2. Actualizar cantidad de la tabla Producto
+          await productoRepo.update(montura.productoId, { cantidad });
+        } catch (error: any) {
+          throw new BadRequestException({
+            message: 'Error al actualizar los datos de la montura en la base de datos: ' + error.message
+          });
+        }
+
+        return await monturaRepo.findOne({
+          where: { id },
+          relations: ['producto'],
+        });
+      });
+    } catch (error: any) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: 'Ocurrió un error inesperado al actualizar la montura: ' + error.message,
+      });
+    }
+  }
+
+  async eliminarMontura(id: number) {
+    try {
+      const montura = await this.monturaRepository.findOne({
         where: { id },
       });
 
@@ -513,38 +557,22 @@ export class ProductosService {
         throw new NotFoundException({ message: 'Montura no encontrada' });
       }
 
-      await monturaRepo.update(id, {
-        ...updateMonturaDto,
+      // En lugar de eliminación física que violaría restricciones FK de venta_productos,
+      // realizamos una eliminación lógica (soft delete) desactivando el Producto asociado.
+      await this.dataSource.getRepository(Producto).update(montura.productoId, {
+        activo: false,
       });
+      console.log('entradno a eliminar ', montura.id)
 
-      if (updateMonturaDto.marca) {
-        await productoRepo.update(montura.productoId, {
-          nombre: updateMonturaDto.marca,
-        });
+      return { message: 'Montura eliminada/desactivada correctamente' };
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw error;
       }
-
-      return await monturaRepo.findOne({
-        where: { id },
+      throw new InternalServerErrorException({
+        message: 'Error al eliminar la montura: ' + error.message,
       });
-    });
-  }
-
-  async eliminarMontura(id: number) {
-    // return this.dataSource.transaction(async (manager) => {
-    //   const monturaRepo = manager.getRepository(Montura);
-    //   const productoRepo = manager.getRepository(Producto);
-    //   const stockProductoRepo = manager.getRepository(StockProducto);
-    //   const montura = await monturaRepo.findOne({
-    //     where: { id },
-    //   });
-    //   if (!montura) {
-    //     throw new NotFoundException('Montura no encontrada');
-    //   }
-    //   await stockProductoRepo.delete({ productoId: montura.productoId });
-    //   await monturaRepo.delete(id);
-    //   await productoRepo.delete(montura.productoId);
-    //   return { message: 'Montura eliminada correctamente' };
-    // });
+    }
   }
 
   async insertarMonturasExcel(file: Express.Multer.File) {
@@ -950,6 +978,7 @@ export class ProductosService {
       .innerJoinAndSelect('accesorio.producto', 'producto')
       .innerJoinAndSelect('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
       .addSelect(['producto.cantidad', 'producto.ubicacion'])
       .orderBy('accesorio.createdAt', 'DESC')
       .getMany();
@@ -972,6 +1001,7 @@ export class ProductosService {
   async obtenerAccesorioPorId(id: number) {
     const accesorio = await this.accesorioRepository.findOne({
       where: { id },
+      relations: ['producto'],
     });
 
     if (!accesorio) {
@@ -1005,92 +1035,74 @@ export class ProductosService {
     id: number,
     updateAccesorioDto: UpdateAccesorioDto,
   ) {
-    return this.dataSource.transaction(async (manager) => {
-      const accesorioRepo = manager.getRepository(Accesorio);
-      const productoRepo = manager.getRepository(Producto);
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const accesorioRepo = manager.getRepository(Accesorio);
+        const productoRepo = manager.getRepository(Producto);
 
-      const accesorio = await accesorioRepo.findOne({
+        const accesorio = await accesorioRepo.findOne({
+          where: { id },
+        });
+
+        if (!accesorio) {
+          throw new NotFoundException({ message: 'Accesorio no encontrado' });
+        }
+
+        // Separar los campos específicos de Producto (cantidad, productoId) y los específicos de Accesorio
+        const { activo, ubicacion, cantidad, productoId, ...datosAccesorio } = updateAccesorioDto;
+
+        try {
+          // 1. Actualizar Accesorio
+          await accesorioRepo.update(id, datosAccesorio);
+
+          // 2. Actualizar cantidad de la tabla Producto
+          await productoRepo.update(accesorio.productoId, { cantidad });
+        } catch (error: any) {
+          throw new BadRequestException({
+            message: 'Error al actualizar los datos del accesorio en la base de datos: ' + error.message
+          });
+        }
+
+        return await accesorioRepo.findOne({
+          where: { id },
+          relations: ['producto'],
+        });
+      });
+    } catch (error: any) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: 'Ocurrió un error inesperado al actualizar el accesorio: ' + error.message,
+      });
+    }
+  }
+
+  async eliminarAccesorio(id: number) {
+    try {
+      const accesorio = await this.accesorioRepository.findOne({
         where: { id },
       });
-
       if (!accesorio) {
         throw new NotFoundException({ message: 'Accesorio no encontrado' });
       }
 
-      await accesorioRepo.update(id, {
-        ...updateAccesorioDto,
+      // En lugar de eliminación física que violaría restricciones FK de venta_productos,
+      // realizamos una eliminación lógica (soft delete) desactivando el Producto asociado.
+      await this.dataSource.getRepository(Producto).update(accesorio.productoId, {
+        activo: false,
       });
 
-      if (updateAccesorioDto.nombre) {
-        await productoRepo.update(accesorio.productoId, {
-          nombre: updateAccesorioDto.nombre,
-        });
+      return { message: 'Accesorio eliminado/desactivado correctamente' };
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw error;
       }
-
-      return await accesorioRepo.findOne({
-        where: { id },
+      throw new InternalServerErrorException({
+        message: 'Error al eliminar el accesorio: ' + error.message,
       });
-    });
+    }
   }
 
-  async eliminarAccesorio(id: number) {
-    // return this.dataSource.transaction(async (manager) => {
-    //   const accesorioRepo = manager.getRepository(Accesorio);
-    //   const productoRepo = manager.getRepository(Producto);
-    //   const stockProductoRepo = manager.getRepository(StockProducto);
-    //   const accesorio = await accesorioRepo.findOne({
-    //     where: { id },
-    //   });
-    //   if (!accesorio) {
-    //     throw new NotFoundException('Accesorio no encontrado');
-    //   }
-    //   await stockProductoRepo.delete({ productoId: accesorio.productoId });
-    //   await accesorioRepo.delete(id);
-    //   await productoRepo.delete(accesorio.productoId);
-    //   return { message: 'Accesorio eliminado correctamente' };
-    // });
-  }
 
-  async seedAccesorios(data: AccesorioSeed[]) {
-    // return await this.dataSource.transaction(async (manager) => {
-    //   const sedes = await manager.find(Sede);
-    //   // 1. Productos
-    //   const productos = await manager.getRepository(Producto).save(
-    //     data.map((item) => ({
-    //       nombre: item.nombre,
-    //       tipo: TipoProducto.ACCESORIO,
-    //     })),
-    //   );
-    //   // 2. Accesorios
-    //   const accesorios = await manager.getRepository(Accesorio).save(
-    //     data.map((item, idx) => ({
-    //       productoId: productos[idx].id,
-    //       nombre: item.nombre,
-    //       codigo: item.codigo,
-    //       precio: 10,
-    //     })),
-    //   );
-    //   // 3. Stock
-    //   const stockBulk: Partial<StockProducto>[] = [];
-    //   for (const [idx, accesorio] of accesorios.entries()) {
-    //     const original = data[idx];
-    //     for (const sede of sedes) {
-    //       stockBulk.push({
-    //         productoId: accesorio.productoId,
-    //         sedeId: sede.id,
-    //         cantidad: original.cantidad,
-    //         ubicacion: '',
-    //       });
-    //     }
-    //   }
-    //   if (stockBulk.length) {
-    //     await manager.getRepository(StockProducto).insert(stockBulk);
-    //   }
-    //   return {
-    //     productos: productos.length,
-    //     accesorios: accesorios.length,
-    //     stock: stockBulk.length,
-    //   };
-    // });
-  }
 }

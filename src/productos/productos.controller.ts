@@ -164,7 +164,7 @@ export class ProductosController {
   }
 
   @Public()
-  @Patch('montura/:id')
+  @Patch('monturas/actualizar/:id')
   actualizarMontura(
     @Param('id') id: string,
     @Body() updateMonturaDto: UpdateMonturaDto,
@@ -173,7 +173,7 @@ export class ProductosController {
   }
 
   @Public()
-  @Delete('montura/:id')
+  @Delete('monturas/eliminar/:id')
   eliminarMontura(@Param('id') id: string) {
     return this.productosService.eliminarMontura(+id);
   }
@@ -265,7 +265,7 @@ export class ProductosController {
   }
 
   @Public()
-  @Patch('accesorio/:id')
+  @Patch('/accesorios/actualizar/:id')
   actualizarAccesorio(
     @Param('id') id: string,
     @Body() updateAccesorioDto: UpdateAccesorioDto,
@@ -274,14 +274,10 @@ export class ProductosController {
   }
 
   @Public()
-  @Delete('accesorio/:id')
+  @Delete('/accesorios/eliminar/:id')
   eliminarAccesorio(@Param('id') id: string) {
     return this.productosService.eliminarAccesorio(+id);
   }
 
-  @Public()
-  @Post('/seedAccesorios')
-  seedAccesorios() {
-    return this.productosService.seedAccesorios(accesoriosSeed);
-  }
+
 }
