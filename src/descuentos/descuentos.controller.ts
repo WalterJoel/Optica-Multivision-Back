@@ -15,7 +15,7 @@ import { ObtenerDescuentosDto } from './dto/obtener-descuentos.dto';
 
 @Controller('descuentos')
 export class DescuentosController {
-  constructor(private readonly descuentosService: DescuentosService) {}
+  constructor(private readonly descuentosService: DescuentosService) { }
 
   @Public()
   @Post('crearDescuento')

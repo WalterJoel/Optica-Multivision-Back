@@ -157,13 +157,15 @@ export class ProductosController {
   }
 
   @Public()
-  @Get('buscarMontura')
+  @Get('/monturas/buscarMontura/:sedeId')
   buscarMontura(
+    @Param('sedeId') sedeId: string,
     @Query('busqueda') busqueda: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
     return this.productosService.buscarMontura(
+      Number(sedeId),
       busqueda,
       Number(limite),
       Number(desplazamiento),
@@ -255,13 +257,15 @@ export class ProductosController {
 
 
   @Public()
-  @Get('buscarAccesorio')
+  @Get('/accesorios/buscarAccesorio/:sedeId')
   async buscarAccesorio(
+    @Param('sedeId') sedeId: string,
     @Query('nombre') nombre: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
     return this.productosService.buscarAccesorio(
+      Number(sedeId),
       nombre,
       Number(limite),
       Number(desplazamiento),

@@ -518,15 +518,15 @@ export class ProductosService {
       .getMany();
   }
 
-  async buscarMontura(busqueda?: string, limite = 50, desplazamiento = 0) {
+  async buscarMontura(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
     const where = busqueda
       ? [
-        { marca: ILike(`%${busqueda}%`) },
-        { material: ILike(`%${busqueda}%`) },
-        { color: ILike(`%${busqueda}%`) },
-        { talla: ILike(`%${busqueda}%`) },
+        { marca: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
+        { material: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
+        { codigo: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
+        { codigoMontura: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
       ]
-      : {};
+      : { producto: { activo: true, sedeId } };
 
     const [monturas, total] = await this.monturaRepository.findAndCount({
       where,
@@ -1052,9 +1052,12 @@ export class ProductosService {
 
 
   //* Buscar  accesorio ILIKE ... */
-  async buscarAccesorio(nombre?: string, limite = 50, desplazamiento = 0) {
+  async buscarAccesorio(sedeId: number, nombre?: string, limite = 50, desplazamiento = 0) {
     const [accesorios, total] = await this.accesorioRepository.findAndCount({
-      where: nombre ? { nombre: ILike(`%${nombre}%`) } : {},
+      where: {
+        ...(nombre ? { nombre: ILike(`%${nombre}%`) } : {}),
+        producto: { activo: true, sedeId },
+      },
       take: limite,
       skip: desplazamiento,
       select: ['id', 'nombre', 'precioVenta', 'productoId'],

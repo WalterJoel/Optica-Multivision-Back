@@ -1,4 +1,4 @@
-import { Producto } from 'src/productos/entities';
+import { Producto, Lente } from 'src/productos/entities';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -11,6 +11,7 @@ import {
 
 @Entity('descuentos')
 @Index(['clienteId', 'productoId', 'serie'], { unique: false })
+@Index(['clienteId', 'lenteId', 'serie'], { unique: false })
 export class Descuento {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,14 +19,12 @@ export class Descuento {
   @Column()
   clienteId: number;
 
-  @Column()
-  productoId: number;
+  @Column({ nullable: true })
+  productoId?: number | null;
 
   @Column({ length: 50 })
   tipoProducto: string;
 
-  @Column({ type: 'int', nullable: true })
-  serie: number | null;
 
   @Column('decimal', { precision: 10, scale: 2, name: 'monto_descuento' })
   montoDescuento: number;
@@ -33,12 +32,23 @@ export class Descuento {
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ name: 'created_at' }) a;
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  //Solo para lentes
+  @Column({ nullable: true })
+  lenteId?: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  serie: number | null;
 
   /*Productos*/
 
-  @ManyToOne(() => Producto)
+  @ManyToOne(() => Producto, { nullable: true })
   @JoinColumn({ name: 'productoId' })
-  producto: Producto;
+  producto?: Producto | null;
+
+  @ManyToOne(() => Lente, { nullable: true })
+  @JoinColumn({ name: 'lenteId' })
+  lente?: Lente | null;
 }

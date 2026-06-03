@@ -16,7 +16,13 @@ export class CrearDescuentoDto {
 
   @IsNumber()
   @IsPositive()
-  productoId: number;
+  @IsOptional()
+  productoId?: number;
+
+  @IsNumber()
+  @IsPositive()
+  @IsOptional()
+  lenteId?: number;
 
   @IsString()
   @IsNotEmpty()
