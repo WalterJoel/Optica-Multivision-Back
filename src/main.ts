@@ -4,11 +4,24 @@ import { join } from 'path';
 import * as express from 'express';
 import { getAwsParameter } from 'src/aws-infrastructure/ssm/ssm.config';
 import { ValidationPipe } from '@nestjs/common';
+import * as fs from 'fs';
 
 async function bootstrap() {
-  // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
-  process.env.NODE_ENV = await getAwsParameter('entorno');
-  console.log('Entorno inicial detectado:', process.env.NODE_ENV);
+  // Si existe un archivo .env local, asumimos entorno de desarrollo y evitamos llamar a AWS SSM
+  const isLocal = fs.existsSync(join(process.cwd(), '.env'));
+
+  if (!isLocal) {
+    try {
+      // 1. Verificamos si estamos en producción (EC2) para cargar de AWS uno por uno
+      process.env.NODE_ENV = await getAwsParameter('entorno');
+      console.log('Entorno inicial detectado:', process.env.NODE_ENV);
+    } catch (error) {
+      console.warn('⚠️ No se pudo obtener el parámetro "entorno" desde AWS SSM. Asumiendo "development".');
+      process.env.NODE_ENV = 'development';
+    }
+  } else {
+    process.env.NODE_ENV = 'development';
+  }
 
   if (process.env.NODE_ENV === 'production') {
     try {

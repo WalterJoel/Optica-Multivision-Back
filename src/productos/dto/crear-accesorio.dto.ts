@@ -65,3 +65,8 @@ export class CrearAccesorioDto extends OmitType(DatosParaCrearAccesorioDto, [
   @IsNumber()
   productoId: number;
 }
+
+export class CrearAccesorioExcelDto extends OmitType(DatosParaCrearAccesorioDto, [
+  'cantidad', 'ubicacion', 'sedeId', 'atributo'
+] as const) {}
+

@@ -305,5 +305,37 @@ export class ProductosController {
     return this.productosService.eliminarAccesorio(+id);
   }
 
+  @Public()
+  @Post('accesorios/insertarAccesoriosExcel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 15 * 1024 * 1024, // 15MB
+      },
+    }),
+  )
+  async insertarAccesoriosExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.productosService.insertarAccesoriosExcel(file);
+  }
 
+  @Public()
+  @Post('accesorios/editarAccesoriosExcel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 15 * 1024 * 1024, // 15MB
+      },
+    }),
+  )
+  async editarAccesoriosExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.productosService.editarAccesoriosExcel(file);
+  }
+
+  @Public()
+  @Get('accesorios/obtenerAccesoriosExcel/:sedeId')
+  obtenerAccesoriosExcel(@Param('sedeId', ParseIntPipe) sedeId: number) {
+    return this.productosService.obtenerAccesoriosExcel(sedeId);
+  }
 }

@@ -29,10 +29,7 @@ import { S3Module } from './aws-infrastructure/s3/s3.module';
       useFactory: (): TypeOrmModuleOptions => ({
         type: 'postgres',
 
-        url:
-          process.env.NODE_ENV === 'production'
-            ? process.env.DATABASE_URL
-            : 'postgresql://postgres:adfvpTyMlpGhlmefxuUrMiDSgPEmwzLs@trolley.proxy.rlwy.net:33258/railway',
+        url: process.env.DATABASE_URL,
 
         autoLoadEntities: true,
 
@@ -62,4 +59,4 @@ import { S3Module } from './aws-infrastructure/s3/s3.module';
 
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

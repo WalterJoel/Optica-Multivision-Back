@@ -16,7 +16,6 @@ import {
 import { v4 } from 'uuid';
 import {
   CrearLenteDto,
-  CrearMonturaDto,
   CrearAccesorioDto,
   UpdateMonturaDto,
   UpdateAccesorioDto,
@@ -24,6 +23,8 @@ import {
   CrearProductoDto,
   DatosParaCrearAccesorioDto,
   UpdateLenteDto,
+  CrearMonturaExcelDto,
+  CrearAccesorioExcelDto,
 } from './dto';
 import { Buffer } from 'buffer';
 import * as ExcelJS from 'exceljs';
@@ -38,10 +39,15 @@ import { AccesorioSeed } from 'src/seeds/accesorios/accesorios';
 import { validarExcelInsercion } from './utils/monturas/excel/validaciones';
 import {
   crearMonturasExcelSchema,
-  HEADERS_CREAR_MONTURA,
+  HEADERS_MONTURA_EXCEL,
 } from './utils/monturas/excel/crearMonturasExcelSchema';
 import { editarMonturasExcelSchema } from './utils/monturas/excel/editarMonturasExcelSchema';
-import { FilaExcelEditarMontura } from './types';
+import {
+  crearAccesoriosExcelSchema,
+  HEADERS_ACCESORIO_EXCEL,
+} from './utils/accesorios/excel/crearAccesoriosExcelSchema';
+import { editarAccesoriosExcelSchema } from './utils/accesorios/excel/editarAccesoriosExcelSchema';
+import { FilaExcelEditarMontura, FilaExcelEditarAccesorio } from './types';
 
 type StockCell = {
   id: number;
@@ -58,7 +64,12 @@ type UpdateStockItem = {
 };
 
 // 1. Interfaz extendida para meter los campos extras del Excel sin tocar tu DTO original
-interface FilaExcelMontura extends CrearMonturaDto {
+interface FilaExcelMontura extends CrearMonturaExcelDto {
+  sedeId: number;
+  cantidad: number;
+}
+
+interface FilaExcelAccesorio extends CrearAccesorioExcelDto {
   sedeId: number;
   cantidad: number;
 }
@@ -670,22 +681,21 @@ export class ProductosService {
         return row.getCell(columnIndex).value;
       };
 
-      // rows.push({
-      //   precioCompra: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA)),
-      //   precioVenta: Number(getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA)),
-      //   talla: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA)),
-      //   codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO)),
-      //   codigoMontura: String(
-      //     getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA),
-      //   ),
-      //   marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA)),
-      //   color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR)),
-      //   material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL)),
-
-      //   // Capturamos los datos numéricos directamente del Excel
-      //   sedeId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE)),
-      //   cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
-      // });
+      rows.push({
+        codigo: String(getByHeader(HEADERS_MONTURA_EXCEL.CODIGO)),
+        codigoMontura: String(
+          getByHeader(HEADERS_MONTURA_EXCEL.CODIGO_MONTURA),
+        ),
+        precioCompra: Number(getByHeader(HEADERS_MONTURA_EXCEL.PRECIO_COMPRA)),
+        precioVenta: Number(getByHeader(HEADERS_MONTURA_EXCEL.PRECIO_VENTA)),
+        marca: String(getByHeader(HEADERS_MONTURA_EXCEL.MARCA)),
+        material: String(getByHeader(HEADERS_MONTURA_EXCEL.MATERIAL)),
+        talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA)),
+        color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR)),
+        // Capturamos los datos numéricos directamente del Excel
+        sedeId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE)),
+        cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
+      });
     });
 
     return this.insertarMonturasMasivo(rows);
@@ -767,6 +777,7 @@ export class ProductosService {
         ok: true,
         productos: productosDB.length,
         monturas: monturas.length,
+        total: monturas.length,
       };
     });
   }
@@ -778,19 +789,19 @@ export class ProductosService {
       .innerJoin('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
       .select([
-        `producto.id AS "${HEADERS_CREAR_MONTURA.PRODUCTO_ID}"`,
-        `montura.precioCompra AS "${HEADERS_CREAR_MONTURA.PRECIO_COMPRA}"`,
-        `montura.precioVenta AS "${HEADERS_CREAR_MONTURA.PRECIO_VENTA}"`,
-        `montura.talla AS "${HEADERS_CREAR_MONTURA.TALLA}"`,
-        `montura.codigo AS "${HEADERS_CREAR_MONTURA.CODIGO}"`,
-        `montura.codigoMontura AS "${HEADERS_CREAR_MONTURA.CODIGO_MONTURA}"`,
-        `montura.marca AS "${HEADERS_CREAR_MONTURA.MARCA}"`,
-        `producto.cantidad AS "${HEADERS_CREAR_MONTURA.CANTIDAD}"`,
-        `montura.color AS "${HEADERS_CREAR_MONTURA.COLOR}"`,
-        `montura.material AS "${HEADERS_CREAR_MONTURA.MATERIAL}"`,
-        `producto.tipo AS "${HEADERS_CREAR_MONTURA.TIPO}"`,
-        `sede.nombre AS "${HEADERS_CREAR_MONTURA.SEDE}"`,
-        `sede.id AS "${HEADERS_CREAR_MONTURA.SEDE_ID}"`,
+        `producto.id AS "${HEADERS_MONTURA_EXCEL.PRODUCTO_ID}"`,
+        `montura.codigo AS "${HEADERS_MONTURA_EXCEL.CODIGO}"`,
+        `montura.codigoMontura AS "${HEADERS_MONTURA_EXCEL.CODIGO_MONTURA}"`,
+        `montura.precioCompra AS "${HEADERS_MONTURA_EXCEL.PRECIO_COMPRA}"`,
+        `montura.precioVenta AS "${HEADERS_MONTURA_EXCEL.PRECIO_VENTA}"`,
+        `montura.marca AS "${HEADERS_MONTURA_EXCEL.MARCA}"`,
+        `montura.material AS "${HEADERS_MONTURA_EXCEL.MATERIAL}"`,
+        `montura.talla AS "${HEADERS_MONTURA_EXCEL.TALLA}"`,
+        `montura.color AS "${HEADERS_MONTURA_EXCEL.COLOR}"`,
+        `producto.cantidad AS "${HEADERS_MONTURA_EXCEL.CANTIDAD}"`,
+        `producto.tipo AS "${HEADERS_MONTURA_EXCEL.TIPO}"`,
+        `sede.nombre AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
+        `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE_ID}"`,
       ])
       .orderBy('montura.createdAt', 'DESC')
       .getRawMany();
@@ -837,23 +848,25 @@ export class ProductosService {
       };
 
       rows.push({
-        productoId: Number(getByHeader(HEADERS_CREAR_MONTURA.PRODUCTO_ID)),
-        sedeDestinoId: Number(getByHeader(HEADERS_CREAR_MONTURA.SEDE_ID)),
-        cantidad: Number(getByHeader(HEADERS_CREAR_MONTURA.CANTIDAD) || 0),
+        productoId: Number(getByHeader(HEADERS_MONTURA_EXCEL.PRODUCTO_ID)),
+        codigo: String(getByHeader(HEADERS_MONTURA_EXCEL.CODIGO) || ''),
+        codigoMontura: String(
+          getByHeader(HEADERS_MONTURA_EXCEL.CODIGO_MONTURA) || '',
+        ),
         precioCompra: Number(
-          getByHeader(HEADERS_CREAR_MONTURA.PRECIO_COMPRA) || 0,
+          getByHeader(HEADERS_MONTURA_EXCEL.PRECIO_COMPRA) || 0,
         ),
         precioVenta: Number(
-          getByHeader(HEADERS_CREAR_MONTURA.PRECIO_VENTA) || 0,
+          getByHeader(HEADERS_MONTURA_EXCEL.PRECIO_VENTA) || 0,
         ),
-        marca: String(getByHeader(HEADERS_CREAR_MONTURA.MARCA) || ''),
-        material: String(getByHeader(HEADERS_CREAR_MONTURA.MATERIAL) || ''),
-        color: String(getByHeader(HEADERS_CREAR_MONTURA.COLOR) || ''),
-        codigo: String(getByHeader(HEADERS_CREAR_MONTURA.CODIGO) || ''),
-        codigoMontura: String(
-          getByHeader(HEADERS_CREAR_MONTURA.CODIGO_MONTURA) || '',
-        ),
-        talla: String(getByHeader(HEADERS_CREAR_MONTURA.TALLA) || ''),
+        marca: String(getByHeader(HEADERS_MONTURA_EXCEL.MARCA) || ''),
+        material: String(getByHeader(HEADERS_MONTURA_EXCEL.MATERIAL) || ''),
+        talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA) || ''),
+        color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR) || ''),
+        cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
+        sedeDestinoId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID)),
+
+
       });
     });
 
@@ -875,10 +888,10 @@ export class ProductosService {
       const sedeIds = [...new Set(rows.map((r) => r.sedeDestinoId))];
 
       // =========================
-      // VALIDAR PRODUCTOS
-      // =========================
+      // VALIDAR EXITENCIA DE PRODUCTOS
+      // ===============================
       const productosDB = await manager.find(Producto, {
-        where: { id: In(productoIds) },
+        where: { id: In(productoIds), tipo: TipoProducto.MONTURA },
         select: ['id'],
       });
 
@@ -894,9 +907,9 @@ export class ProductosService {
         });
       }
 
-      // =========================
-      // VALIDAR SEDES
-      // =========================
+      // ===============================
+      // VALIDAR EXISTENCIA DE SEDES DESTINO
+      // ===============================
       const sedesDB = await manager.find(Sede, {
         where: { id: In(sedeIds) },
         select: ['id'],
@@ -925,12 +938,12 @@ export class ProductosService {
       SET cantidad = data.cantidad
       FROM (
         SELECT
-          unnest($1::int[]) AS productoId,
-          unnest($2::int[]) AS sedeId,
+          unnest($1::int[]) AS "productoId",
+          unnest($2::int[]) AS "sedeId",
           unnest($3::int[]) AS cantidad
       ) AS data
-      WHERE p.id = data.productoId
-      AND p.sedeId = data.sedeId
+      WHERE p.id = data."productoId"
+      AND p."sedeId" = data."sedeId"
       `,
         [productoIdsArr, sedeIdsArr, cantidadesArr],
       );
@@ -951,27 +964,27 @@ export class ProductosService {
         `
       UPDATE monturas AS m
       SET
-        precioCompra = COALESCE(data.precioCompra, m.precioCompra),
-        precioVenta = COALESCE(data.precioVenta, m.precioVenta),
+        "precioCompra" = COALESCE(data."precioCompra", m."precioCompra"),
+        "precioVenta" = COALESCE(data."precioVenta", m."precioVenta"),
         marca = COALESCE(data.marca, m.marca),
         material = COALESCE(data.material, m.material),
         color = COALESCE(data.color, m.color),
         codigo = COALESCE(data.codigo, m.codigo),
-        codigoMontura = COALESCE(data.codigoMontura, m.codigoMontura),
+        "codigoMontura" = COALESCE(data."codigoMontura", m."codigoMontura"),
         talla = COALESCE(data.talla, m.talla)
       FROM (
         SELECT
-          unnest($1::int[]) AS productoId,
-          unnest($2::numeric[]) AS precioCompra,
-          unnest($3::numeric[]) AS precioVenta,
+          unnest($1::int[]) AS "productoId",
+          unnest($2::numeric[]) AS "precioCompra",
+          unnest($3::numeric[]) AS "precioVenta",
           unnest($4::text[]) AS marca,
           unnest($5::text[]) AS material,
           unnest($6::text[]) AS color,
           unnest($7::text[]) AS codigo,
-          unnest($8::text[]) AS codigoMontura,
+          unnest($8::text[]) AS "codigoMontura",
           unnest($9::text[]) AS talla
       ) AS data
-      WHERE m.productoId = data.productoId
+      WHERE m."productoId" = data."productoId"
       `,
         [
           productoIdsArr,
@@ -989,6 +1002,7 @@ export class ProductosService {
       return {
         ok: true,
         actualizados: rows.length,
+        total: rows.length,
       };
     });
   }
@@ -1173,5 +1187,307 @@ export class ProductosService {
     }
   }
 
+  async insertarAccesoriosExcel(file: Express.Multer.File) {
+    const workbook = new ExcelJS.Workbook();
+    const excelBuffer: any = Buffer.from(file.buffer);
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.worksheets[0];
 
+    const errores = validarExcelInsercion(worksheet, crearAccesoriosExcelSchema);
+    if (errores.length > 0) {
+      throw new BadRequestException({
+        message: `Excel inválido:\n${errores.join('\n')}`,
+      });
+    }
+
+    const headerRow = worksheet.getRow(1);
+    const values = headerRow.values as ExcelJS.CellValue[];
+    const headersExcel = values
+      .slice(1)
+      .map((value) => String(value ?? '').trim());
+
+    const rows: FilaExcelAccesorio[] = [];
+    const erroresTipo: string[] = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Saltar cabecera
+
+      const getByHeader = (headerName: string) => {
+        const columnIndex = headersExcel.indexOf(headerName) + 1;
+        return row.getCell(columnIndex).value;
+      };
+
+      const tipo = String(getByHeader(HEADERS_ACCESORIO_EXCEL.TIPO) ?? '').trim().toUpperCase();
+      if (tipo !== TipoProducto.ACCESORIO) {
+        erroresTipo.push(`Fila ${rowNumber}: El campo TIPO debe ser "${TipoProducto.ACCESORIO}" (se encontró "${tipo}")`);
+      }
+
+      rows.push({
+        codigoAccesorio: String(getByHeader(HEADERS_ACCESORIO_EXCEL.CODIGO)),
+        nombre: String(getByHeader(HEADERS_ACCESORIO_EXCEL.NOMBRE)),
+        precioCompra: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA)),
+        precioVenta: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA)),
+        color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR)),
+        sedeId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE)),
+        cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
+      });
+    });
+
+    if (erroresTipo.length > 0) {
+      throw new BadRequestException({
+        message: `Excel inválido:\n${erroresTipo.join('\n')}`,
+      });
+    }
+
+    return this.insertarAccesoriosMasivo(rows);
+  }
+
+  private async insertarAccesoriosMasivo(rows: FilaExcelAccesorio[]) {
+    if (rows.length === 0) {
+      throw new BadRequestException({
+        message: 'Excel inválido: no hay filas para procesar',
+      });
+    }
+
+    const sedeIdObjetivo = rows[0].sedeId;
+
+    return this.dataSource.transaction(async (manager) => {
+      // 1. validar sede
+      const sedeExiste = await manager.findOne(Sede, {
+        where: { id: sedeIdObjetivo },
+        select: ['id'],
+      });
+
+      if (!sedeExiste) {
+        throw new BadRequestException({
+          message: `La sede ${sedeIdObjetivo} no existe`,
+        });
+      }
+
+      // 2. validar que todo sea misma sede
+      const mismaSede = rows.every((r) => r.sedeId === sedeIdObjetivo);
+
+      if (!mismaSede) {
+        throw new BadRequestException({
+          message: 'Todas las filas deben pertenecer a la misma sede',
+        });
+      }
+
+      // 3. Crear Productos
+      const productos = rows.map((r) =>
+        manager.create(Producto, {
+          nombre: r.nombre,
+          tipo: TipoProducto.ACCESORIO,
+          sedeId: sedeIdObjetivo,
+          cantidad: r.cantidad,
+          ubicacion: '',
+        }),
+      );
+
+      const productosDB = await manager.save(Producto, productos);
+
+      // 4. Crear Accesorios
+      const accesorios = rows.map((r, i) =>
+        manager.create(Accesorio, {
+          productoId: productosDB[i].id,
+          codigoAccesorio: r.codigoAccesorio,
+          nombre: r.nombre,
+          precioCompra: r.precioCompra,
+          precioVenta: r.precioVenta,
+          color: r.color,
+        }),
+      );
+
+      await manager.save(Accesorio, accesorios);
+
+      return {
+        ok: true,
+        productos: productosDB.length,
+        accesorios: accesorios.length,
+        total: accesorios.length,
+      };
+    });
+  }
+
+  async obtenerAccesoriosExcel(sedeId: number) {
+    return this.accesorioRepository
+      .createQueryBuilder('accesorio')
+      .innerJoin('accesorio.producto', 'producto')
+      .innerJoin('producto.sede', 'sede')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .select([
+        `producto.id AS "${HEADERS_ACCESORIO_EXCEL.PRODUCT_ID}"`,
+        `accesorio.codigoAccesorio AS "${HEADERS_ACCESORIO_EXCEL.CODIGO}"`,
+        `accesorio.nombre AS "${HEADERS_ACCESORIO_EXCEL.NOMBRE}"`,
+        `accesorio.precioCompra AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA}"`,
+        `accesorio.precioVenta AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA}"`,
+        `accesorio.color AS "${HEADERS_ACCESORIO_EXCEL.COLOR}"`,
+        `producto.cantidad AS "${HEADERS_ACCESORIO_EXCEL.CANTIDAD}"`,
+        `producto.tipo AS "${HEADERS_ACCESORIO_EXCEL.TIPO}"`,
+        `sede.nombre AS "${HEADERS_ACCESORIO_EXCEL.SEDE}"`,
+        `sede.id AS "${HEADERS_ACCESORIO_EXCEL.SEDE_ID}"`,
+      ])
+      .orderBy('accesorio.createdAt', 'DESC')
+      .getRawMany();
+  }
+
+  async editarAccesoriosExcel(file: Express.Multer.File) {
+    const workbook = new ExcelJS.Workbook();
+    const excelBuffer: any = Buffer.from(file.buffer);
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.worksheets[0];
+    const noValidarOtrosHeaders = false;
+    const errores = validarExcelInsercion(
+      worksheet,
+      editarAccesoriosExcelSchema,
+      noValidarOtrosHeaders,
+    );
+
+    if (errores.length > 0) {
+      throw new BadRequestException({
+        message: `Excel inválido:\n${errores.join('\n')}`,
+      });
+    }
+
+    const headerRow = worksheet.getRow(1);
+    const values = headerRow.values as ExcelJS.CellValue[];
+    const headersExcel = values
+      .slice(1)
+      .map((value) => String(value ?? '').trim());
+
+    const rows: FilaExcelEditarAccesorio[] = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const getByHeader = (headerName: string) => {
+        const columnIndex = headersExcel.indexOf(headerName) + 1;
+        return row.getCell(columnIndex).value;
+      };
+
+      rows.push({
+        productoId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRODUCT_ID)),
+        codigoAccesorio: String(getByHeader(HEADERS_ACCESORIO_EXCEL.CODIGO) || ''),
+        nombre: String(getByHeader(HEADERS_ACCESORIO_EXCEL.NOMBRE) || ''),
+        precioCompra: Number(
+          getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA) || 0,
+        ),
+        precioVenta: Number(
+          getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA) || 0,
+        ),
+        color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR) || ''),
+        cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
+        sedeDestinoId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE_ID)),
+      });
+    });
+
+    return this.actualizarStockAccesoriosMasivo(rows);
+  }
+
+  private async actualizarStockAccesoriosMasivo(rows: FilaExcelEditarAccesorio[]) {
+    return this.dataSource.transaction(async (manager) => {
+      if (rows.length === 0) {
+        throw new BadRequestException({
+          message: 'No existen filas para actualizar',
+        });
+      }
+
+      const productoIds = [...new Set(rows.map((r) => r.productoId))];
+      const sedeIds = [...new Set(rows.map((r) => r.sedeDestinoId))];
+
+      // Validar Productos
+      const productosDB = await manager.find(Producto, {
+        where: { id: In(productoIds), tipo: TipoProducto.ACCESORIO },
+        select: ['id'],
+      });
+
+      const productoMap = new Map(productosDB.map((p) => [p.id, true]));
+      const productosFaltantes = productoIds.filter((id) => !productoMap.has(id));
+
+      if (productosFaltantes.length > 0) {
+        throw new BadRequestException({
+          message: `Los siguientes PRODUCTOS no existen: ${productosFaltantes.join(', ')}`,
+        });
+      }
+
+      // Validar Sedes
+      const sedesDB = await manager.find(Sede, {
+        where: { id: In(sedeIds) },
+        select: ['id'],
+      });
+
+      const sedeMap = new Map(sedesDB.map((s) => [s.id, true]));
+      const sedesFaltantes = sedeIds.filter((id) => !sedeMap.has(id));
+
+      if (sedesFaltantes.length > 0) {
+        throw new BadRequestException({
+          message: `Las siguientes SEDES no existen: ${sedesFaltantes.join(', ')}`,
+        });
+      }
+
+      // 1. UPDATE STOCK (PRODUCTOS)
+      const productoIdsArr = rows.map((r) => r.productoId);
+      const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
+      const cantidadesArr = rows.map((r) => r.cantidad);
+
+      await manager.query(
+        `
+      UPDATE productos AS p
+      SET cantidad = data.cantidad
+      FROM (
+        SELECT
+          unnest($1::int[]) AS "productoId",
+          unnest($2::int[]) AS "sedeId",
+          unnest($3::int[]) AS cantidad
+      ) AS data
+      WHERE p.id = data."productoId"
+      AND p."sedeId" = data."sedeId"
+      `,
+        [productoIdsArr, sedeIdsArr, cantidadesArr],
+      );
+
+      // 2. UPDATE ACCESORIOS
+      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
+      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
+      const nombreArr = rows.map((r) => r.nombre ?? null);
+      const colorArr = rows.map((r) => r.color ?? null);
+      const codigoAccesorioArr = rows.map((r) => r.codigoAccesorio ?? null);
+
+      await manager.query(
+        `
+      UPDATE accesorios AS a
+      SET
+        "precioCompra" = COALESCE(data."precioCompra", a."precioCompra"),
+        "precioVenta" = COALESCE(data."precioVenta", a."precioVenta"),
+        nombre = COALESCE(data.nombre, a.nombre),
+        color = COALESCE(data.color, a.color),
+        "codigoAccesorio" = COALESCE(data."codigoAccesorio", a."codigoAccesorio")
+      FROM (
+        SELECT
+          unnest($1::int[]) AS "productoId",
+          unnest($2::numeric[]) AS "precioCompra",
+          unnest($3::numeric[]) AS "precioVenta",
+          unnest($4::text[]) AS nombre,
+          unnest($5::text[]) AS color,
+          unnest($6::text[]) AS "codigoAccesorio"
+      ) AS data
+      WHERE a."productoId" = data."productoId"
+      `,
+        [
+          productoIdsArr,
+          precioCompraArr,
+          precioVentaArr,
+          nombreArr,
+          colorArr,
+          codigoAccesorioArr,
+        ],
+      );
+
+      return {
+        ok: true,
+        actualizados: rows.length,
+        total: rows.length,
+      };
+    });
+  }
 }

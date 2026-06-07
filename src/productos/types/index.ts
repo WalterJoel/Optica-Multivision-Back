@@ -14,3 +14,15 @@ export interface FilaExcelEditarMontura {
   codigoMontura?: string;
   talla?: string;
 }
+
+export interface FilaExcelEditarAccesorio {
+  productoId: number;
+  sedeDestinoId: number;
+  cantidad: number;
+
+  precioCompra?: number;
+  precioVenta?: number;
+  nombre?: string;
+  color?: string;
+  codigoAccesorio?: string;
+}
