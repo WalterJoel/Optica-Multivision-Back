@@ -9,6 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
+import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { VentaProducto } from './ventaProducto.entity';
 
 
@@ -23,9 +24,8 @@ export class Venta {
   @Column()
   userId: number; // Es el responsable de la venta
 
-  @ManyToOne(() => User, { eager: false, nullable: true })
-  @JoinColumn({ name: 'userId' })
-  user?: User;
+  @Column({ nullable: true })
+  clienteId?: number;
 
   @Column({ default: true })
   activo: boolean;
@@ -68,6 +68,16 @@ export class Venta {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  //Relations
+
+  @ManyToOne(() => User, { eager: false, nullable: true })
+  @JoinColumn({ name: 'userId' })
+  user?: User;
+
+  @ManyToOne(() => Cliente, { eager: false, nullable: true })
+  @JoinColumn({ name: 'clienteId' })
+  cliente?: Cliente;
 
   @OneToMany(() => VentaProducto, (vp) => vp.venta, {
     cascade: true,

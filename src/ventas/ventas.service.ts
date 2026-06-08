@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { Repository, EntityManager, Between } from 'typeorm';
 import { Venta } from './entities/venta.entity';
 import { VentaProducto } from './entities/ventaProducto.entity';
 import { SeguimientoPedido } from './entities/seguimientoPedido.entity';
@@ -123,6 +123,28 @@ export class VentasService {
       where: { sedeId },
       relations: {
         productos: true,
+        cliente: true,
+        user: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async buscarVentasPorRango(sedeId: number, fechaInicio: string, fechaFin: string) {
+    const start = new Date(`${fechaInicio}T00:00:00.000-05:00`);
+    const end = new Date(`${fechaFin}T23:59:59.999-05:00`);
+
+    return await this.ventaRepository.find({
+      where: {
+        sedeId,
+        createdAt: Between(start, end),
+      },
+      relations: {
+        productos: true,
+        cliente: true,
+        user: true,
       },
       order: {
         createdAt: 'DESC',

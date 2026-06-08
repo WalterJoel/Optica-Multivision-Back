@@ -74,6 +74,7 @@ export class CajaService {
       relations: [
         'venta',
         'venta.user',
+        'venta.cliente',
         'venta.productos',
         'venta.productos.producto',
         'venta.productos.stock',
@@ -98,6 +99,7 @@ export class CajaService {
       relations: [
         'venta',
         'venta.user',
+        'venta.cliente',
         'venta.productos',
         'venta.productos.producto',
         'venta.productos.stock',

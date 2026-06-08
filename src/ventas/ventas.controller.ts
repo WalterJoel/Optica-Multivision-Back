@@ -6,10 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { VentasService } from './ventas.service';
 import { CrearVentaDto } from './dto/crear-venta.dto';
 import { Public } from '../auth/public.decorator';
+import { BuscarVentasDto } from './dto/buscar-ventas.dto';
 
 @Controller('ventas')
 export class VentasController {
@@ -21,6 +23,13 @@ export class VentasController {
   @Post('crearVenta')
   create(@Body() createVentaDto: CrearVentaDto) {
     return this.ventasService.crearVenta(createVentaDto);
+  }
+
+  @Public()
+  @Get('buscarVentasPorRango')
+  buscarVentas(@Query() query: BuscarVentasDto) {
+    const { sedeId, fechaInicio, fechaFin } = query;
+    return this.ventasService.buscarVentasPorRango(sedeId, fechaInicio, fechaFin);
   }
 
   @Public()
