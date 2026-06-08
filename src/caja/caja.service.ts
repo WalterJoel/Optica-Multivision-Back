@@ -71,7 +71,15 @@ export class CajaService {
       where: {
         sedeId,
       },
-      relations: ['venta', 'sede'],
+      relations: [
+        'venta',
+        'venta.user',
+        'venta.productos',
+        'venta.productos.producto',
+        'venta.productos.stock',
+        'venta.productos.stock.lente',
+        'sede',
+      ],
       order: {
         createdAt: 'DESC',
       },
@@ -87,7 +95,15 @@ export class CajaService {
         sedeId,
         createdAt: Between(start, end),
       },
-      relations: ['venta', 'sede'],
+      relations: [
+        'venta',
+        'venta.user',
+        'venta.productos',
+        'venta.productos.producto',
+        'venta.productos.stock',
+        'venta.productos.stock.lente',
+        'sede',
+      ],
       order: {
         createdAt: 'DESC',
       },

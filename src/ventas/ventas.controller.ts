@@ -13,7 +13,7 @@ import { Public } from '../auth/public.decorator';
 
 @Controller('ventas')
 export class VentasController {
-  constructor(private readonly ventasService: VentasService) {}
+  constructor(private readonly ventasService: VentasService) { }
   // ┌───────────────────────────────────────────────┐
   // │  📦 SECCIÓN: VENTAS                          │
   // └───────────────────────────────────────────────┘

@@ -5,7 +5,10 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
 import { VentaProducto } from './ventaProducto.entity';
 
 
@@ -19,6 +22,10 @@ export class Venta {
 
   @Column()
   userId: number; // Es el responsable de la venta
+
+  @ManyToOne(() => User, { eager: false, nullable: true })
+  @JoinColumn({ name: 'userId' })
+  user?: User;
 
   @Column({ default: true })
   activo: boolean;
