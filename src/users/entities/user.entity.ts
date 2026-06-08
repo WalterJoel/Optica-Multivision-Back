@@ -38,6 +38,6 @@ export class User {
   @JoinColumn({ name: 'sedeId' })
   sede: Sede | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

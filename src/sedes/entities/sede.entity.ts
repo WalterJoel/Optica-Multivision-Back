@@ -53,6 +53,7 @@ export class Sede {
 
   @CreateDateColumn({
     name: 'fecha_creacion',
+    type: 'timestamptz',
   })
   fechaCreacion: Date;
 

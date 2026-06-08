@@ -56,10 +56,10 @@ export class Venta {
   @Column({ length: 50, nullable: true })
   nroComprobante?: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
   @OneToMany(() => VentaProducto, (vp) => vp.venta, {

@@ -88,6 +88,6 @@ export class Cliente {
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ name: 'fecha_creacion' })
+  @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
   fechaCreacion: Date;
 }

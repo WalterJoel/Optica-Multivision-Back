@@ -1,3 +1,4 @@
+process.env.TZ = 'America/Lima';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { join } from 'path';
@@ -7,7 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 
 async function bootstrap() {
-  // Si existe un archivo .env local, asumimos entorno de desarrollo y evitamos llamar a AWS SSM
+  // Si existe un archivo .env local, asumim  os entorno de desarrollo y evitamos llamar a AWS SSM
   const isLocal = fs.existsSync(join(process.cwd(), '.env'));
 
   if (!isLocal) {

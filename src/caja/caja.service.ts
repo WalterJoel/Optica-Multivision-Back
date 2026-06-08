@@ -4,8 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EntityManager } from 'typeorm';
+import { Repository, EntityManager, Between } from 'typeorm';
 import { CrearMovimientoCajaDto } from './dto/crear-movimiento-caja.dto';
 import { ActualizarMovimientoCajaDto } from './dto/actualizar-movimiento-caja.dto';
 import {
@@ -71,6 +70,22 @@ export class CajaService {
     return await this.movimientoRepository.find({
       where: {
         sedeId,
+      },
+      relations: ['venta', 'sede'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async buscarMovimientosPorRango(sedeId: number, fechaInicio: string, fechaFin: string) {
+    const start = new Date(`${fechaInicio}T00:00:00.000-05:00`);
+    const end = new Date(`${fechaFin}T23:59:59.999-05:00`);
+
+    return await this.movimientoRepository.find({
+      where: {
+        sedeId,
+        createdAt: Between(start, end),
       },
       relations: ['venta', 'sede'],
       order: {

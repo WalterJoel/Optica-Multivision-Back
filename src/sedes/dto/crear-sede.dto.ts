@@ -26,7 +26,5 @@ export class CrearSedeDto {
   @MaxLength(255)
   logoUrl?: string | null;
 
-  @IsBoolean()
-  activo: boolean;
 }
 

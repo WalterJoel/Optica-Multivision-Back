@@ -32,7 +32,7 @@ export class SeguimientoPedido {
   @Column({ type: 'json', default: () => "'[]'" })
   historial: HistorialEstado[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   // Relación con la venta

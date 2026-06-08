@@ -54,7 +54,7 @@ export class Stock {
   @Column({ length: 100, default: '' })
   ubicacion: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   /* Relaciones */

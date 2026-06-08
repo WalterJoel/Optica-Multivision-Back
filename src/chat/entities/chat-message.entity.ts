@@ -30,6 +30,6 @@ export class ChatMessage {
   @Column({ type: 'int', nullable: true })
   fileSize?: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

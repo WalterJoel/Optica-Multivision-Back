@@ -47,7 +47,7 @@ export class VentaProducto {
   cyl?: number | null;
 
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   /* RELACIONES */

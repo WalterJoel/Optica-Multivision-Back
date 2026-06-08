@@ -43,7 +43,7 @@ export class MovimientoCaja {
   @Column({ length: 50 })
   metodoPago: string; // EFECTIVO | YAPE | PLIN | TARJETA
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
   // Relaciones
