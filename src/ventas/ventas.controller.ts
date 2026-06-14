@@ -33,6 +33,13 @@ export class VentasController {
   }
 
   @Public()
+  @Get('buscarProductosVendidosPorRango')
+  buscarProductosVendidos(@Query() query: BuscarVentasDto) {
+    const { sedeId, fechaInicio, fechaFin } = query;
+    return this.ventasService.buscarProductosVendidosPorRango(sedeId, fechaInicio, fechaFin);
+  }
+
+  @Public()
   @Get('ventas/:sedeId')
   obtenerVentas(@Param('sedeId') sedeId: string) {
     return this.ventasService.obtenerVentas(Number(sedeId));

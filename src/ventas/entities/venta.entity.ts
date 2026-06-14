@@ -11,6 +11,7 @@ import {
 import { User } from 'src/users/entities/user.entity';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { VentaProducto } from './ventaProducto.entity';
+import { Sede } from 'src/sedes/entities/sede.entity';
 
 
 @Entity('ventas')
@@ -73,6 +74,10 @@ export class Venta {
   updatedAt: Date;
 
   //Relations
+
+  @ManyToOne(() => Sede, { eager: false, nullable: true })
+  @JoinColumn({ name: 'sedeId' })
+  sede?: Sede;
 
   @ManyToOne(() => User, { eager: false, nullable: true })
   @JoinColumn({ name: 'userId' })

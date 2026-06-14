@@ -152,6 +152,46 @@ export class VentasService {
     });
   }
 
+  async buscarProductosVendidosPorRango(sedeId: number, fechaInicio: string, fechaFin: string) {
+    const start = new Date(`${fechaInicio}T00:00:00.000-05:00`);
+    const end = new Date(`${fechaFin}T23:59:59.999-05:00`);
+
+    const ventas = await this.ventaRepository.find({
+      where: {
+        sedeId,
+        createdAt: Between(start, end),
+        activo: true,
+      },
+      relations: {
+        sede: true,
+        productos: {
+          producto: true,
+          stock: {
+            lente: true,
+          },
+        },
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    const productosVendidos: any[] = [];
+    for (const venta of ventas) {
+      for (const prod of venta.productos) {
+        productosVendidos.push({
+          ...prod,
+          ventaId: venta.id,
+          fechaVenta: venta.createdAt,
+          lenteId: prod.tipoProducto === TipoProducto.LENTE ? (prod.stock?.lente?.id || null) : null,
+          nombreSede: venta.sede?.nombre || null,
+        });
+      }
+    }
+
+    return productosVendidos;
+  }
+
   // ┌───────────────────────────────────────────────┐
   // │  📦 SECCIÓN: SEGUIMIENTO DE PEDIDOS          │
   // └───────────────────────────────────────────────┘
