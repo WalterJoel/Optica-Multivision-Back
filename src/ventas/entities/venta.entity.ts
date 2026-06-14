@@ -45,6 +45,9 @@ export class Venta {
   @Column({ length: 50 })
   estadoPago: string; // PAGADO | PENDIENTE
 
+  @Column({ length: 50 })
+  metodoPago: string;
+
   @Column({ type: 'int', nullable: true })
   diasCompromisoPago: number; //1 7 15 30 dias
 
