@@ -64,6 +64,10 @@ export class CrearVentaDto {
   @IsInt()
   userId: number; //Responsable de la venta, usuario logueado
 
+  @IsOptional()
+  @IsInt()
+  clienteId?: number;
+
   @IsEnum(MetodoPago)
   metodoPago: MetodoPago;
 
