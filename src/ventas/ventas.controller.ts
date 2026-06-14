@@ -42,6 +42,12 @@ export class VentasController {
   anularVenta(@Param('id') id: string) {
     return this.ventasService.anularVenta(Number(id));
   }
+
+  @Public()
+  @Get('revisarDeudas/:clienteId')
+  revisarDeudas(@Param('clienteId') clienteId: string) {
+    return this.ventasService.revisarDeudas(Number(clienteId));
+  }
   // ┌───────────────────────────────────────────────┐
   // │  📦 SECCIÓN: SEGUIMIENTO DE PEDIDOS          │
   // └───────────────────────────────────────────────┘

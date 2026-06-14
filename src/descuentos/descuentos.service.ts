@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Descuento } from './entities/descuento.entity';
 import { ObtenerDescuentosDto } from './dto/obtener-descuentos.dto';
+import { TipoProducto } from 'src/common/constants';
 
 @Injectable()
 export class DescuentosService {
@@ -35,8 +36,15 @@ export class DescuentosService {
   async obtenerDescuentos(dto: ObtenerDescuentosDto) {
     const { clienteId, productos } = dto;
 
-    const lenteIds = productos.filter((p) => p.esLente).map((p) => p.productoId);
-    const productoIds = productos.filter((p) => !p.esLente).map((p) => p.productoId);
+    const lenteIds = productos
+      .filter((p) => p.esLente)
+      .map((p) => p.lenteId || p.productoId)
+      .filter(Boolean);
+    const productoIds = productos
+      .filter((p) => !p.esLente)
+      .map((p) => p.productoId)
+      .filter(Boolean);
+    console.log(lenteIds, ' IDS LENTE')
 
     const whereConditions: any[] = [];
     if (productoIds.length > 0) {
@@ -55,31 +63,42 @@ export class DescuentosService {
 
     const resultado = productos
       .map((producto) => {
+        const esLente = !!producto.esLente;
+        const targetId = esLente ? (producto.lenteId || producto.productoId) : producto.productoId;
+
+        if (!targetId) return null;
+
         let serieBuscada: number | null = null;
 
-        if (producto.esLente) {
+        if (esLente) {
           serieBuscada = this.obtenerSeriePorCilindro(producto.cyl ?? null);
         }
 
-        const descuento = descuentos.find((d) => {
-          if (producto.esLente) {
-            return d.lenteId === producto.productoId && d.serie === serieBuscada;
+        const matchingDescuentos = descuentos.filter((d) => {
+          if (esLente) {
+            return d.lenteId === targetId && (d.serie === serieBuscada || d.serie === null);
           } else {
-            return d.productoId === producto.productoId;
+            return d.productoId === targetId;
           }
         });
 
-        if (!descuento) return null;
+        if (matchingDescuentos.length === 0) return null;
+
+        // Prefer specific series discount; fallback to generic (null series)
+        const descuento = matchingDescuentos.find((d) => esLente ? d.serie === serieBuscada : true)
+          || matchingDescuentos[0];
 
         return {
           id: descuento.id,
-          productoId: producto.productoId,
-          nombreProducto: producto.esLente
+          productoId: producto.productoId || null,
+          lenteId: esLente ? targetId : null,
+          nombreProducto: esLente
             ? `${descuento.lente?.marca} - ${descuento.lente?.material}`
             : (descuento.producto?.nombre ?? null),
-          esLente: producto.esLente,
-          serie: serieBuscada,
-          montoDescuento: descuento.montoDescuento,
+          esLente,
+          tipoProducto: descuento.tipoProducto,
+          serie: esLente ? serieBuscada : null,
+          montoDescuento: Number(descuento.montoDescuento),
         };
       })
       .filter(Boolean);

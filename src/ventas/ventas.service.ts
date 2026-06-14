@@ -375,4 +375,58 @@ export class VentasService {
       }
     }
   }
+  /* Revisa si un cliente tiene deudas en base a su compromisoDePago */
+  async revisarDeudas(clienteId: number) {
+    const ventas = await this.ventaRepository.find({
+      where: {
+        clienteId,
+        estadoPago: 'PENDIENTE',
+        activo: true,
+      },
+      relations: ['cliente'],
+    });
+    const deudasVencidas: any[] = [];
+    const fechaActual = new Date();
+    let totalDeudaVencida = 0;
+
+    for (const venta of ventas) {
+      if (!venta.diasCompromisoPago) continue;
+
+      const fechaLimite = new Date(venta.createdAt);
+      fechaLimite.setDate(fechaLimite.getDate() + venta.diasCompromisoPago);
+
+      if (fechaLimite < fechaActual) {
+        const diffTime = Math.abs(fechaActual.getTime() - fechaLimite.getTime());
+        const diasVencidos = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const deudasNum = Number(venta.deuda) || 0;
+
+        deudasVencidas.push({
+          id: venta.id,
+          total: Number(venta.total),
+          montoPagado: Number(venta.montoPagado),
+          deuda: deudasNum,
+          createdAt: venta.createdAt,
+          fechaLimite,
+          diasVencidos,
+        });
+
+        totalDeudaVencida += deudasNum;
+      }
+    }
+
+    const tieneDeudasVencidas = deudasVencidas.length > 0;
+    let mensaje = 'El cliente no registra deudas vencidas.';
+
+    if (tieneDeudasVencidas) {
+      const cliente = ventas[0]?.cliente;
+      const nombreCliente = cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : 'Cliente';
+      mensaje = `El cliente ${nombreCliente} tiene ${deudasVencidas.length} deuda(s) vencida(s) de compromiso de pago por un total de S/. ${totalDeudaVencida.toFixed(2)}.`;
+    }
+
+    return {
+      tieneDeudasVencidas,
+      mensaje,
+      deudasVencidas,
+    };
+  }
 }

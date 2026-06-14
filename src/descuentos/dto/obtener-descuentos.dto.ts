@@ -5,16 +5,27 @@ import {
   IsOptional,
   IsPositive,
   IsBoolean,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TipoProducto } from 'src/common/constants';
 
 class ProductoCylDto {
+
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  productoId: number;
+  productoId?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  lenteId?: number;
+
 
   @IsBoolean()
   esLente: boolean; // Solo asi consideramos el CYL
+
 
   @IsOptional()
   @IsNumber()
