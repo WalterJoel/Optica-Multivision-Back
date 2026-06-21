@@ -63,14 +63,11 @@ export class DatosParaCrearMonturaDto {
   @IsString()
   imagenUrl?: string;
 
-  @IsNumber()
-  @Type(() => Number)
-  sedeId: number;
 
 }
 
 export class CrearMonturaExcelDto extends OmitType(DatosParaCrearMonturaDto, [
-  'cantidad', 'ubicacion', 'sedeId', 'formaFacial', 'sexo'
+  'cantidad', 'ubicacion', 'formaFacial', 'sexo'
 ] as const) {
   // @IsNumber()
   // productoId: number;

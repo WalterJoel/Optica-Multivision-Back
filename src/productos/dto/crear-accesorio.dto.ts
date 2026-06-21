@@ -53,20 +53,18 @@ export class DatosParaCrearAccesorioDto {
   @IsString()
   imagenUrl?: string;
 
-  @IsNumber()
-  @Type(() => Number)
-  sedeId: number;
 
 }
 
 export class CrearAccesorioDto extends OmitType(DatosParaCrearAccesorioDto, [
-  'cantidad', 'ubicacion', 'sedeId'
+  'cantidad', 'ubicacion'
 ] as const) {
   @IsNumber()
   productoId: number;
 }
 
 export class CrearAccesorioExcelDto extends OmitType(DatosParaCrearAccesorioDto, [
-  'cantidad', 'ubicacion', 'sedeId', 'atributo'
-] as const) {}
+  'cantidad', 'ubicacion', 'atributo'
+] as const) { }
+
 

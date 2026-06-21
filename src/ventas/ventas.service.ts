@@ -31,7 +31,7 @@ export class VentasService {
         await this.descontarStock(manager, productos);
 
         // 1.1 Validar y descontar stock de los accesorios incluidos en los KITS de los lentes vendidos (si aplica)
-        await this.descontarStockKitsLente(manager, productos);
+        await this.descontarStockKitsLente(manager, productos, ventaData.sedeId);
 
         // 2. Crear y guardar la venta con sus productos en cascada (Instanciación Explícita Tipo-Segura)
         const venta = manager.getRepository(Venta).create(ventaData);
@@ -257,7 +257,7 @@ export class VentasService {
         }
 
         // 2.1 Revertir el stock de accesorios incluidos en los KITS de los lentes vendidos (si aplica)
-        await this.revertirStockKitsLente(manager, venta.productos);
+        await this.revertirStockKitsLente(manager, venta.productos, venta.sedeId);
 
         // 3. Registrar contra-movimiento (EGRESO) en la caja para la devolución
         if (Number(venta.montoPagado) > 0) {
@@ -346,7 +346,11 @@ export class VentasService {
   /**
    * Valida y descuenta de manera segura el stock de los accesorios incluidos en los kits de los lentes vendidos.
    */
-  private async descontarStockKitsLente(manager: EntityManager, productos: VentaProductoDto[]) {
+  private async descontarStockKitsLente(
+    manager: EntityManager,
+    productos: VentaProductoDto[],
+    sedeId: number,
+  ) {
     for (const p of productos) {
       if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
         // 1. Obtener la fila de stock del lente, cargando su lente, el kit asignado y sus accesorios de forma recursiva
@@ -360,10 +364,10 @@ export class VentasService {
           for (const ka of stock.lente.kit.accesorios) {
             const cantidadADescontar = ka.cantidad * p.cantidad;
 
-            // 3. Buscar el producto general correspondiente al accesorio del kit para descontar su stock
-            if (ka.accesorio?.productoId) {
+            // 3. Buscar el producto general correspondiente al accesorio del kit para descontar su stock en esta sede
+            if (ka.accesorio?.id) {
               const productoAccesorio = await manager.getRepository(Producto).findOne({
-                where: { id: ka.accesorio.productoId },
+                where: { accesorioId: ka.accesorio.id, sedeId },
                 lock: { mode: 'pessimistic_write' },
               });
 
@@ -385,7 +389,11 @@ export class VentasService {
   /**
    * Revierte el stock de los accesorios incluidos en los kits de los lentes vendidos cuando se anula una venta.
    */
-  private async revertirStockKitsLente(manager: EntityManager, productos: VentaProducto[]) {
+  private async revertirStockKitsLente(
+    manager: EntityManager,
+    productos: VentaProducto[],
+    sedeId: number,
+  ) {
     for (const p of productos) {
       if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
         // 1. Obtener el lente y su kit con sus accesorios
@@ -399,9 +407,9 @@ export class VentasService {
           for (const ka of stock.lente.kit.accesorios) {
             const cantidadARevertir = ka.cantidad * p.cantidad;
 
-            if (ka.accesorio?.productoId) {
+            if (ka.accesorio?.id) {
               const productoAccesorio = await manager.getRepository(Producto).findOne({
-                where: { id: ka.accesorio.productoId },
+                where: { accesorioId: ka.accesorio.id, sedeId },
                 lock: { mode: 'pessimistic_write' },
               });
 

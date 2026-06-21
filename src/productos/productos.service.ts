@@ -476,27 +476,10 @@ export class ProductosService {
   // ✅  METODO REVISADO CON TODOS SUS SUS DTOS Y ENTITIES
   async crearMontura(datosParaCrearMonturaDto: DatosParaCrearMonturaDto) {
     return this.dataSource.transaction(async (manager) => {
-
-      // Crea Producto
-      const nuevoProducto: CrearProductoDto = {
-        nombre: datosParaCrearMonturaDto.marca,
-        tipo: TipoProducto.MONTURA,
-        cantidad: datosParaCrearMonturaDto.cantidad,
-        sedeId: datosParaCrearMonturaDto.sedeId,
-        ubicacion: datosParaCrearMonturaDto.ubicacion,
-      }
-
-      const producto = await manager.save(
-        manager.create(Producto, nuevoProducto)
-      );
-
-      // Crea Montura
-      const datosMontura = {
-        productoId: producto.id,
+      // 1. Crear el registro único en el catálogo de monturas
+      const montura = await manager.save(manager.create(Montura, {
         codigo: datosParaCrearMonturaDto.codigo,
         codigoMontura: datosParaCrearMonturaDto.codigoMontura,
-        precioCompra: datosParaCrearMonturaDto.precioCompra,
-        precioVenta: datosParaCrearMonturaDto.precioVenta,
         marca: datosParaCrearMonturaDto.marca,
         material: datosParaCrearMonturaDto.material,
         talla: datosParaCrearMonturaDto.talla,
@@ -504,60 +487,113 @@ export class ProductosService {
         formaFacial: datosParaCrearMonturaDto.formaFacial,
         sexo: datosParaCrearMonturaDto.sexo,
         imagenUrl: datosParaCrearMonturaDto.imagenUrl,
-      };
+      }));
 
-      const montura = await manager.save(
-        manager.create(Montura, datosMontura)
+      // 2. Inicializar stock en todas las sedes (cantidad 0, con los precios base)
+      const sedes = await manager.find(Sede);
+
+      const productosParaGuardar = sedes.map((sede) =>
+        manager.create(Producto, {
+          nombre: datosParaCrearMonturaDto.marca,
+          tipo: TipoProducto.MONTURA,
+          cantidad: Number(datosParaCrearMonturaDto.cantidad) || 0,
+          sedeId: sede.id,
+          ubicacion: '',
+          precioCompra: datosParaCrearMonturaDto.precioCompra,
+          precioVenta: datosParaCrearMonturaDto.precioVenta,
+          monturaId: montura.id,
+        })
       );
 
+      await manager.save(Producto, productosParaGuardar);
+
       return {
-        producto,
-        montura,
+        montura: {
+          ...montura,
+          precioCompra: datosParaCrearMonturaDto.precioCompra,
+          precioVenta: datosParaCrearMonturaDto.precioVenta,
+        },
+        sedesInicializadas: sedes.length,
       };
     });
+  }
+
+  private mapProductoAMontura(p: Producto) {
+    return {
+      id: p.id,
+      codigo: p.montura.codigo,
+      codigoMontura: p.montura.codigoMontura,
+      precioCompra: Number(p.precioCompra),
+      precioVenta: Number(p.precioVenta),
+      marca: p.montura.marca,
+      material: p.montura.material,
+      talla: p.montura.talla,
+      color: p.montura.color,
+      formaFacial: p.montura.formaFacial,
+      sexo: p.montura.sexo,
+      imagenUrl: p.montura.imagenUrl,
+      createdAt: p.montura.createdAt,
+      producto: {
+        id: p.id,
+        sedeId: p.sedeId,
+        cantidad: p.cantidad,
+        ubicacion: p.ubicacion,
+        activo: p.activo,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      },
+    };
   }
 
   async obtenerMonturas(sedeId: number) {
-    return this.monturaRepository
-      .createQueryBuilder('montura')
-      .innerJoinAndSelect('montura.producto', 'producto')
+    const productos = await this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoinAndSelect('producto.montura', 'montura')
       .innerJoinAndSelect('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
       .andWhere('producto.activo = :activo', { activo: true })
-      .addSelect(['producto.cantidad', 'producto.ubicacion'])
-      .orderBy('montura.createdAt', 'DESC')
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.MONTURA })
+      .orderBy('producto.createdAt', 'DESC')
       .getMany();
+
+    return productos.map((p) => this.mapProductoAMontura(p));
   }
 
   async buscarMontura(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
-    const where = busqueda
-      ? [
-        { marca: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
-        { material: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
-        { codigo: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
-        { codigoMontura: ILike(`%${busqueda}%`), producto: { activo: true, sedeId } },
-      ]
-      : { producto: { activo: true, sedeId } };
+    const queryBuilder = this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoinAndSelect('producto.montura', 'montura')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.MONTURA });
 
-    const [monturas, total] = await this.monturaRepository.findAndCount({
-      where,
-      take: limite,
-      skip: desplazamiento,
-      order: { createdAt: 'DESC' },
-    });
+    if (busqueda) {
+      queryBuilder.andWhere(
+        '(montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda OR montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda)',
+        { busqueda: `%${busqueda}%` }
+      );
+    }
 
-    return { total, monturas };
+    const [productos, total] = await queryBuilder
+      .orderBy('producto.createdAt', 'DESC')
+      .take(limite)
+      .skip(desplazamiento)
+      .getManyAndCount();
+
+    return { total, monturas: productos.map((p) => this.mapProductoAMontura(p)) };
   }
 
   async obtenerMonturaPorId(id: number) {
-    const montura = await this.monturaRepository.findOne({
+    const producto = await this.dataSource.getRepository(Producto).findOne({
       where: { id },
-      relations: ['producto'],
+      relations: ['montura'],
     });
-    if (!montura) {
+
+    if (!producto) {
       throw new NotFoundException({ message: 'Montura no encontrada' });
     }
-    return montura;
+
+    return this.mapProductoAMontura(producto);
   }
 
   async obtenerMonturaPorQr(codigo: string, sedeId: number) {
@@ -582,42 +618,34 @@ export class ProductosService {
 
   async actualizarMontura(id: number, updateMonturaDto: UpdateMonturaDto) {
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      await this.dataSource.transaction(async (manager) => {
         const monturaRepo = manager.getRepository(Montura);
         const productoRepo = manager.getRepository(Producto);
 
-        const montura = await monturaRepo.findOne({
+        const producto = await productoRepo.findOne({
           where: { id },
+          relations: ['montura'],
         });
 
-        if (!montura) {
-          throw new NotFoundException({ message: 'Montura no encontrada' });
+        if (!producto) {
+          throw new NotFoundException({ message: 'Producto no encontrado' });
         }
 
-        // Separar los campos específicos de Producto (cantidad, productoId) y los específicos de Montura
-        const { ubicacion, cantidad, productoId, ...datosMontura } = updateMonturaDto;
+        const { ubicacion, cantidad, productoId, precioCompra, precioVenta, ...datosMontura } = updateMonturaDto;
 
         try {
-          // 1. Actualizar Montura
-          await monturaRepo.update(id, datosMontura);
-
-          // 2. Actualizar cantidad de la tabla Producto
-          await productoRepo.update(montura.productoId, { cantidad });
+          await monturaRepo.update(producto.montura.id, datosMontura);
+          await productoRepo.update(id, { cantidad, ubicacion, precioCompra, precioVenta });
         } catch (error: any) {
           throw new BadRequestException({
-            message: 'Error al actualizar los datos de la montura en la base de datos: ' + error.message
+            message: 'Error al actualizar la montura: ' + error.message,
           });
         }
-
-        return await monturaRepo.findOne({
-          where: { id },
-          relations: ['producto'],
-        });
       });
+
+      return { message: 'Montura actualizada correctamente' };
     } catch (error: any) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error;
-      }
+      if (error instanceof NotFoundException || error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException({
         message: 'Ocurrió un error inesperado al actualizar la montura: ' + error.message,
       });
@@ -626,26 +654,19 @@ export class ProductosService {
 
   async eliminarMontura(id: number) {
     try {
-      const montura = await this.monturaRepository.findOne({
+      const producto = await this.dataSource.getRepository(Producto).findOne({
         where: { id },
       });
 
-      if (!montura) {
-        throw new NotFoundException({ message: 'Montura no encontrada' });
+      if (!producto) {
+        throw new NotFoundException({ message: 'Producto no encontrado' });
       }
 
-      // En lugar de eliminación física que violaría restricciones FK de venta_productos,
-      // realizamos una eliminación lógica (soft delete) desactivando el Producto asociado.
-      await this.dataSource.getRepository(Producto).update(montura.productoId, {
-        activo: false,
-      });
-      console.log('entradno a eliminar ', montura.id)
+      await this.dataSource.getRepository(Producto).update(id, { activo: false });
 
-      return { message: 'Montura eliminada/desactivada correctamente' };
+      return { message: 'Montura eliminada correctamente' };
     } catch (error: any) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
+      if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException({
         message: 'Error al eliminar la montura: ' + error.message,
       });
@@ -709,91 +730,72 @@ export class ProductosService {
       });
     }
 
-    const sedeIdObjetivo = rows[0].sedeId;
-
     return this.dataSource.transaction(async (manager) => {
-      // 1. validar sede
-      const sedeExiste = await manager.findOne(Sede, {
-        where: { id: sedeIdObjetivo },
-        select: ['id'],
-      });
+      const allSedes = await manager.find(Sede);
 
-      if (!sedeExiste) {
-        throw new BadRequestException({
-          message: `La sede ${sedeIdObjetivo} no existe`,
-        });
-      }
-
-      // 2. validar que todo sea misma sede
-      const mismaSede = rows.every((r) => r.sedeId === sedeIdObjetivo);
-
-      if (!mismaSede) {
-        throw new BadRequestException({
-          message: 'Todas las filas deben pertenecer a la misma sede',
-        });
-      }
-
-      /*
-      =========================================
-      A. CREAR PRODUCTOS
-      =========================================
-      */
-
-      const productos = rows.map((r) =>
-        manager.create(Producto, {
-          nombre: r.marca,
-          tipo: TipoProducto.MONTURA,
-          sedeId: sedeIdObjetivo,
-          cantidad: r.cantidad,
-          ubicacion: '',
-        }),
+      // 3. Crear una Montura nueva por cada fila 
+      const monturasCreadas = await manager.save(
+        Montura,
+        rows.map((r) =>
+          manager.create(Montura, {
+            codigo: r.codigo,
+            codigoMontura: r.codigoMontura,
+            marca: r.marca,
+            material: r.material,
+            talla: r.talla,
+            color: r.color,
+          })
+        )
       );
 
-      const productosDB = await manager.save(Producto, productos);
+      // Crear Productos para todas las sedes con cantidad 0 y mismos precios
+      const productosParaGuardar: Producto[] = [];
 
-      /*
-      =========================================
-      B. CREAR MONTURAS
-      =========================================
-      */
+      for (let i = 0; i < monturasCreadas.length; i++) {
+        const montura = monturasCreadas[i];
+        const r = rows[i];
 
-      const monturas = rows.map((r, i) =>
-        manager.create(Montura, {
-          productoId: productosDB[i].id,
-          codigo: r.codigo,
-          codigoMontura: r.codigoMontura,
-          precioCompra: r.precioCompra,
-          precioVenta: r.precioVenta,
-          marca: r.marca,
-          material: r.material,
-          talla: r.talla,
-          color: r.color,
-        }),
-      );
+        for (const sede of allSedes) {
+          productosParaGuardar.push(
+            manager.create(Producto, {
+              nombre: r.marca,
+              tipo: TipoProducto.MONTURA,
+              sedeId: sede.id,
+              cantidad: 0,
+              ubicacion: '',
+              precioCompra: r.precioCompra,
+              precioVenta: r.precioVenta,
+              monturaId: montura.id,
+            })
+          );
+        }
+      }
 
-      await manager.save(Montura, monturas);
+      await manager.save(Producto, productosParaGuardar);
 
       return {
         ok: true,
-        productos: productosDB.length,
-        monturas: monturas.length,
-        total: monturas.length,
+        monturas: monturasCreadas.length,
+        total: rows.length,
       };
     });
   }
 
+
   async obtenerMonturasExcel(sedeId: number) {
-    return this.monturaRepository
-      .createQueryBuilder('montura')
-      .innerJoin('montura.producto', 'producto')
+    return this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoin('producto.montura', 'montura')
       .innerJoin('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.MONTURA })
       .select([
         `producto.id AS "${HEADERS_MONTURA_EXCEL.PRODUCTO_ID}"`,
         `montura.codigo AS "${HEADERS_MONTURA_EXCEL.CODIGO}"`,
         `montura.codigoMontura AS "${HEADERS_MONTURA_EXCEL.CODIGO_MONTURA}"`,
-        `montura.precioCompra AS "${HEADERS_MONTURA_EXCEL.PRECIO_COMPRA}"`,
-        `montura.precioVenta AS "${HEADERS_MONTURA_EXCEL.PRECIO_VENTA}"`,
+        `producto.precioCompra AS "${HEADERS_MONTURA_EXCEL.PRECIO_COMPRA}"`,
+        `producto.precioVenta AS "${HEADERS_MONTURA_EXCEL.PRECIO_VENTA}"`,
         `montura.marca AS "${HEADERS_MONTURA_EXCEL.MARCA}"`,
         `montura.material AS "${HEADERS_MONTURA_EXCEL.MATERIAL}"`,
         `montura.talla AS "${HEADERS_MONTURA_EXCEL.TALLA}"`,
@@ -803,7 +805,7 @@ export class ProductosService {
         `sede.nombre AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
         `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE_ID}"`,
       ])
-      .orderBy('montura.createdAt', 'DESC')
+      .orderBy('producto.createdAt', 'DESC')
       .getRawMany();
   }
 
@@ -926,33 +928,38 @@ export class ProductosService {
       }
 
       // =========================
-      // 1. UPDATE STOCK (PRODUCTOS)
+      // 1. UPDATE STOCK Y PRECIOS (PRODUCTOS)
       // =========================
       const productoIdsArr = rows.map((r) => r.productoId);
       const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
       const cantidadesArr = rows.map((r) => r.cantidad);
+      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
+      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
 
       await manager.query(
         `
       UPDATE productos AS p
-      SET cantidad = data.cantidad
+      SET 
+        cantidad = data.cantidad,
+        "precioCompra" = COALESCE(data."precioCompra", p."precioCompra"),
+        "precioVenta" = COALESCE(data."precioVenta", p."precioVenta")
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
           unnest($2::int[]) AS "sedeId",
-          unnest($3::int[]) AS cantidad
+          unnest($3::int[]) AS cantidad,
+          unnest($4::numeric[]) AS "precioCompra",
+          unnest($5::numeric[]) AS "precioVenta"
       ) AS data
       WHERE p.id = data."productoId"
       AND p."sedeId" = data."sedeId"
       `,
-        [productoIdsArr, sedeIdsArr, cantidadesArr],
+        [productoIdsArr, sedeIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
       );
 
       // =========================
       // 2. UPDATE MONTURAS
       // =========================
-      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
-      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
       const marcaArr = rows.map((r) => r.marca ?? null);
       const materialArr = rows.map((r) => r.material ?? null);
       const colorArr = rows.map((r) => r.color ?? null);
@@ -964,8 +971,6 @@ export class ProductosService {
         `
       UPDATE monturas AS m
       SET
-        "precioCompra" = COALESCE(data."precioCompra", m."precioCompra"),
-        "precioVenta" = COALESCE(data."precioVenta", m."precioVenta"),
         marca = COALESCE(data.marca, m.marca),
         material = COALESCE(data.material, m.material),
         color = COALESCE(data.color, m.color),
@@ -975,21 +980,18 @@ export class ProductosService {
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
-          unnest($2::numeric[]) AS "precioCompra",
-          unnest($3::numeric[]) AS "precioVenta",
-          unnest($4::text[]) AS marca,
-          unnest($5::text[]) AS material,
-          unnest($6::text[]) AS color,
-          unnest($7::text[]) AS codigo,
-          unnest($8::text[]) AS "codigoMontura",
-          unnest($9::text[]) AS talla
+          unnest($2::text[]) AS marca,
+          unnest($3::text[]) AS material,
+          unnest($4::text[]) AS color,
+          unnest($5::text[]) AS codigo,
+          unnest($6::text[]) AS "codigoMontura",
+          unnest($7::text[]) AS talla
       ) AS data
-      WHERE m."productoId" = data."productoId"
+      INNER JOIN productos AS p ON p.id = data."productoId"
+      WHERE m.id = p."monturaId"
       `,
         [
           productoIdsArr,
-          precioCompraArr,
-          precioVentaArr,
           marcaArr,
           materialArr,
           colorArr,
@@ -1016,82 +1018,136 @@ export class ProductosService {
   // ✅  METODO REVISADO CON TODOS SUS SUS DTOS Y ENTITIES
   async crearAccesorio(datosParaCrearAccesorioDto: DatosParaCrearAccesorioDto) {
     return this.dataSource.transaction(async (manager) => {
-
-      // Crea Producto
-      const nuevoProducto: CrearProductoDto = {
+      // 1. Crear el registro único en el catálogo de accesorios
+      const accesorio = await manager.save(manager.create(Accesorio, {
         nombre: datosParaCrearAccesorioDto.nombre,
-        tipo: TipoProducto.ACCESORIO,
-        cantidad: datosParaCrearAccesorioDto.cantidad,
-        sedeId: datosParaCrearAccesorioDto.sedeId,
-        ubicacion: datosParaCrearAccesorioDto.ubicacion,
-      }
-      const producto = await manager.save(
-        manager.create(Producto, nuevoProducto)
-      );
-
-      // Crear Accesorio
-      const nuevoAccesorio: CrearAccesorioDto = {
-        nombre: datosParaCrearAccesorioDto.nombre,
-        productoId: producto.id,
         codigoAccesorio: datosParaCrearAccesorioDto.codigoAccesorio,
         color: datosParaCrearAccesorioDto.color,
-        precioCompra: datosParaCrearAccesorioDto.precioCompra,
-        precioVenta: datosParaCrearAccesorioDto.precioVenta,
         atributo: datosParaCrearAccesorioDto.atributo,
         imagenUrl: datosParaCrearAccesorioDto.imagenUrl,
+      }));
 
-      }
+      // 2. Inicializar stock en todas las sedes (cantidad 0, con los precios base)
+      const sedes = await manager.find(Sede);
 
-      const accesorio = await manager.save(
-        manager.create(Accesorio, nuevoAccesorio)
+      const productosParaGuardar = sedes.map((sede) =>
+        manager.create(Producto, {
+          nombre: datosParaCrearAccesorioDto.nombre,
+          tipo: TipoProducto.ACCESORIO,
+          cantidad: Number(datosParaCrearAccesorioDto.cantidad) || 0,
+          sedeId: sede.id,
+          ubicacion: '',
+          precioCompra: datosParaCrearAccesorioDto.precioCompra,
+          precioVenta: datosParaCrearAccesorioDto.precioVenta,
+          accesorioId: accesorio.id,
+        })
       );
 
+      await manager.save(Producto, productosParaGuardar);
+
       return {
-        producto,
-        accesorio,
+        accesorio: {
+          ...accesorio,
+          precioCompra: datosParaCrearAccesorioDto.precioCompra,
+          precioVenta: datosParaCrearAccesorioDto.precioVenta,
+        },
+        sedesInicializadas: sedes.length,
       };
     });
   }
 
   async obtenerAccesorios(sedeId: number) {
-    return this.accesorioRepository.createQueryBuilder('accesorio')
-      .innerJoinAndSelect('accesorio.producto', 'producto')
+    const productos = await this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoinAndSelect('producto.accesorio', 'accesorio')
       .innerJoinAndSelect('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
       .andWhere('producto.activo = :activo', { activo: true })
-      .addSelect(['producto.cantidad', 'producto.ubicacion'])
-      .orderBy('accesorio.createdAt', 'DESC')
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
+      .orderBy('producto.createdAt', 'DESC')
       .getMany();
-  }
 
+    return productos.map((p) => ({
+      id: p.id,
+      codigoAccesorio: p.accesorio.codigoAccesorio,
+      precioCompra: Number(p.precioCompra),
+      precioVenta: Number(p.precioVenta),
+      nombre: p.accesorio.nombre,
+      color: p.accesorio.color,
+      atributo: p.accesorio.atributo,
+      imagenUrl: p.accesorio.imagenUrl,
+      createdAt: p.accesorio.createdAt,
+      producto: {
+        id: p.id,
+        sedeId: p.sedeId,
+        cantidad: p.cantidad,
+        ubicacion: p.ubicacion,
+        activo: p.activo,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      },
+    }));
+  }
 
   //* Buscar  accesorio ILIKE ... */
   async buscarAccesorio(sedeId: number, nombre?: string, limite = 50, desplazamiento = 0) {
-    const [accesorios, total] = await this.accesorioRepository.findAndCount({
-      where: {
-        ...(nombre ? { nombre: ILike(`%${nombre}%`) } : {}),
-        producto: { activo: true, sedeId },
-      },
-      take: limite,
-      skip: desplazamiento,
-      select: ['id', 'nombre', 'precioVenta', 'productoId'],
-      order: { nombre: 'ASC' },
-    });
+    const queryBuilder = this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoinAndSelect('producto.accesorio', 'accesorio')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO });
 
-    return { total, accesorios };
+    if (nombre) {
+      queryBuilder.andWhere('accesorio.nombre ILIKE :nombre', { nombre: `%${nombre}%` });
+    }
+
+    const [productos, total] = await queryBuilder
+      .orderBy('producto.createdAt', 'DESC')
+      .take(limite)
+      .skip(desplazamiento)
+      .getManyAndCount();
+
+    const mappedAccesorios = productos.map((p) => ({
+      id: p.accesorio.id,
+      nombre: p.accesorio.nombre,
+      precioVenta: Number(p.precioVenta),
+      productoId: p.id,
+    }));
+
+    return { total, accesorios: mappedAccesorios };
   }
 
   async obtenerAccesorioPorId(id: number) {
-    const accesorio = await this.accesorioRepository.findOne({
+    const producto = await this.dataSource.getRepository(Producto).findOne({
       where: { id },
-      relations: ['producto'],
+      relations: ['accesorio'],
     });
 
-    if (!accesorio) {
+    if (!producto) {
       throw new NotFoundException({ message: 'Accesorio no encontrado' });
     }
 
-    return accesorio;
+    return {
+      id: producto.id,
+      codigoAccesorio: producto.accesorio.codigoAccesorio,
+      precioCompra: Number(producto.precioCompra),
+      precioVenta: Number(producto.precioVenta),
+      nombre: producto.accesorio.nombre,
+      color: producto.accesorio.color,
+      atributo: producto.accesorio.atributo,
+      imagenUrl: producto.accesorio.imagenUrl,
+      createdAt: producto.createdAt,
+      producto: {
+        id: producto.id,
+        sedeId: producto.sedeId,
+        cantidad: producto.cantidad,
+        ubicacion: producto.ubicacion,
+        activo: producto.activo,
+        createdAt: producto.createdAt,
+        updatedAt: producto.updatedAt,
+      },
+    };
   }
 
   async obtenerAccesorioPorCodigoUnico(codigo: string, sedeId: number) {
@@ -1114,47 +1170,42 @@ export class ProductosService {
     // };
   }
 
-  async actualizarAccesorio(
-    id: number,
-    updateAccesorioDto: UpdateAccesorioDto,
-  ) {
+  async actualizarAccesorio(id: number, updateAccesorioDto: UpdateAccesorioDto) {
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      await this.dataSource.transaction(async (manager) => {
         const accesorioRepo = manager.getRepository(Accesorio);
         const productoRepo = manager.getRepository(Producto);
 
-        const accesorio = await accesorioRepo.findOne({
+        const producto = await productoRepo.findOne({
           where: { id },
+          relations: ['accesorio'],
         });
 
-        if (!accesorio) {
-          throw new NotFoundException({ message: 'Accesorio no encontrado' });
+        if (!producto) {
+          throw new NotFoundException({ message: 'Producto no encontrado' });
         }
 
-        // Separar los campos específicos de Producto (cantidad, productoId) y los específicos de Accesorio
-        const { activo, ubicacion, cantidad, productoId, ...datosAccesorio } = updateAccesorioDto;
+        const { activo, ubicacion, cantidad, productoId, precioCompra, precioVenta, ...datosAccesorio } = updateAccesorioDto;
 
         try {
-          // 1. Actualizar Accesorio
-          await accesorioRepo.update(id, datosAccesorio);
-
-          // 2. Actualizar cantidad de la tabla Producto
-          await productoRepo.update(accesorio.productoId, { cantidad });
+          await accesorioRepo.update(producto.accesorio.id, datosAccesorio);
+          await productoRepo.update(id, {
+            cantidad,
+            ubicacion,
+            precioCompra,
+            precioVenta,
+            activo: activo !== undefined ? activo : undefined,
+          });
         } catch (error: any) {
           throw new BadRequestException({
-            message: 'Error al actualizar los datos del accesorio en la base de datos: ' + error.message
+            message: 'Error al actualizar el accesorio: ' + error.message,
           });
         }
-
-        return await accesorioRepo.findOne({
-          where: { id },
-          relations: ['producto'],
-        });
       });
+
+      return { message: 'Accesorio actualizado correctamente' };
     } catch (error: any) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error;
-      }
+      if (error instanceof NotFoundException || error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException({
         message: 'Ocurrió un error inesperado al actualizar el accesorio: ' + error.message,
       });
@@ -1163,16 +1214,14 @@ export class ProductosService {
 
   async eliminarAccesorio(id: number) {
     try {
-      const accesorio = await this.accesorioRepository.findOne({
+      const producto = await this.dataSource.getRepository(Producto).findOne({
         where: { id },
       });
-      if (!accesorio) {
-        throw new NotFoundException({ message: 'Accesorio no encontrado' });
+      if (!producto) {
+        throw new NotFoundException({ message: 'Producto no encontrado' });
       }
 
-      // En lugar de eliminación física que violaría restricciones FK de venta_productos,
-      // realizamos una eliminación lógica (soft delete) desactivando el Producto asociado.
-      await this.dataSource.getRepository(Producto).update(accesorio.productoId, {
+      await this.dataSource.getRepository(Producto).update(id, {
         activo: false,
       });
 
@@ -1249,85 +1298,75 @@ export class ProductosService {
       });
     }
 
-    const sedeIdObjetivo = rows[0].sedeId;
-
     return this.dataSource.transaction(async (manager) => {
-      // 1. validar sede
-      const sedeExiste = await manager.findOne(Sede, {
-        where: { id: sedeIdObjetivo },
-        select: ['id'],
-      });
+      const allSedes = await manager.find(Sede);
 
-      if (!sedeExiste) {
-        throw new BadRequestException({
-          message: `La sede ${sedeIdObjetivo} no existe`,
-        });
-      }
-
-      // 2. validar que todo sea misma sede
-      const mismaSede = rows.every((r) => r.sedeId === sedeIdObjetivo);
-
-      if (!mismaSede) {
-        throw new BadRequestException({
-          message: 'Todas las filas deben pertenecer a la misma sede',
-        });
-      }
-
-      // 3. Crear Productos
-      const productos = rows.map((r) =>
-        manager.create(Producto, {
-          nombre: r.nombre,
-          tipo: TipoProducto.ACCESORIO,
-          sedeId: sedeIdObjetivo,
-          cantidad: r.cantidad,
-          ubicacion: '',
-        }),
+      // 1. Crear un Accesorio nuevo por cada fila (el código de accesorio no es único, se puede repetir)
+      const accesoriosCreados = await manager.save(
+        Accesorio,
+        rows.map((r) =>
+          manager.create(Accesorio, {
+            codigoAccesorio: r.codigoAccesorio,
+            nombre: r.nombre,
+            color: r.color,
+          })
+        )
       );
 
-      const productosDB = await manager.save(Producto, productos);
+      // 2. Crear Productos para todas las sedes con cantidad 0 y mismos precios
+      const productosParaGuardar: Producto[] = [];
 
-      // 4. Crear Accesorios
-      const accesorios = rows.map((r, i) =>
-        manager.create(Accesorio, {
-          productoId: productosDB[i].id,
-          codigoAccesorio: r.codigoAccesorio,
-          nombre: r.nombre,
-          precioCompra: r.precioCompra,
-          precioVenta: r.precioVenta,
-          color: r.color,
-        }),
-      );
+      for (let i = 0; i < accesoriosCreados.length; i++) {
+        const accesorio = accesoriosCreados[i];
+        const r = rows[i];
 
-      await manager.save(Accesorio, accesorios);
+        for (const sede of allSedes) {
+          productosParaGuardar.push(
+            manager.create(Producto, {
+              nombre: r.nombre,
+              tipo: TipoProducto.ACCESORIO,
+              sedeId: sede.id,
+              cantidad: 0,
+              ubicacion: '',
+              precioCompra: r.precioCompra,
+              precioVenta: r.precioVenta,
+              accesorioId: accesorio.id,
+            })
+          );
+        }
+      }
+
+      await manager.save(Producto, productosParaGuardar);
 
       return {
         ok: true,
-        productos: productosDB.length,
-        accesorios: accesorios.length,
-        total: accesorios.length,
+        accesorios: accesoriosCreados.length,
+        total: rows.length,
       };
     });
   }
 
   async obtenerAccesoriosExcel(sedeId: number) {
-    return this.accesorioRepository
-      .createQueryBuilder('accesorio')
-      .innerJoin('accesorio.producto', 'producto')
+    return this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoin('producto.accesorio', 'accesorio')
       .innerJoin('producto.sede', 'sede')
       .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
       .select([
-        `producto.id AS "${HEADERS_ACCESORIO_EXCEL.PRODUCT_ID}"`,
+        `producto.id AS "${HEADERS_ACCESORIO_EXCEL.PRODUCTO_ID}"`,
         `accesorio.codigoAccesorio AS "${HEADERS_ACCESORIO_EXCEL.CODIGO}"`,
         `accesorio.nombre AS "${HEADERS_ACCESORIO_EXCEL.NOMBRE}"`,
-        `accesorio.precioCompra AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA}"`,
-        `accesorio.precioVenta AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA}"`,
+        `producto.precioCompra AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA}"`,
+        `producto.precioVenta AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA}"`,
         `accesorio.color AS "${HEADERS_ACCESORIO_EXCEL.COLOR}"`,
         `producto.cantidad AS "${HEADERS_ACCESORIO_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_ACCESORIO_EXCEL.TIPO}"`,
         `sede.nombre AS "${HEADERS_ACCESORIO_EXCEL.SEDE}"`,
         `sede.id AS "${HEADERS_ACCESORIO_EXCEL.SEDE_ID}"`,
       ])
-      .orderBy('accesorio.createdAt', 'DESC')
+      .orderBy('producto.createdAt', 'DESC')
       .getRawMany();
   }
 
@@ -1425,30 +1464,35 @@ export class ProductosService {
         });
       }
 
-      // 1. UPDATE STOCK (PRODUCTOS)
+      // 1. UPDATE STOCK Y PRECIOS (PRODUCTOS)
       const productoIdsArr = rows.map((r) => r.productoId);
       const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
       const cantidadesArr = rows.map((r) => r.cantidad);
+      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
+      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
 
       await manager.query(
         `
       UPDATE productos AS p
-      SET cantidad = data.cantidad
+      SET 
+        cantidad = data.cantidad,
+        "precioCompra" = COALESCE(data."precioCompra", p."precioCompra"),
+        "precioVenta" = COALESCE(data."precioVenta", p."precioVenta")
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
           unnest($2::int[]) AS "sedeId",
-          unnest($3::int[]) AS cantidad
+          unnest($3::int[]) AS cantidad,
+          unnest($4::numeric[]) AS "precioCompra",
+          unnest($5::numeric[]) AS "precioVenta"
       ) AS data
       WHERE p.id = data."productoId"
       AND p."sedeId" = data."sedeId"
       `,
-        [productoIdsArr, sedeIdsArr, cantidadesArr],
+        [productoIdsArr, sedeIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
       );
 
       // 2. UPDATE ACCESORIOS
-      const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
-      const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
       const nombreArr = rows.map((r) => r.nombre ?? null);
       const colorArr = rows.map((r) => r.color ?? null);
       const codigoAccesorioArr = rows.map((r) => r.codigoAccesorio ?? null);
@@ -1457,26 +1501,21 @@ export class ProductosService {
         `
       UPDATE accesorios AS a
       SET
-        "precioCompra" = COALESCE(data."precioCompra", a."precioCompra"),
-        "precioVenta" = COALESCE(data."precioVenta", a."precioVenta"),
         nombre = COALESCE(data.nombre, a.nombre),
         color = COALESCE(data.color, a.color),
         "codigoAccesorio" = COALESCE(data."codigoAccesorio", a."codigoAccesorio")
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
-          unnest($2::numeric[]) AS "precioCompra",
-          unnest($3::numeric[]) AS "precioVenta",
-          unnest($4::text[]) AS nombre,
-          unnest($5::text[]) AS color,
-          unnest($6::text[]) AS "codigoAccesorio"
+          unnest($2::text[]) AS nombre,
+          unnest($3::text[]) AS color,
+          unnest($4::text[]) AS "codigoAccesorio"
       ) AS data
-      WHERE a."productoId" = data."productoId"
+      INNER JOIN productos AS p ON p.id = data."productoId"
+      WHERE a.id = p."accesorioId"
       `,
         [
           productoIdsArr,
-          precioCompraArr,
-          precioVentaArr,
           nombreArr,
           colorArr,
           codigoAccesorioArr,

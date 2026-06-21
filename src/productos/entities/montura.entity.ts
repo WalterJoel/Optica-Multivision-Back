@@ -2,9 +2,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToOne,
+  OneToMany,
   CreateDateColumn,
-  JoinColumn,
 } from 'typeorm';
 import { Producto } from './producto.entity';
 import { FormaFacial, SexoMontura } from 'src/common/constants';
@@ -14,20 +13,11 @@ export class Montura {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  productoId: number;
-
   @Column({ length: 50 }) //Codigo que maneja el dueño, se puede repetir
   codigo: string;
 
   @Column({ length: 50 }) //Codigo Montura que maneja el dueño, se puede repetir no es unico
   codigoMontura: string;
-
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  precioCompra: number;
-
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  precioVenta: number;
 
   @Column({ length: 100 })
   marca: string;
@@ -55,7 +45,6 @@ export class Montura {
 
   /*Relacion*/
 
-  @OneToOne(() => Producto, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'productoId' })
-  producto: Producto;
+  @OneToMany(() => Producto, (producto) => producto.montura)
+  productos: Producto[];
 }

@@ -37,6 +37,18 @@ export class Producto {
   @Column({ length: 100, default: '' })
   ubicacion: string;
 
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  precioCompra: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  precioVenta: number;
+
+  @Column({ nullable: true })
+  monturaId: number;
+
+  @Column({ nullable: true })
+  accesorioId: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
@@ -49,9 +61,11 @@ export class Producto {
   @JoinColumn({ name: 'sedeId' })
   sede: Sede;
 
-  @OneToOne(() => Montura, (montura) => montura.producto)
+  @ManyToOne(() => Montura, (montura) => montura.productos, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'monturaId' })
   montura: Montura;
 
-  @OneToOne(() => Accesorio, (accesorio) => accesorio.producto)
+  @ManyToOne(() => Accesorio, (accesorio) => accesorio.productos, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'accesorioId' })
   accesorio: Accesorio;
 }

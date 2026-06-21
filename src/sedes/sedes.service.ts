@@ -8,8 +8,9 @@ import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { Sede } from './entities/sede.entity';
 import { CrearSedeDto } from './dto/crear-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
-import { Accesorio, Lente, Montura, Stock } from 'src/productos/entities';
+import { Accesorio, Lente, Montura, Stock, Producto } from 'src/productos/entities';
 import { buildStockSeed } from 'src/seeds';
+import { TipoProducto } from 'src/common/constants';
 
 @Injectable()
 export class SedesService {
@@ -25,32 +26,20 @@ export class SedesService {
    *
    * - Para cada sede:
    *   - Crea registros de stock en 0 para monturas y accesorios
-   *     en la tabla `stock_productos`.
+   *     en la tabla `productos`.
    *
    *   - Crea todas las combinaciones de graduaciones para lentes
    *     en la tabla `stock`, también con cantidad en 0.
-   *
-   * Este proceso se ejecuta de forma masiva (bulk insert) para mejorar rendimiento.
-   *
-   * 🔒 OR IGNORE / .orIgnore():
-   * Se utiliza para evitar errores cuando ya existe un registro con la misma combinación única.
-   * Si el registro ya existe en la base de datos, se ignora el insert y no se detiene la ejecución.
-   *
-   * 📦 En el caso de `stock_productos`, NO pueden existir duplicados si coinciden:
-   *   - productoId
-   *   - sedeId
-   *
-   * Es decir, para cada producto en cada sede solo puede existir un único registro de stock.
-   *
-   * 📌 En el caso de `stock` (lentes), la clave única es más compleja:
-   *   - lenteId
-   *   - sedeId
-   *   - matrix
-   *   - row
-   *   - col
    */
   private async inicializarStockParaSede(qr: QueryRunner, sedeId: number) {
-    const [lentes] = await Promise.all([qr.manager.find(Lente)]);
+    const [lentes, monturas, accesorios, existingProducts] = await Promise.all([
+      qr.manager.find(Lente),
+      qr.manager.find(Montura),
+      qr.manager.find(Accesorio),
+      qr.manager.find(Producto, {
+        select: ['monturaId', 'accesorioId', 'precioCompra', 'precioVenta'],
+      }),
+    ]);
 
     const bulkLentes: Partial<Stock>[] = [];
 
@@ -67,6 +56,56 @@ export class SedesService {
         .values(bulkLentes)
         .orIgnore()
         .execute();
+    }
+
+    // Inicializar precios base de monturas y accesorios existentes
+    const monturaPrices = new Map<number, { precioCompra: number; precioVenta: number }>();
+    const accesorioPrices = new Map<number, { precioCompra: number; precioVenta: number }>();
+
+    for (const p of existingProducts) {
+      if (p.monturaId && !monturaPrices.has(p.monturaId)) {
+        monturaPrices.set(p.monturaId, { precioCompra: Number(p.precioCompra), precioVenta: Number(p.precioVenta) });
+      }
+      if (p.accesorioId && !accesorioPrices.has(p.accesorioId)) {
+        accesorioPrices.set(p.accesorioId, { precioCompra: Number(p.precioCompra), precioVenta: Number(p.precioVenta) });
+      }
+    }
+
+    // Crear Productos para Monturas en esta nueva Sede
+    const productosMonturas = monturas.map((m) => {
+      const prices = monturaPrices.get(m.id) || { precioCompra: 0, precioVenta: 0 };
+      return qr.manager.create(Producto, {
+        nombre: m.marca,
+        tipo: TipoProducto.MONTURA,
+        cantidad: 0,
+        sedeId: sedeId,
+        ubicacion: '',
+        precioCompra: prices.precioCompra,
+        precioVenta: prices.precioVenta,
+        monturaId: m.id,
+      });
+    });
+
+    // Crear Productos para Accesorios en esta nueva Sede
+    const productosAccesorios = accesorios.map((a) => {
+      const prices = accesorioPrices.get(a.id) || { precioCompra: 0, precioVenta: 0 };
+      return qr.manager.create(Producto, {
+        nombre: a.nombre,
+        tipo: TipoProducto.ACCESORIO,
+        cantidad: 0,
+        sedeId: sedeId,
+        ubicacion: '',
+        precioCompra: prices.precioCompra,
+        precioVenta: prices.precioVenta,
+        accesorioId: a.id,
+      });
+    });
+
+    if (productosMonturas.length) {
+      await qr.manager.save(Producto, productosMonturas);
+    }
+    if (productosAccesorios.length) {
+      await qr.manager.save(Producto, productosAccesorios);
     }
   }
 

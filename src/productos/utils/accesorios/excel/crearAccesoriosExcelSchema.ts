@@ -1,7 +1,8 @@
 import { ExcelSchemaField } from '../../monturas/excel/validaciones';
 
 export const HEADERS_ACCESORIO_EXCEL = {
-  PRODUCT_ID: 'PRODUCTOID',
+  PRODUCT_ID: 'PRODUCTOID',   // usado en editar (schema de edición)
+  PRODUCTO_ID: 'PRODUCTOID',  // usado en obtenerAccesoriosExcel (exportar)
   PRECIO_COMPRA: 'PRECIO COMPRA',
   PRECIO_VENTA: 'PRECIO VENTA',
   CODIGO: 'CODIGO',
@@ -12,6 +13,7 @@ export const HEADERS_ACCESORIO_EXCEL = {
   SEDE: 'SEDE',
   SEDE_ID: 'SEDE DESTINO ID',
 } as const;
+
 
 // Este esquema debe encajar exactamente con lo que envía el frontend al insertar accesorios
 export const crearAccesoriosExcelSchema: ExcelSchemaField[] = [
