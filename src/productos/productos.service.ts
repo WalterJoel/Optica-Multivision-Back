@@ -65,7 +65,6 @@ type UpdateStockItem = {
 
 // 1. Interfaz extendida para meter los campos extras del Excel sin tocar tu DTO original
 interface FilaExcelMontura extends CrearMonturaExcelDto {
-  sedeId: number;
   cantidad: number;
 }
 
@@ -679,7 +678,8 @@ export class ProductosService {
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.worksheets[0];
 
-    const errores = validarExcelInsercion(worksheet, crearMonturasExcelSchema);
+    const noValidarOtrosHeaders = false;
+    const errores = validarExcelInsercion(worksheet, crearMonturasExcelSchema, noValidarOtrosHeaders);
     if (errores.length > 0) {
       throw new BadRequestException({
         message: `Excel inválido:\n${errores.join('\n')}`,
@@ -714,7 +714,6 @@ export class ProductosService {
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA)),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR)),
         // Capturamos los datos numéricos directamente del Excel
-        sedeId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE)),
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
       });
     });
@@ -761,7 +760,7 @@ export class ProductosService {
               nombre: r.marca,
               tipo: TipoProducto.MONTURA,
               sedeId: sede.id,
-              cantidad: 0,
+              cantidad: r.cantidad,
               ubicacion: '',
               precioCompra: r.precioCompra,
               precioVenta: r.precioVenta,
@@ -802,7 +801,7 @@ export class ProductosService {
         `montura.color AS "${HEADERS_MONTURA_EXCEL.COLOR}"`,
         `producto.cantidad AS "${HEADERS_MONTURA_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_MONTURA_EXCEL.TIPO}"`,
-        `sede.nombre AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
+        // `sede.nombre AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
         `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE_ID}"`,
       ])
       .orderBy('producto.createdAt', 'DESC')
