@@ -34,6 +34,13 @@ export class Accesorio {
   })
   atributo: string;
 
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: '',
+  })
+  clasificacion: string;
+
   @Column({ length: 255, nullable: true })
   imagenUrl: string;
 

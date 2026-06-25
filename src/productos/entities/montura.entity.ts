@@ -40,6 +40,13 @@ export class Montura {
   @Column({ length: 255, nullable: true })
   imagenUrl: string;
 
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: '',
+  })
+  clasificacion: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
