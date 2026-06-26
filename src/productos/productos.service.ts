@@ -69,7 +69,6 @@ interface FilaExcelMontura extends CrearMonturaExcelDto {
 }
 
 interface FilaExcelAccesorio extends CrearAccesorioExcelDto {
-  sedeId: number;
   cantidad: number;
 }
 
@@ -698,8 +697,9 @@ export class ProductosService {
       if (rowNumber === 1) return; // Saltar cabecera
 
       const getByHeader = (headerName: string) => {
-        const columnIndex = headersExcel.indexOf(headerName) + 1;
-        return row.getCell(columnIndex).value;
+        const index = headersExcel.indexOf(headerName);
+        if (index === -1) return null;
+        return row.getCell(index + 1).value;
       };
 
       rows.push({
@@ -843,9 +843,9 @@ export class ProductosService {
       if (rowNumber === 1) return;
 
       const getByHeader = (headerName: string) => {
-        const columnIndex = headersExcel.indexOf(headerName) + 1;
-
-        return row.getCell(columnIndex).value;
+        const index = headersExcel.indexOf(headerName);
+        if (index === -1) return null;
+        return row.getCell(index + 1).value;
       };
 
       rows.push({
@@ -1261,8 +1261,9 @@ export class ProductosService {
       if (rowNumber === 1) return; // Saltar cabecera
 
       const getByHeader = (headerName: string) => {
-        const columnIndex = headersExcel.indexOf(headerName) + 1;
-        return row.getCell(columnIndex).value;
+        const index = headersExcel.indexOf(headerName);
+        if (index === -1) return null;
+        return row.getCell(index + 1).value;
       };
 
       const tipo = String(getByHeader(HEADERS_ACCESORIO_EXCEL.TIPO) ?? '').trim().toUpperCase();
@@ -1276,7 +1277,6 @@ export class ProductosService {
         precioCompra: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA)),
         precioVenta: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA)),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR)),
-        sedeId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE)),
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
       });
     });
@@ -1399,8 +1399,9 @@ export class ProductosService {
       if (rowNumber === 1) return;
 
       const getByHeader = (headerName: string) => {
-        const columnIndex = headersExcel.indexOf(headerName) + 1;
-        return row.getCell(columnIndex).value;
+        const index = headersExcel.indexOf(headerName);
+        if (index === -1) return null;
+        return row.getCell(index + 1).value;
       };
 
       rows.push({

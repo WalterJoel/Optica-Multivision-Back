@@ -15,7 +15,6 @@ export const HEADERS_ACCESORIO_EXCEL = {
 } as const;
 
 
-// Este esquema debe encajar exactamente con lo que envía el frontend al insertar accesorios
 export const crearAccesoriosExcelSchema: ExcelSchemaField[] = [
   // Para accesorio
   {
@@ -52,11 +51,6 @@ export const crearAccesoriosExcelSchema: ExcelSchemaField[] = [
   {
     header: HEADERS_ACCESORIO_EXCEL.TIPO,
     type: 'string',
-    required: true,
-  },
-  {
-    header: HEADERS_ACCESORIO_EXCEL.SEDE,
-    type: 'number',
     required: true,
   },
 ];
