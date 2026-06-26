@@ -865,8 +865,6 @@ export class ProductosService {
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR) || ''),
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
         sedeDestinoId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID)),
-
-
       });
     });
 
@@ -1324,7 +1322,7 @@ export class ProductosService {
               nombre: r.nombre,
               tipo: TipoProducto.ACCESORIO,
               sedeId: sede.id,
-              cantidad: 0,
+              cantidad: r.cantidad,
               ubicacion: '',
               precioCompra: r.precioCompra,
               precioVenta: r.precioVenta,
