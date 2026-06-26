@@ -801,7 +801,6 @@ export class ProductosService {
         `montura.color AS "${HEADERS_MONTURA_EXCEL.COLOR}"`,
         `producto.cantidad AS "${HEADERS_MONTURA_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_MONTURA_EXCEL.TIPO}"`,
-        // `sede.nombre AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
         `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE_ID}"`,
       ])
       .orderBy('producto.createdAt', 'DESC')
