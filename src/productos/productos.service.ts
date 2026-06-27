@@ -782,6 +782,7 @@ export class ProductosService {
       .map((value) => String(value ?? '').trim());
 
     const rows: FilaExcelMontura[] = [];
+    let targetSedeId: number | null = null;
 
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Saltar cabecera
@@ -791,6 +792,16 @@ export class ProductosService {
         if (index === -1) return null;
         return row.getCell(index + 1).value;
       };
+
+      const rowSedeId = Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID) || 0);
+
+      if (targetSedeId === null) targetSedeId = rowSedeId;
+
+      if (rowSedeId !== targetSedeId) {
+        throw new BadRequestException({
+          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede destino.',
+        });
+      }
 
       rows.push({
         codigo: String(getByHeader(HEADERS_MONTURA_EXCEL.CODIGO)),
@@ -804,19 +815,9 @@ export class ProductosService {
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA)),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR)),
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
-        sedeId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID) || 0),
+        sedeId: rowSedeId,
       });
     });
-
-    if (rows.length > 0) {
-      const firstSedeId = rows[0].sedeId;
-      const tieneSedesDiferentes = rows.some((r) => r.sedeId !== firstSedeId);
-      if (tieneSedesDiferentes) {
-        throw new BadRequestException({
-          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede destino.',
-        });
-      }
-    }
 
     return this.insertarMonturasMasivo(rows);
   }
@@ -1358,6 +1359,7 @@ export class ProductosService {
 
     const rows: FilaExcelAccesorio[] = [];
     const erroresTipo: string[] = [];
+    let targetSedeId: number | null = null;
 
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Saltar cabecera
@@ -1373,6 +1375,16 @@ export class ProductosService {
         erroresTipo.push(`Fila ${rowNumber}: El campo TIPO debe ser "${TipoProducto.ACCESORIO}" (se encontró "${tipo}")`);
       }
 
+      const rowSedeId = Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE) || 0);
+
+      if (targetSedeId === null) targetSedeId = rowSedeId;
+
+      if (rowSedeId !== targetSedeId) {
+        throw new BadRequestException({
+          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede.',
+        });
+      }
+
       rows.push({
         codigoAccesorio: String(getByHeader(HEADERS_ACCESORIO_EXCEL.CODIGO)),
         nombre: String(getByHeader(HEADERS_ACCESORIO_EXCEL.NOMBRE)),
@@ -1380,7 +1392,7 @@ export class ProductosService {
         precioVenta: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA)),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR)),
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
-        sedeId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE) || 0),
+        sedeId: rowSedeId,
       });
     });
 
@@ -1388,16 +1400,6 @@ export class ProductosService {
       throw new BadRequestException({
         message: `Excel inválido:\n${erroresTipo.join('\n')}`,
       });
-    }
-
-    if (rows.length > 0) {
-      const firstSedeId = rows[0].sedeId;
-      const tieneSedesDiferentes = rows.some((r) => r.sedeId !== firstSedeId);
-      if (tieneSedesDiferentes) {
-        throw new BadRequestException({
-          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede.',
-        });
-      }
     }
 
     return this.insertarAccesoriosMasivo(rows);
