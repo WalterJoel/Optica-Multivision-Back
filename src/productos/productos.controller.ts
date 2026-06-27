@@ -89,8 +89,11 @@ export class ProductosController {
 
   @Public()
   @Get('lente/:id')
-  obtenerLentePorId(@Param('id') id: string) {
-    return this.productosService.obtenerLentePorId(+id);
+  obtenerLentePorId(
+    @Param('id') id: string,
+    @Query('sedeId') sedeId: string,
+  ) {
+    return this.productosService.obtenerLentePorId(+id, +sedeId);
   }
 
   @Public()
@@ -111,11 +114,13 @@ export class ProductosController {
   @Public()
   @Get('buscarLente')
   async buscarLente(
-    @Query('busqueda') busqueda: string,
+    @Query('sedeId') sedeId: string,
+    @Query('busqueda') busqueda?: string,
     @Query('limite') limite = 50,
     @Query('desplazamiento') desplazamiento = 0,
   ) {
     return this.productosService.buscarLente(
+      +sedeId,
       busqueda,
       Number(limite),
       Number(desplazamiento),

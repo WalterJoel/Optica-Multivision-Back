@@ -68,5 +68,10 @@ export const crearMonturasExcelSchema: ExcelSchemaField[] = [
     header: HEADERS_MONTURA_EXCEL.TIPO,
     type: 'string',
     required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.SEDE_ID,
+    type: 'number',
+    required: true,
   }
 ];

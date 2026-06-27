@@ -6,9 +6,11 @@ import {
   MaxLength,
   IsNumber,
   IsBoolean,
+  IsInt,
+  IsPositive,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoProducto } from '../../common/constants';
+import { ClasificacionAccesorios, TipoProducto } from '../../common/constants';
 import { OmitType } from '@nestjs/mapped-types';
 
 export class DatosParaCrearAccesorioDto {
@@ -44,10 +46,19 @@ export class DatosParaCrearAccesorioDto {
   @Type(() => Number)
   cantidad: number;
 
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  sedeId: number;
+
   @IsString()
   @IsOptional()
   @MaxLength(50)
   ubicacion?: string;
+
+  @IsOptional()
+  @IsEnum(ClasificacionAccesorios)
+  clasificacion?: ClasificacionAccesorios;
 
   @IsOptional()
   @IsString()
@@ -64,7 +75,7 @@ export class CrearAccesorioDto extends OmitType(DatosParaCrearAccesorioDto, [
 }
 
 export class CrearAccesorioExcelDto extends OmitType(DatosParaCrearAccesorioDto, [
-  'cantidad', 'ubicacion', 'atributo'
+  'cantidad', 'ubicacion', 'atributo', 'sedeId'
 ] as const) { }
 
 

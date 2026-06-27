@@ -5,6 +5,9 @@ import { Stock } from '../productos/entities/stock.entity';
 export function buildStockSeed(
   lenteId: number,
   sedeId: number,
+  precio_serie1 = 0,
+  precio_serie2 = 0,
+  precio_serie3 = 0,
 ): Partial<Stock>[] {
   const stocks: Partial<Stock>[] = [];
 
@@ -104,5 +107,10 @@ export function buildStockSeed(
     });
   });
 
-  return stocks;
+  return stocks.map((stock) => ({
+    ...stock,
+    precio_serie1,
+    precio_serie2,
+    precio_serie3,
+  }));
 }

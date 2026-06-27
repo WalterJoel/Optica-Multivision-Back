@@ -5,9 +5,11 @@ import {
   IsEnum,
   MaxLength,
   IsNumber,
+  IsInt,
+  IsPositive,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { FormaFacial, SexoMontura } from '../../common/constants';
+import { ClasificacionMonturas, FormaFacial, SexoMontura } from '../../common/constants';
 import { OmitType } from '@nestjs/mapped-types';
 
 export class DatosParaCrearMonturaDto {
@@ -48,6 +50,11 @@ export class DatosParaCrearMonturaDto {
   @Type(() => Number)
   cantidad: number;
 
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  sedeId: number;
+
   @IsString()
   @IsOptional()
   @MaxLength(50)
@@ -60,6 +67,10 @@ export class DatosParaCrearMonturaDto {
   sexo: SexoMontura;
 
   @IsOptional()
+  @IsEnum(ClasificacionMonturas)
+  clasificacion?: ClasificacionMonturas;
+
+  @IsOptional()
   @IsString()
   imagenUrl?: string;
 
@@ -67,7 +78,7 @@ export class DatosParaCrearMonturaDto {
 }
 
 export class CrearMonturaExcelDto extends OmitType(DatosParaCrearMonturaDto, [
-  'cantidad', 'ubicacion', 'formaFacial', 'sexo'
+  'cantidad', 'ubicacion', 'formaFacial', 'sexo', 'sedeId'
 ] as const) {
   // @IsNumber()
   // productoId: number;

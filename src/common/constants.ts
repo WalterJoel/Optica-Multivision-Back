@@ -98,3 +98,19 @@ export enum ClasificacionAccesorios {
   MOBILIARIO_PARA_OPTICA = 'MOBILIARIO_PARA_OPTICA',
   OTROS = 'OTROS',
 }
+
+export enum ClasificacionLentes {
+
+  RESINA = 'RESINA',
+  POLICARBONATO = 'POLICARBONATO',
+  CRISTAL = 'CRISTAL',
+  OTROS = 'OTROS',
+}
+
+export enum PrioridadLentes {
+  MOSTRAR_PRIMERO = 1,
+  MOSTRAR_SEGUNDO = 2,
+  MOSTRAR_TERCERO = 3,
+  MOSTRAR_CUARTO = 4,
+  MOSTRAR_QUINTO = 5,
+}

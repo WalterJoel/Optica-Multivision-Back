@@ -7,7 +7,8 @@ import {
   IsEnum,
   IsInt,
 } from 'class-validator';
-import { TipoProducto } from '../../common/constants';
+import { Type } from 'class-transformer';
+import { ClasificacionLentes, PrioridadLentes, TipoProducto } from '../../common/constants';
 
 export class CrearLenteDto {
   @IsOptional()
@@ -23,23 +24,39 @@ export class CrearLenteDto {
   @MaxLength(100)
   material: string;
 
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Type(() => Number)
+  precio_serie1: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Type(() => Number)
+  precio_serie2: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Type(() => Number)
+  precio_serie3: number;
+
+  @IsEnum(ClasificacionLentes)
+  clasificacion: ClasificacionLentes;
+
+  @IsOptional()
+  @IsEnum(PrioridadLentes)
+  @Type(() => Number)
+  prioridad?: PrioridadLentes;
+
   @IsString()
   @IsOptional()
   @MaxLength(255)
   imagenUrl?: string;
 
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  precio_serie1: number;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  precio_serie2: number;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  precio_serie3: number;
-
   @IsEnum(TipoProducto)
   tipo: TipoProducto;
+
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  sedeId: number;
 }

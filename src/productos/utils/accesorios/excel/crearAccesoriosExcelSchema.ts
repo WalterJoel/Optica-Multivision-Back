@@ -53,4 +53,9 @@ export const crearAccesoriosExcelSchema: ExcelSchemaField[] = [
     type: 'string',
     required: true,
   },
+  {
+    header: HEADERS_ACCESORIO_EXCEL.SEDE,
+    type: 'number',
+    required: true,
+  }
 ];

@@ -43,9 +43,28 @@ export class SedesService {
 
     const bulkLentes: Partial<Stock>[] = [];
 
+    // Obtener los precios existentes de los lentes para inicializarlos en la nueva sede
+    const stocksPrices = await qr.manager.getRepository(Stock).createQueryBuilder('stock')
+      .select('stock.lenteId', 'lenteId')
+      .addSelect('stock.precio_serie1', 'precio_serie1')
+      .addSelect('stock.precio_serie2', 'precio_serie2')
+      .addSelect('stock.precio_serie3', 'precio_serie3')
+      .where('stock.matrix = :matrix AND stock.row = :row AND stock.col = :col', { matrix: 'NEGATIVO', row: 0, col: 0 })
+      .getRawMany();
+
+    const priceMap = new Map<number, { p1: number; p2: number; p3: number }>();
+    for (const sp of stocksPrices) {
+      priceMap.set(Number(sp.lenteId), {
+        p1: Number(sp.precio_serie1) || 0,
+        p2: Number(sp.precio_serie2) || 0,
+        p3: Number(sp.precio_serie3) || 0,
+      });
+    }
+
     // Lentes
     for (const l of lentes) {
-      bulkLentes.push(...buildStockSeed(l.id, sedeId));
+      const prices = priceMap.get(l.id) || { p1: 0, p2: 0, p3: 0 };
+      bulkLentes.push(...buildStockSeed(l.id, sedeId, prices.p1, prices.p2, prices.p3));
     }
 
     if (bulkLentes.length) {

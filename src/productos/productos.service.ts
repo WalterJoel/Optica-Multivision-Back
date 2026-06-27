@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   InternalServerErrorException,
+  ConflictException,
 } from '@nestjs/common';
 import {
   DataSource,
@@ -66,10 +67,12 @@ type UpdateStockItem = {
 // 1. Interfaz extendida para meter los campos extras del Excel sin tocar tu DTO original
 interface FilaExcelMontura extends CrearMonturaExcelDto {
   cantidad: number;
+  sedeId: number;
 }
 
 interface FilaExcelAccesorio extends CrearAccesorioExcelDto {
   cantidad: number;
+  sedeId: number;
 }
 
 @Injectable()
@@ -96,7 +99,7 @@ export class ProductosService {
   async obtenerInventarioPorSedes(stockId: number) {
     const base = await this.stockRepository.findOne({
       where: { id: stockId },
-      select: ['lenteId', 'matrix', 'esf', 'cyl'],
+      select: ['lenteId', 'matrix', 'esf', 'cyl', 'precio_serie1', 'precio_serie2', 'precio_serie3'],
     });
 
     if (!base) throw new NotFoundException({ message: 'Stock no encontrado' });
@@ -117,9 +120,9 @@ export class ProductosService {
     if (!data.length) return null;
     const precioCalculado = this.calcularPrecio(
       base.cyl !== null ? Number(base.cyl) : null,
-      data[0].lente.precio_serie1,
-      data[0].lente.precio_serie2,
-      data[0].lente.precio_serie3,
+      base.precio_serie1,
+      base.precio_serie2,
+      base.precio_serie3,
     );
     return {
       precioCalculado,
@@ -127,6 +130,12 @@ export class ProductosService {
         id: item.sede.id,
         nombre: item.sede.nombre,
         unidades: item.cantidad,
+        precioCalculado: this.calcularPrecio(
+          base.cyl !== null ? Number(base.cyl) : null,
+          item.precio_serie1,
+          item.precio_serie2,
+          item.precio_serie3,
+        ),
       })),
     };
   }
@@ -244,13 +253,18 @@ export class ProductosService {
     await qr.connect();
     await qr.startTransaction();
 
+    //Validando que la prioridad no se repita
     try {
-      // ✅ 1️  PRODUCTO
-      // const producto = qr.manager.create(Producto, {
-      //   nombre: crearLenteDto.marca,
-      //   tipo: crearLenteDto.tipo,
-      // });
-      // await qr.manager.save(producto);
+      if (crearLenteDto.prioridad) {
+        const existe = await qr.manager.findOne(Lente, {
+          where: { prioridad: crearLenteDto.prioridad },
+        });
+        if (existe) {
+          throw new ConflictException({
+            message: `La prioridad '${crearLenteDto.prioridad}' ya está asignada al lente '${existe.marca} - ${existe.material}'`,
+          });
+        }
+      }
 
       // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
@@ -258,9 +272,8 @@ export class ProductosService {
         kitId: crearLenteDto.kitId,
         marca: crearLenteDto.marca,
         material: crearLenteDto.material,
-        precio_serie1: crearLenteDto.precio_serie1,
-        precio_serie2: crearLenteDto.precio_serie2,
-        precio_serie3: crearLenteDto.precio_serie3,
+        clasificacion: crearLenteDto.clasificacion,
+        prioridad: crearLenteDto.prioridad ?? null,
         imagenUrl: crearLenteDto.imagenUrl,
       });
       await qr.manager.save(lente);
@@ -273,7 +286,16 @@ export class ProductosService {
       const bulk: Partial<Stock>[] = [];
 
       for (const sede of sedes) {
-        bulk.push(...buildStockSeed(lente.id, sede.id));
+        const isTargetSede = sede.id === crearLenteDto.sedeId;
+        bulk.push(
+          ...buildStockSeed(
+            lente.id,
+            sede.id,
+            isTargetSede ? crearLenteDto.precio_serie1 : 0,
+            isTargetSede ? crearLenteDto.precio_serie2 : 0,
+            isTargetSede ? crearLenteDto.precio_serie3 : 0,
+          ),
+        );
       }
 
       await stockRepo.insert(bulk);
@@ -295,7 +317,7 @@ export class ProductosService {
     });
   }
 
-  async obtenerLentePorId(id: number) {
+  async obtenerLentePorId(id: number, sedeId: number) {
     const lente = await this.lenteRepository.findOne({
       where: { id },
       relations: ['kit'],
@@ -305,7 +327,17 @@ export class ProductosService {
       throw new NotFoundException({ message: 'Lente no encontrado' });
     }
 
-    return lente;
+    const stockPrice = await this.dataSource.getRepository(Stock).findOne({
+      where: { lenteId: id, sedeId, matrix: 'NEGATIVO', row: 0, col: 0 },
+      select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
+    });
+
+    return {
+      ...lente,
+      precio_serie1: stockPrice ? Number(stockPrice.precio_serie1) : 0,
+      precio_serie2: stockPrice ? Number(stockPrice.precio_serie2) : 0,
+      precio_serie3: stockPrice ? Number(stockPrice.precio_serie3) : 0,
+    };
   }
 
   async actualizarLente(id: number, dto: UpdateLenteDto) {
@@ -318,12 +350,47 @@ export class ProductosService {
         throw new NotFoundException({ message: 'Lente no encontrado' });
       }
 
-      const updatedLente = this.lenteRepository.merge(lente, dto);
+      const { sedeId, precio_serie1, precio_serie2, precio_serie3, ...restDto } = dto;
+
+      if (restDto.prioridad) {
+        const existe = await this.lenteRepository.findOne({
+          where: { prioridad: restDto.prioridad },
+        });
+        if (existe && existe.id !== id) {
+          throw new ConflictException({
+            message: `La prioridad '${restDto.prioridad}' ya está asignada al lente '${existe.marca} - ${existe.material}'`,
+          });
+        }
+      }
+
+      if (precio_serie1 !== undefined || precio_serie2 !== undefined || precio_serie3 !== undefined) {
+        const updateData: any = {};
+        if (precio_serie1 !== undefined) updateData.precio_serie1 = precio_serie1;
+        if (precio_serie2 !== undefined) updateData.precio_serie2 = precio_serie2;
+        if (precio_serie3 !== undefined) updateData.precio_serie3 = precio_serie3;
+
+        await this.dataSource.getRepository(Stock).update(
+          { lenteId: id, sedeId },
+          updateData,
+        );
+      }
+
+      const updatedLente = this.lenteRepository.merge(lente, restDto);
       await this.lenteRepository.save(updatedLente);
+
+      const stockPrice = await this.dataSource.getRepository(Stock).findOne({
+        where: { lenteId: id, sedeId, matrix: 'NEGATIVO', row: 0, col: 0 },
+        select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
+      });
 
       return {
         message: 'Lente actualizado correctamente',
-        data: updatedLente,
+        data: {
+          ...updatedLente,
+          precio_serie1: stockPrice ? Number(stockPrice.precio_serie1) : 0,
+          precio_serie2: stockPrice ? Number(stockPrice.precio_serie2) : 0,
+          precio_serie3: stockPrice ? Number(stockPrice.precio_serie3) : 0,
+        },
       };
     } catch (error: any) {
       if (error instanceof NotFoundException) {
@@ -359,29 +426,50 @@ export class ProductosService {
     }
   }
 
-  async buscarLente(busqueda?: string, limite = 50, desplazamiento = 0) {
-    const where = busqueda
-      ? [
-        { marca: ILike(`%${busqueda}%`) },
-        { material: ILike(`%${busqueda}%`) },
-      ]
-      : {};
+  async buscarLente(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
+    const query = this.lenteRepository.createQueryBuilder('lente')
+      .leftJoin(
+        Stock,
+        'stock',
+        'stock.lenteId = lente.id AND stock.sedeId = :sedeId AND stock.matrix = :matrix AND stock.row = 0 AND stock.col = 0',
+        { sedeId, matrix: 'NEGATIVO' }
+      )
+      .select([
+        'lente.id AS id',
+        'lente.marca AS marca',
+        'lente.material AS material',
+        'lente.clasificacion AS clasificacion',
+        'lente.prioridad AS prioridad',
+        'lente.imagenUrl AS "imagenUrl"',
+        'lente.activo AS activo',
+        'stock.precio_serie1 AS precio_serie1',
+        'stock.precio_serie2 AS precio_serie2',
+        'stock.precio_serie3 AS precio_serie3',
+      ]);
 
-    const [lentes, total] = await this.lenteRepository.findAndCount({
-      where,
-      take: limite,
-      skip: desplazamiento,
-      select: [
-        'id',
-        // 'productoId',
-        'marca',
-        'material',
-        'precio_serie1',
-        'precio_serie2',
-        'precio_serie3',
-      ],
-      order: { marca: 'ASC' },
-    });
+    if (busqueda) {
+      query.where('lente.marca ILIKE :busqueda OR lente.material ILIKE :busqueda', {
+        busqueda: `%${busqueda}%`,
+      });
+    }
+
+    const [lentesRaw, total] = await Promise.all([
+      query.orderBy('lente.marca', 'ASC').take(limite).skip(desplazamiento).getRawMany(),
+      query.getCount(),
+    ]);
+
+    const lentes = lentesRaw.map((raw) => ({
+      id: raw.id,
+      marca: raw.marca,
+      material: raw.material,
+      clasificacion: raw.clasificacion,
+      prioridad: raw.prioridad,
+      imagenUrl: raw.imagenUrl,
+      activo: raw.activo,
+      precio_serie1: raw.precio_serie1 ? Number(raw.precio_serie1) : 0,
+      precio_serie2: raw.precio_serie2 ? Number(raw.precio_serie2) : 0,
+      precio_serie3: raw.precio_serie3 ? Number(raw.precio_serie3) : 0,
+    }));
 
     return { total, lentes };
   }
@@ -484,6 +572,7 @@ export class ProductosService {
         color: datosParaCrearMonturaDto.color,
         formaFacial: datosParaCrearMonturaDto.formaFacial,
         sexo: datosParaCrearMonturaDto.sexo,
+        clasificacion: datosParaCrearMonturaDto.clasificacion ?? '',
         imagenUrl: datosParaCrearMonturaDto.imagenUrl,
       }));
 
@@ -494,7 +583,7 @@ export class ProductosService {
         manager.create(Producto, {
           nombre: datosParaCrearMonturaDto.marca,
           tipo: TipoProducto.MONTURA,
-          cantidad: Number(datosParaCrearMonturaDto.cantidad) || 0,
+          cantidad: (sede.id === datosParaCrearMonturaDto.sedeId) ? (Number(datosParaCrearMonturaDto.cantidad) || 0) : 0,
           sedeId: sede.id,
           ubicacion: '',
           precioCompra: datosParaCrearMonturaDto.precioCompra,
@@ -529,6 +618,7 @@ export class ProductosService {
       color: p.montura.color,
       formaFacial: p.montura.formaFacial,
       sexo: p.montura.sexo,
+      clasificacion: p.montura.clasificacion,
       imagenUrl: p.montura.imagenUrl,
       createdAt: p.montura.createdAt,
       producto: {
@@ -713,10 +803,20 @@ export class ProductosService {
         material: String(getByHeader(HEADERS_MONTURA_EXCEL.MATERIAL)),
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA)),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR)),
-        // Capturamos los datos numéricos directamente del Excel
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
+        sedeId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID) || 0),
       });
     });
+
+    if (rows.length > 0) {
+      const firstSedeId = rows[0].sedeId;
+      const tieneSedesDiferentes = rows.some((r) => r.sedeId !== firstSedeId);
+      if (tieneSedesDiferentes) {
+        throw new BadRequestException({
+          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede destino.',
+        });
+      }
+    }
 
     return this.insertarMonturasMasivo(rows);
   }
@@ -747,7 +847,8 @@ export class ProductosService {
         )
       );
 
-      // Crear Productos para todas las sedes con cantidad 0 y mismos precios
+      // Crear Productos para todas las sedes con CANTIDAD 0 PARA OTROS  Y SOLO CANTIDAD REAL PARA LA SEDE QUE VIENE 
+      // COMO PARAMETRO
       const productosParaGuardar: Producto[] = [];
 
       for (let i = 0; i < monturasCreadas.length; i++) {
@@ -760,7 +861,7 @@ export class ProductosService {
               nombre: r.marca,
               tipo: TipoProducto.MONTURA,
               sedeId: sede.id,
-              cantidad: r.cantidad,
+              cantidad: (sede.id === r.sedeId) ? r.cantidad : 0,
               ubicacion: '',
               precioCompra: r.precioCompra,
               precioVenta: r.precioVenta,
@@ -1020,6 +1121,7 @@ export class ProductosService {
         codigoAccesorio: datosParaCrearAccesorioDto.codigoAccesorio,
         color: datosParaCrearAccesorioDto.color,
         atributo: datosParaCrearAccesorioDto.atributo,
+        clasificacion: datosParaCrearAccesorioDto.clasificacion ?? '',
         imagenUrl: datosParaCrearAccesorioDto.imagenUrl,
       }));
 
@@ -1030,7 +1132,7 @@ export class ProductosService {
         manager.create(Producto, {
           nombre: datosParaCrearAccesorioDto.nombre,
           tipo: TipoProducto.ACCESORIO,
-          cantidad: Number(datosParaCrearAccesorioDto.cantidad) || 0,
+          cantidad: (sede.id === datosParaCrearAccesorioDto.sedeId) ? (Number(datosParaCrearAccesorioDto.cantidad) || 0) : 0,
           sedeId: sede.id,
           ubicacion: '',
           precioCompra: datosParaCrearAccesorioDto.precioCompra,
@@ -1071,6 +1173,7 @@ export class ProductosService {
       nombre: p.accesorio.nombre,
       color: p.accesorio.color,
       atributo: p.accesorio.atributo,
+      clasificacion: p.accesorio.clasificacion,
       imagenUrl: p.accesorio.imagenUrl,
       createdAt: p.accesorio.createdAt,
       producto: {
@@ -1109,6 +1212,7 @@ export class ProductosService {
       nombre: p.accesorio.nombre,
       precioVenta: Number(p.precioVenta),
       productoId: p.id,
+      clasificacion: p.accesorio.clasificacion,
     }));
 
     return { total, accesorios: mappedAccesorios };
@@ -1132,6 +1236,7 @@ export class ProductosService {
       nombre: producto.accesorio.nombre,
       color: producto.accesorio.color,
       atributo: producto.accesorio.atributo,
+      clasificacion: producto.accesorio.clasificacion,
       imagenUrl: producto.accesorio.imagenUrl,
       createdAt: producto.createdAt,
       producto: {
@@ -1275,6 +1380,7 @@ export class ProductosService {
         precioVenta: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA)),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR)),
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
+        sedeId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE) || 0),
       });
     });
 
@@ -1282,6 +1388,16 @@ export class ProductosService {
       throw new BadRequestException({
         message: `Excel inválido:\n${erroresTipo.join('\n')}`,
       });
+    }
+
+    if (rows.length > 0) {
+      const firstSedeId = rows[0].sedeId;
+      const tieneSedesDiferentes = rows.some((r) => r.sedeId !== firstSedeId);
+      if (tieneSedesDiferentes) {
+        throw new BadRequestException({
+          message: 'Excel inválido: Todas las filas del Excel deben pertenecer a la misma sede.',
+        });
+      }
     }
 
     return this.insertarAccesoriosMasivo(rows);
@@ -1322,7 +1438,7 @@ export class ProductosService {
               nombre: r.nombre,
               tipo: TipoProducto.ACCESORIO,
               sedeId: sede.id,
-              cantidad: r.cantidad,
+              cantidad: (sede.id === r.sedeId) ? r.cantidad : 0,
               ubicacion: '',
               precioCompra: r.precioCompra,
               precioVenta: r.precioVenta,
