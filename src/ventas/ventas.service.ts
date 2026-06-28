@@ -122,7 +122,15 @@ export class VentasService {
     return await this.ventaRepository.find({
       where: { sedeId },
       relations: {
-        productos: true,
+        productos: {
+          producto: {
+            montura: true,
+            accesorio: true,
+          },
+          stock: {
+            lente: true,
+          },
+        },
         cliente: true,
         user: true,
       },
@@ -142,7 +150,15 @@ export class VentasService {
         createdAt: Between(start, end),
       },
       relations: {
-        productos: true,
+        productos: {
+          producto: {
+            montura: true,
+            accesorio: true,
+          },
+          stock: {
+            lente: true,
+          },
+        },
         cliente: true,
         user: true,
       },
