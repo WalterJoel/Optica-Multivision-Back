@@ -181,7 +181,10 @@ export class VentasService {
       relations: {
         sede: true,
         productos: {
-          producto: true,
+          producto: {
+            montura: true,
+            accesorio: true,
+          },
           stock: {
             lente: true,
           },
