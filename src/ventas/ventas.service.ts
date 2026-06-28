@@ -189,6 +189,33 @@ export class VentasService {
       }
     }
 
+    const typeOrder = {
+      [TipoProducto.LENTE]: 1,
+      [TipoProducto.MONTURA]: 2,
+      [TipoProducto.ACCESORIO]: 3,
+    };
+
+    productosVendidos.sort((a, b) => {
+      // 1. Tipo Producto (Lente -> Montura -> Accesorio)
+      const orderA = typeOrder[a.tipoProducto] || 99;
+      const orderB = typeOrder[b.tipoProducto] || 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      // 2. Sede (Alfabético)
+      const sedeA = String(a.nombreSede || '').toLowerCase();
+      const sedeB = String(b.nombreSede || '').toLowerCase();
+      if (sedeA !== sedeB) {
+        return sedeA.localeCompare(sedeB);
+      }
+
+      // 3. Fecha de Venta (Cronológico / Ascendente)
+      const dateA = new Date(a.fechaVenta).getTime();
+      const dateB = new Date(b.fechaVenta).getTime();
+      return dateA - dateB;
+    });
+
     return productosVendidos;
   }
 

@@ -8,7 +8,7 @@ import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { Sede } from './entities/sede.entity';
 import { CrearSedeDto } from './dto/crear-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
-import { Accesorio, Lente, Montura, Stock, Producto } from 'src/productos/entities';
+import { Accesorio, Lente, Montura, Stock, Producto, LentePrecio } from 'src/productos/entities';
 import { buildStockSeed } from 'src/seeds';
 import { TipoProducto } from 'src/common/constants';
 
@@ -42,15 +42,12 @@ export class SedesService {
     ]);
 
     const bulkLentes: Partial<Stock>[] = [];
+    const bulkPrecios: LentePrecio[] = [];
 
     // Obtener los precios existentes de los lentes para inicializarlos en la nueva sede
-    const stocksPrices = await qr.manager.getRepository(Stock).createQueryBuilder('stock')
-      .select('stock.lenteId', 'lenteId')
-      .addSelect('stock.precio_serie1', 'precio_serie1')
-      .addSelect('stock.precio_serie2', 'precio_serie2')
-      .addSelect('stock.precio_serie3', 'precio_serie3')
-      .where('stock.matrix = :matrix AND stock.row = :row AND stock.col = :col', { matrix: 'NEGATIVO', row: 0, col: 0 })
-      .getRawMany();
+    const stocksPrices = await qr.manager.getRepository(LentePrecio).find({
+      select: ['lenteId', 'precio_serie1', 'precio_serie2', 'precio_serie3'],
+    });
 
     const priceMap = new Map<number, { p1: number; p2: number; p3: number }>();
     for (const sp of stocksPrices) {
@@ -64,7 +61,16 @@ export class SedesService {
     // Lentes
     for (const l of lentes) {
       const prices = priceMap.get(l.id) || { p1: 0, p2: 0, p3: 0 };
-      bulkLentes.push(...buildStockSeed(l.id, sedeId, prices.p1, prices.p2, prices.p3));
+      bulkLentes.push(...buildStockSeed(l.id, sedeId));
+      bulkPrecios.push(
+        qr.manager.getRepository(LentePrecio).create({
+          lenteId: l.id,
+          sedeId,
+          precio_serie1: prices.p1,
+          precio_serie2: prices.p2,
+          precio_serie3: prices.p3,
+        })
+      );
     }
 
     if (bulkLentes.length) {
@@ -75,6 +81,10 @@ export class SedesService {
         .values(bulkLentes)
         .orIgnore()
         .execute();
+    }
+
+    if (bulkPrecios.length) {
+      await qr.manager.getRepository(LentePrecio).save(bulkPrecios);
     }
 
     // Inicializar precios base de monturas y accesorios existentes

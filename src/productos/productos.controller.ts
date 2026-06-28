@@ -83,8 +83,8 @@ export class ProductosController {
   }
 
   @Get('lentes')
-  getLenses() {
-    return this.productosService.getLenses();
+  getLenses(@Query('sedeId') sedeId?: string) {
+    return this.productosService.getLenses(sedeId ? +sedeId : undefined);
   }
 
   @Public()

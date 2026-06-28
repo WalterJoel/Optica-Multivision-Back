@@ -2,10 +2,11 @@ import {
   IsString,
   IsNumber,
   IsOptional,
-  IsPositive,
+  Min,
   MaxLength,
   IsEnum,
   IsInt,
+  IsPositive,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ClasificacionLentes, PrioridadLentes, TipoProducto } from '../../common/constants';
@@ -25,17 +26,17 @@ export class CrearLenteDto {
   material: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
   precio_serie1: number;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
   precio_serie2: number;
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
   precio_serie3: number;
 

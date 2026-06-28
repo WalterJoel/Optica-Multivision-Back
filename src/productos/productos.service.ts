@@ -29,7 +29,7 @@ import {
 } from './dto';
 import { Buffer } from 'buffer';
 import * as ExcelJS from 'exceljs';
-import { Producto, Lente, Stock, Montura } from './entities';
+import { Producto, Lente, Stock, Montura, LentePrecio } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
 import { Codigos, TipoProducto } from '../common/constants';
@@ -99,7 +99,7 @@ export class ProductosService {
   async obtenerInventarioPorSedes(stockId: number) {
     const base = await this.stockRepository.findOne({
       where: { id: stockId },
-      select: ['lenteId', 'matrix', 'esf', 'cyl', 'precio_serie1', 'precio_serie2', 'precio_serie3'],
+      select: ['lenteId', 'sedeId', 'matrix', 'esf', 'cyl'],
     });
 
     if (!base) throw new NotFoundException({ message: 'Stock no encontrado' });
@@ -118,25 +118,46 @@ export class ProductosService {
     });
 
     if (!data.length) return null;
+
+    // Load the pricing records from LentePrecio for this lens across all sedes
+    const pricesList = await this.dataSource.getRepository(LentePrecio).find({
+      where: { lenteId: base.lenteId },
+      select: ['sedeId', 'precio_serie1', 'precio_serie2', 'precio_serie3'],
+    });
+
+    const priceMap = new Map<number, { p1: number; p2: number; p3: number }>();
+    for (const p of pricesList) {
+      priceMap.set(p.sedeId, {
+        p1: Number(p.precio_serie1) || 0,
+        p2: Number(p.precio_serie2) || 0,
+        p3: Number(p.precio_serie3) || 0,
+      });
+    }
+
+    const basePrices = priceMap.get(base.sedeId) || { p1: 0, p2: 0, p3: 0 };
     const precioCalculado = this.calcularPrecio(
       base.cyl !== null ? Number(base.cyl) : null,
-      base.precio_serie1,
-      base.precio_serie2,
-      base.precio_serie3,
+      basePrices.p1,
+      basePrices.p2,
+      basePrices.p3,
     );
+
     return {
       precioCalculado,
-      sedes: data.map((item) => ({
-        id: item.sede.id,
-        nombre: item.sede.nombre,
-        unidades: item.cantidad,
-        precioCalculado: this.calcularPrecio(
-          base.cyl !== null ? Number(base.cyl) : null,
-          item.precio_serie1,
-          item.precio_serie2,
-          item.precio_serie3,
-        ),
-      })),
+      sedes: data.map((item) => {
+        const itemPrices = priceMap.get(item.sede.id) || { p1: 0, p2: 0, p3: 0 };
+        return {
+          id: item.sede.id,
+          nombre: item.sede.nombre,
+          unidades: item.cantidad,
+          precioCalculado: this.calcularPrecio(
+            base.cyl !== null ? Number(base.cyl) : null,
+            itemPrices.p1,
+            itemPrices.p2,
+            itemPrices.p3,
+          ),
+        };
+      }),
     };
   }
 
@@ -286,19 +307,33 @@ export class ProductosService {
       const bulk: Partial<Stock>[] = [];
 
       for (const sede of sedes) {
-        const isTargetSede = sede.id === crearLenteDto.sedeId;
         bulk.push(
           ...buildStockSeed(
             lente.id,
             sede.id,
-            isTargetSede ? crearLenteDto.precio_serie1 : 0,
-            isTargetSede ? crearLenteDto.precio_serie2 : 0,
-            isTargetSede ? crearLenteDto.precio_serie3 : 0,
           ),
         );
       }
 
       await stockRepo.insert(bulk);
+
+      // ✅ 5️ LENTE PRECIOS
+      const precioRepo = qr.manager.getRepository(LentePrecio);
+      const preciosBulk: LentePrecio[] = [];
+
+      for (const sede of sedes) {
+        const isTargetSede = sede.id === crearLenteDto.sedeId;
+        preciosBulk.push(
+          precioRepo.create({
+            lenteId: lente.id,
+            sedeId: sede.id,
+            precio_serie1: isTargetSede ? crearLenteDto.precio_serie1 : 0,
+            precio_serie2: isTargetSede ? crearLenteDto.precio_serie2 : 0,
+            precio_serie3: isTargetSede ? crearLenteDto.precio_serie3 : 0,
+          }),
+        );
+      }
+      await precioRepo.save(preciosBulk);
 
       await qr.commitTransaction();
       return { lente };
@@ -310,11 +345,47 @@ export class ProductosService {
     }
   }
 
-  async getLenses() {
-    return this.dataSource.getRepository(Lente).find({
-      where: { activo: true },
-      order: { createdAt: 'DESC' },
-    });
+  async getLenses(sedeId?: number) {
+    const query = this.lenteRepository.createQueryBuilder('lente')
+      .leftJoin(
+        LentePrecio,
+        'lp',
+        'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
+        { sedeId: sedeId || 1 }
+      )
+      .select([
+        'lente.id AS id',
+        'lente.kitId AS "kitId"',
+        'lente.marca AS marca',
+        'lente.material AS material',
+        'lente.clasificacion AS clasificacion',
+        'lente.prioridad AS prioridad',
+        'lente.imagenUrl AS "imagenUrl"',
+        'lente.activo AS activo',
+        'lente.createdAt AS "createdAt"',
+        'lp.precio_serie1 AS precio_serie1',
+        'lp.precio_serie2 AS precio_serie2',
+        'lp.precio_serie3 AS precio_serie3',
+      ])
+      .where('lente.activo = :activo', { activo: true })
+      .orderBy('lente.createdAt', 'DESC');
+
+    const rawResults = await query.getRawMany();
+
+    return rawResults.map(item => ({
+      id: item.id,
+      kitId: item.kitId,
+      marca: item.marca,
+      material: item.material,
+      clasificacion: item.clasificacion,
+      prioridad: item.prioridad,
+      imagenUrl: item.imagenUrl,
+      activo: item.activo,
+      createdAt: item.createdAt,
+      precio_serie1: item.precio_serie1 ? Number(item.precio_serie1) : 0,
+      precio_serie2: item.precio_serie2 ? Number(item.precio_serie2) : 0,
+      precio_serie3: item.precio_serie3 ? Number(item.precio_serie3) : 0,
+    }));
   }
 
   async obtenerLentePorId(id: number, sedeId: number) {
@@ -327,8 +398,8 @@ export class ProductosService {
       throw new NotFoundException({ message: 'Lente no encontrado' });
     }
 
-    const stockPrice = await this.dataSource.getRepository(Stock).findOne({
-      where: { lenteId: id, sedeId, matrix: 'NEGATIVO', row: 0, col: 0 },
+    const stockPrice = await this.dataSource.getRepository(LentePrecio).findOne({
+      where: { lenteId: id, sedeId },
       select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
     });
 
@@ -369,17 +440,20 @@ export class ProductosService {
         if (precio_serie2 !== undefined) updateData.precio_serie2 = precio_serie2;
         if (precio_serie3 !== undefined) updateData.precio_serie3 = precio_serie3;
 
-        await this.dataSource.getRepository(Stock).update(
-          { lenteId: id, sedeId },
-          updateData,
-        );
+        const lpRepo = this.dataSource.getRepository(LentePrecio);
+        let lp = await lpRepo.findOne({ where: { lenteId: id, sedeId } });
+        if (!lp) {
+          lp = lpRepo.create({ lenteId: id, sedeId });
+        }
+        lpRepo.merge(lp, updateData);
+        await lpRepo.save(lp);
       }
 
       const updatedLente = this.lenteRepository.merge(lente, restDto);
       await this.lenteRepository.save(updatedLente);
 
-      const stockPrice = await this.dataSource.getRepository(Stock).findOne({
-        where: { lenteId: id, sedeId, matrix: 'NEGATIVO', row: 0, col: 0 },
+      const stockPrice = await this.dataSource.getRepository(LentePrecio).findOne({
+        where: { lenteId: id, sedeId },
         select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
       });
 
@@ -429,10 +503,10 @@ export class ProductosService {
   async buscarLente(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
     const query = this.lenteRepository.createQueryBuilder('lente')
       .leftJoin(
-        Stock,
-        'stock',
-        'stock.lenteId = lente.id AND stock.sedeId = :sedeId AND stock.matrix = :matrix AND stock.row = 0 AND stock.col = 0',
-        { sedeId, matrix: 'NEGATIVO' }
+        LentePrecio,
+        'lp',
+        'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
+        { sedeId }
       )
       .select([
         'lente.id AS id',
@@ -442,9 +516,9 @@ export class ProductosService {
         'lente.prioridad AS prioridad',
         'lente.imagenUrl AS "imagenUrl"',
         'lente.activo AS activo',
-        'stock.precio_serie1 AS precio_serie1',
-        'stock.precio_serie2 AS precio_serie2',
-        'stock.precio_serie3 AS precio_serie3',
+        'lp.precio_serie1 AS precio_serie1',
+        'lp.precio_serie2 AS precio_serie2',
+        'lp.precio_serie3 AS precio_serie3',
       ]);
 
     if (busqueda) {

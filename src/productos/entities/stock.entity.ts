@@ -54,27 +54,6 @@ export class Stock {
   @Column({ length: 100, default: '' })
   ubicacion: string;
 
-  @Column('decimal', {
-    precision: 8,
-    scale: 2,
-    default: 0,
-  })
-  precio_serie1: number;
-
-  @Column('decimal', {
-    precision: 8,
-    scale: 2,
-    default: 0,
-  })
-  precio_serie2: number;
-
-  @Column('decimal', {
-    precision: 8,
-    scale: 2,
-    default: 0,
-  })
-  precio_serie3: number;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
