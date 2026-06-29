@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { VentasService } from './ventas.service';
 import { CrearVentaDto } from './dto/crear-venta.dto';
+import { EditarVentaDto } from './dto/editar-venta.dto';
+import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { Public } from '../auth/public.decorator';
 import { BuscarVentasDto } from './dto/buscar-ventas.dto';
 
@@ -48,6 +50,18 @@ export class VentasController {
   @Post('anularVenta/:id')
   anularVenta(@Param('id') id: string) {
     return this.ventasService.anularVenta(Number(id));
+  }
+
+  @Public()
+  @Patch('editarVenta/:id')
+  editarVenta(@Param('id') id: string, @Body() dto: EditarVentaDto) {
+    return this.ventasService.editarVenta(Number(id), dto);
+  }
+
+  @Public()
+  @Post('registrarPago/:id')
+  registrarPago(@Param('id') id: string, @Body() dto: RegistrarPagoDto) {
+    return this.ventasService.registrarPago(Number(id), dto);
   }
 
   @Public()

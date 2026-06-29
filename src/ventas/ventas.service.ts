@@ -6,6 +6,8 @@ import { VentaProducto } from './entities/ventaProducto.entity';
 import { SeguimientoPedido } from './entities/seguimientoPedido.entity';
 import { Producto, Stock } from '../productos/entities';
 import { CrearVentaDto, VentaProductoDto } from './dto/crear-venta.dto';
+import { EditarVentaDto } from './dto/editar-venta.dto';
+import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { MetodoPago, TipoProducto } from 'src/common/constants';
 import { CrearSeguimientoPedidoDto } from './dto/crear-seguimiento-pedido-dto';
 import { CajaService } from 'src/caja/caja.service';
@@ -521,6 +523,65 @@ export class VentasService {
       tieneDeudasVencidas,
       mensaje,
       deudasVencidas,
+    };
+  }
+
+  async editarVenta(id: number, dto: EditarVentaDto) {
+    const venta = await this.ventaRepository.findOne({
+      where: { id },
+    });
+
+    if (!venta) {
+      throw new Error(`La venta #${id} no existe.`);
+    }
+
+    if (dto.observaciones !== undefined) venta.observaciones = dto.observaciones;
+    if (dto.montaje !== undefined) venta.montaje = dto.montaje;
+    if (dto.diasCompromisoPago !== undefined) venta.diasCompromisoPago = dto.diasCompromisoPago;
+    if (dto.clienteId !== undefined) venta.clienteId = dto.clienteId;
+    if (dto.metodoPago !== undefined) venta.metodoPago = dto.metodoPago as MetodoPago;
+    if (dto.tipoComprobante !== undefined) venta.tipoComprobante = dto.tipoComprobante;
+    if (dto.nroComprobante !== undefined) venta.nroComprobante = dto.nroComprobante;
+
+    return await this.ventaRepository.save(venta);
+  }
+
+  async registrarPago(id: number, dto: RegistrarPagoDto) {
+    const venta = await this.ventaRepository.findOne({ where: { id } });
+
+    if (!venta) throw new Error(`La venta #${id} no existe.`);
+    if (!venta.activo) throw new Error(`La venta #${id} está anulada.`);
+    if (venta.estadoPago === 'PAGADO') throw new Error(`La venta #${id} ya está completamente pagada.`);
+
+    const montoAnterior = Number(venta.montoPagado);
+    const total = Number(venta.total);
+    const nuevaMontoPagado = Math.min(montoAnterior + dto.montoPagado, total);
+    const nuevaDeuda = Math.max(total - nuevaMontoPagado, 0);
+    const nuevoEstado = nuevaDeuda <= 0 ? 'PAGADO' : 'PENDIENTE';
+
+    venta.montoPagado = nuevaMontoPagado;
+    venta.deuda = nuevaDeuda;
+    venta.estadoPago = nuevoEstado as any;
+
+    await this.ventaRepository.save(venta);
+
+    // Registrar ingreso en caja
+    await this.cajaService.registrarMovimiento({
+      sedeId: dto.sedeId,
+      tipo: TipoMovimiento.INGRESO,
+      monto: dto.montoPagado,
+      descripcion: `Pago de cuota venta #${id} (${nuevoEstado === 'PAGADO' ? 'saldado' : 'parcial'})`,
+      ventaId: id,
+      metodoPago: dto.metodoPago as MetodoPago,
+    });
+
+    return {
+      message: nuevoEstado === 'PAGADO'
+        ? 'Venta saldada completamente.'
+        : `Pago registrado. Deuda restante: S/. ${nuevaDeuda.toFixed(2)}`,
+      montoPagado: nuevaMontoPagado,
+      deuda: nuevaDeuda,
+      estadoPago: nuevoEstado,
     };
   }
 }
