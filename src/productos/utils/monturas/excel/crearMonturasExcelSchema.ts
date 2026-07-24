@@ -12,7 +12,7 @@ export const HEADERS_MONTURA_EXCEL = {
   MATERIAL: 'MATERIAL',
   TIPO: 'TIPO',
   CANTIDAD: 'CANTIDAD',
-  SEDE_ID: 'SEDE DESTINO ID', //Se usa para el editado
+  SEDE: 'SEDE',
 } as const;
 
 //Este esquema debe encajar exactamente con lo que envia el frontend al insertar monturas
@@ -70,7 +70,7 @@ export const crearMonturasExcelSchema: ExcelSchemaField[] = [
     required: true,
   },
   {
-    header: HEADERS_MONTURA_EXCEL.SEDE_ID,
+    header: HEADERS_MONTURA_EXCEL.SEDE,
     type: 'number',
     required: true,
   }

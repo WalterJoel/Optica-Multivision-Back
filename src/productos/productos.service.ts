@@ -867,7 +867,7 @@ export class ProductosService {
         return row.getCell(index + 1).value;
       };
 
-      const rowSedeId = Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID) || 0);
+      const rowSedeId = Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE) || 0);
 
       if (targetSedeId === null) targetSedeId = rowSedeId;
 
@@ -977,7 +977,7 @@ export class ProductosService {
         `montura.color AS "${HEADERS_MONTURA_EXCEL.COLOR}"`,
         `producto.cantidad AS "${HEADERS_MONTURA_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_MONTURA_EXCEL.TIPO}"`,
-        `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE_ID}"`,
+        `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
       ])
       .orderBy('producto.createdAt', 'DESC')
       .getRawMany();
@@ -1040,7 +1040,6 @@ export class ProductosService {
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA) || ''),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR) || ''),
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
-        sedeDestinoId: Number(getByHeader(HEADERS_MONTURA_EXCEL.SEDE_ID)),
       });
     });
 
@@ -1056,10 +1055,10 @@ export class ProductosService {
       }
 
       // =========================
+      // =========================
       // IDS ÚNICOS
       // =========================
       const productoIds = [...new Set(rows.map((r) => r.productoId))];
-      const sedeIds = [...new Set(rows.map((r) => r.sedeDestinoId))];
 
       // =========================
       // VALIDAR EXITENCIA DE PRODUCTOS
@@ -1081,29 +1080,10 @@ export class ProductosService {
         });
       }
 
-      // ===============================
-      // VALIDAR EXISTENCIA DE SEDES DESTINO
-      // ===============================
-      const sedesDB = await manager.find(Sede, {
-        where: { id: In(sedeIds) },
-        select: ['id'],
-      });
-
-      const sedeMap = new Map(sedesDB.map((s) => [s.id, true]));
-
-      const sedesFaltantes = sedeIds.filter((id) => !sedeMap.has(id));
-
-      if (sedesFaltantes.length > 0) {
-        throw new BadRequestException({
-          message: `Las siguientes SEDES no existen: ${sedesFaltantes.join(', ')}`,
-        });
-      }
-
       // =========================
       // 1. UPDATE STOCK Y PRECIOS (PRODUCTOS)
       // =========================
       const productoIdsArr = rows.map((r) => r.productoId);
-      const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
       const cantidadesArr = rows.map((r) => r.cantidad);
       const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
       const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
@@ -1118,15 +1098,13 @@ export class ProductosService {
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
-          unnest($2::int[]) AS "sedeId",
-          unnest($3::int[]) AS cantidad,
-          unnest($4::numeric[]) AS "precioCompra",
-          unnest($5::numeric[]) AS "precioVenta"
+          unnest($2::int[]) AS cantidad,
+          unnest($3::numeric[]) AS "precioCompra",
+          unnest($4::numeric[]) AS "precioVenta"
       ) AS data
       WHERE p.id = data."productoId"
-      AND p."sedeId" = data."sedeId"
       `,
-        [productoIdsArr, sedeIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
+        [productoIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
       );
 
       // =========================
@@ -1551,8 +1529,7 @@ export class ProductosService {
         `accesorio.color AS "${HEADERS_ACCESORIO_EXCEL.COLOR}"`,
         `producto.cantidad AS "${HEADERS_ACCESORIO_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_ACCESORIO_EXCEL.TIPO}"`,
-        `sede.nombre AS "${HEADERS_ACCESORIO_EXCEL.SEDE}"`,
-        `sede.id AS "${HEADERS_ACCESORIO_EXCEL.SEDE_ID}"`,
+        `sede.id AS "${HEADERS_ACCESORIO_EXCEL.SEDE}"`,
       ])
       .orderBy('producto.createdAt', 'DESC')
       .getRawMany();
@@ -1605,7 +1582,6 @@ export class ProductosService {
         ),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR) || ''),
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
-        sedeDestinoId: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.SEDE_ID)),
       });
     });
 
@@ -1621,7 +1597,6 @@ export class ProductosService {
       }
 
       const productoIds = [...new Set(rows.map((r) => r.productoId))];
-      const sedeIds = [...new Set(rows.map((r) => r.sedeDestinoId))];
 
       // Validar Productos
       const productosDB = await manager.find(Producto, {
@@ -1638,24 +1613,8 @@ export class ProductosService {
         });
       }
 
-      // Validar Sedes
-      const sedesDB = await manager.find(Sede, {
-        where: { id: In(sedeIds) },
-        select: ['id'],
-      });
-
-      const sedeMap = new Map(sedesDB.map((s) => [s.id, true]));
-      const sedesFaltantes = sedeIds.filter((id) => !sedeMap.has(id));
-
-      if (sedesFaltantes.length > 0) {
-        throw new BadRequestException({
-          message: `Las siguientes SEDES no existen: ${sedesFaltantes.join(', ')}`,
-        });
-      }
-
       // 1. UPDATE STOCK Y PRECIOS (PRODUCTOS)
       const productoIdsArr = rows.map((r) => r.productoId);
-      const sedeIdsArr = rows.map((r) => r.sedeDestinoId);
       const cantidadesArr = rows.map((r) => r.cantidad);
       const precioCompraArr = rows.map((r) => r.precioCompra ?? null);
       const precioVentaArr = rows.map((r) => r.precioVenta ?? null);
@@ -1670,15 +1629,13 @@ export class ProductosService {
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
-          unnest($2::int[]) AS "sedeId",
-          unnest($3::int[]) AS cantidad,
-          unnest($4::numeric[]) AS "precioCompra",
-          unnest($5::numeric[]) AS "precioVenta"
+          unnest($2::int[]) AS cantidad,
+          unnest($3::numeric[]) AS "precioCompra",
+          unnest($4::numeric[]) AS "precioVenta"
       ) AS data
       WHERE p.id = data."productoId"
-      AND p."sedeId" = data."sedeId"
       `,
-        [productoIdsArr, sedeIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
+        [productoIdsArr, cantidadesArr, precioCompraArr, precioVentaArr],
       );
 
       // 2. UPDATE ACCESORIOS

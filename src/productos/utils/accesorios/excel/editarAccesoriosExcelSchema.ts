@@ -47,9 +47,4 @@ export const editarAccesoriosExcelSchema: ExcelSchemaField[] = [
     type: 'string',
     required: false,
   },
-  {
-    header: HEADERS_ACCESORIO_EXCEL.SEDE_ID,
-    type: 'number',
-    required: true,
-  },
 ];

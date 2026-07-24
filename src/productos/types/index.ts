@@ -2,7 +2,6 @@ export type MatrixTipo = 'NEGATIVO' | 'POSITIVO';
 
 export interface FilaExcelEditarMontura {
   productoId: number;
-  sedeDestinoId: number;
   cantidad: number;
 
   precioCompra?: number;
@@ -17,7 +16,6 @@ export interface FilaExcelEditarMontura {
 
 export interface FilaExcelEditarAccesorio {
   productoId: number;
-  sedeDestinoId: number;
   cantidad: number;
 
   precioCompra?: number;

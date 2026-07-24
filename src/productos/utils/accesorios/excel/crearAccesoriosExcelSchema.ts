@@ -11,7 +11,6 @@ export const HEADERS_ACCESORIO_EXCEL = {
   TIPO: 'TIPO',
   CANTIDAD: 'CANTIDAD',
   SEDE: 'SEDE',
-  SEDE_ID: 'SEDE DESTINO ID',
 } as const;
 
 

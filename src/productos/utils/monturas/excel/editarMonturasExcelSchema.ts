@@ -58,8 +58,8 @@ export const editarMonturasExcelSchema: ExcelSchemaField[] = [
     required: false,
   },
   {
-    header: HEADERS_MONTURA_EXCEL.SEDE_ID,
+    header: HEADERS_MONTURA_EXCEL.SEDE,
     type: 'number',
-    required: true,
+    required: false,
   },
 ];
