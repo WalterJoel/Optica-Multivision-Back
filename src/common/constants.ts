@@ -9,6 +9,19 @@ export enum TipoProducto {
   ACCESORIO = 'ACCESORIO',
 }
 
+export enum EstadoTraslado {
+  SOLICITADO = 'SOLICITADO',
+  ENVIADO = 'ENVIADO',
+  TRASLADADO = 'TRASLADADO',
+  CANCELADO = 'CANCELADO',
+}
+
+export enum OrigenSolicitudTraslado {
+  REPORTE_VENTAS = 'REPORTE_VENTAS',
+  PRODUCTOS = 'PRODUCTOS',
+}
+
+
 export enum SexoMontura {
   M = 'M',
   F = 'F',

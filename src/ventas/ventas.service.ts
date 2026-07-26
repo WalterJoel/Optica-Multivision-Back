@@ -240,6 +240,72 @@ export class VentasService {
     return productosVendidos;
   }
 
+  async buscarVentasPorRangoTipo(
+    sedeId: number,
+    fechaInicio: string,
+    fechaFin: string,
+    tipo: TipoProducto,
+  ) {
+    const start = new Date(`${fechaInicio}T00:00:00.000-05:00`);
+    const end = new Date(`${fechaFin}T23:59:59.999-05:00`);
+
+    const qb = this.ventaRepository.manager
+      .getRepository(VentaProducto)
+      .createQueryBuilder('vp')
+      .innerJoin('vp.venta', 'v')
+      .where('v.sedeId = :sedeId', { sedeId })
+      .andWhere('v.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere('v.activo = true')
+      .andWhere('vp.tipoProducto = :tipo', { tipo })
+      .orderBy('v.createdAt', 'DESC');
+
+    if (tipo === TipoProducto.MONTURA) {
+      qb.innerJoin('vp.producto', 'p')
+        .innerJoin('p.montura', 'm')
+        .select([
+          'vp.id AS id',
+          'vp.productoId AS "productoId"',
+          'm.codigo AS codigo',
+          'm.marca AS marca',
+          'm.material AS material',
+          'vp.cantidad AS cantidad',
+        ]);
+      return await qb.getRawMany();
+    }
+
+    if (tipo === TipoProducto.ACCESORIO) {
+      qb.innerJoin('vp.producto', 'p')
+        .leftJoin('p.accesorio', 'a')
+        .select([
+          'vp.id AS id',
+          'vp.productoId AS "productoId"',
+          "COALESCE(a.codigoAccesorio, '') AS codigo",
+          "COALESCE(a.nombre, p.nombre, '') AS nombre",
+          'vp.cantidad AS cantidad',
+        ]);
+      return await qb.getRawMany();
+    }
+
+    if (tipo === TipoProducto.LENTE) {
+      qb.innerJoin('vp.stock', 's')
+        .innerJoin('s.lente', 'l')
+        .select([
+          'vp.id AS id',
+          'vp.stockId AS "stockId"',
+          's.lenteId AS "lenteId"',
+          'l.marca AS marca',
+          'l.material AS material',
+          'vp.cantidad AS cantidad',
+          'COALESCE(vp.esf, s.esf) AS sph',
+          'COALESCE(vp.cyl, s.cyl) AS cyl',
+        ]);
+      return await qb.getRawMany();
+    }
+
+    return [];
+  }
+
+
   // ┌───────────────────────────────────────────────┐
   // │  📦 SECCIÓN: SEGUIMIENTO DE PEDIDOS          │
   // └───────────────────────────────────────────────┘

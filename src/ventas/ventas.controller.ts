@@ -14,6 +14,7 @@ import { EditarVentaDto } from './dto/editar-venta.dto';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { Public } from '../auth/public.decorator';
 import { BuscarVentasDto } from './dto/buscar-ventas.dto';
+import { BuscarVentasPorTipoDto } from './dto/buscar-ventas-tipo.dto';
 
 @Controller('ventas')
 export class VentasController {
@@ -35,11 +36,19 @@ export class VentasController {
   }
 
   @Public()
+  @Get('buscarVentasPorRangoTipo')
+  buscarVentasPorRangoTipo(@Query() query: BuscarVentasPorTipoDto) {
+    const { sedeId, fechaInicio, fechaFin, tipo } = query;
+    return this.ventasService.buscarVentasPorRangoTipo(sedeId, fechaInicio, fechaFin, tipo);
+  }
+
+  @Public()
   @Get('buscarProductosVendidosPorRango')
   buscarProductosVendidos(@Query() query: BuscarVentasDto) {
     const { sedeId, fechaInicio, fechaFin } = query;
     return this.ventasService.buscarProductosVendidosPorRango(sedeId, fechaInicio, fechaFin);
   }
+
 
   @Public()
   @Get('ventas/:sedeId')
