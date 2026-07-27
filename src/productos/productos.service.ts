@@ -505,13 +505,21 @@ export class ProductosService {
     }
   }
 
+  // Ordena por producto mas vendido
   async buscarLente(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
     const query = this.lenteRepository.createQueryBuilder('lente')
+      .leftJoin(
+        'stock',
+        's',
+        's."lenteId" = lente.id AND s."sedeId" = :sedeId',
+        { sedeId },
+      )
+      .leftJoin('venta_producto', 'vp', 'vp."stockId" = s.id')
       .leftJoin(
         LentePrecio,
         'lp',
         'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
-        { sedeId }
+        { sedeId },
       )
       .select([
         'lente.id AS id',
@@ -524,7 +532,10 @@ export class ProductosService {
         'lp.precio_serie1 AS precio_serie1',
         'lp.precio_serie2 AS precio_serie2',
         'lp.precio_serie3 AS precio_serie3',
-      ]);
+        'COALESCE(SUM(vp.cantidad), 0) AS "totalVendido"',
+      ])
+      .groupBy('lente.id')
+      .addGroupBy('lp.id');
 
     if (busqueda) {
       query.where('lente.marca ILIKE :busqueda OR lente.material ILIKE :busqueda', {
@@ -532,10 +543,22 @@ export class ProductosService {
       });
     }
 
-    const [lentesRaw, total] = await Promise.all([
-      query.orderBy('lente.marca', 'ASC').take(limite).skip(desplazamiento).getRawMany(),
-      query.getCount(),
-    ]);
+    // COUNT por separado para evitar conflicto con GROUP BY
+    const total = await this.lenteRepository.createQueryBuilder('lente')
+      .where(busqueda
+        ? 'lente.marca ILIKE :busqueda OR lente.material ILIKE :busqueda'
+        : '1=1',
+        busqueda ? { busqueda: `%${busqueda}%` } : {},
+      )
+      .getCount();
+
+    const lentesRaw = await query
+      .orderBy('"totalVendido"', 'DESC')
+      .addOrderBy('lente.prioridad', 'ASC')
+      .addOrderBy('lente.marca', 'ASC')
+      .take(limite)
+      .skip(desplazamiento)
+      .getRawMany();
 
     const lentes = lentesRaw.map((raw) => ({
       id: raw.id,
@@ -552,6 +575,7 @@ export class ProductosService {
 
     return { total, lentes };
   }
+
 
   async getStockForLenteAndSede(lenteId: number, sedeId: number) {
     //Verifico que el lente exista y ademas obtengo el productoID del mismo
