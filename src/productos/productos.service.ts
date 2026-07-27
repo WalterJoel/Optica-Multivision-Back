@@ -337,12 +337,15 @@ export class ProductosService {
   }
 
   async getLenses(sedeId?: number) {
-    const query = this.lenteRepository.createQueryBuilder('lente')
+    const sedeIdFinal = sedeId;
+
+    // Query 1: todos los lentes activos con precios de esa sede
+    const lentesRaw = await this.lenteRepository.createQueryBuilder('lente')
       .leftJoin(
         LentePrecio,
         'lp',
         'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
-        { sedeId: sedeId || 1 }
+        { sedeId: sedeIdFinal },
       )
       .select([
         'lente.id AS id',
@@ -358,23 +361,38 @@ export class ProductosService {
         'lp.precio_serie3 AS precio_serie3',
       ])
       .where('lente.activo = :activo', { activo: true })
-      .orderBy('lente.createdAt', 'DESC');
+      .getRawMany();
 
-    const rawResults = await query.getRawMany();
+    // Query 2: total vendido por lenteId en esa sede (via stock → venta_productos)
+    const ventasRaw: any[] = await this.dataSource.query(
+      `SELECT s."lenteId", COALESCE(SUM(vp.cantidad), 0)::int AS "totalVendido"
+       FROM stock s
+       LEFT JOIN venta_productos vp ON vp."stockId" = s.id
+       WHERE s."sedeId" = $1
+       GROUP BY s."lenteId"`,
+      [sedeIdFinal],
+    );
 
-    return rawResults.map(item => ({
-      id: item.id,
-      kitId: item.kitId,
-      marca: item.marca,
-      material: item.material,
-      clasificacion: item.clasificacion,
-      imagenUrl: item.imagenUrl,
-      activo: item.activo,
-      createdAt: item.createdAt,
-      precio_serie1: item.precio_serie1 ? Number(item.precio_serie1) : 0,
-      precio_serie2: item.precio_serie2 ? Number(item.precio_serie2) : 0,
-      precio_serie3: item.precio_serie3 ? Number(item.precio_serie3) : 0,
-    }));
+    const ventasMap = new Map<number, number>(
+      ventasRaw.map(v => [Number(v.lenteId), Number(v.totalVendido)]),
+    );
+
+    return lentesRaw
+      .map(item => ({
+        id: item.id,
+        kitId: item.kitId,
+        marca: item.marca,
+        material: item.material,
+        clasificacion: item.clasificacion,
+        imagenUrl: item.imagenUrl,
+        activo: item.activo,
+        createdAt: item.createdAt,
+        precio_serie1: item.precio_serie1 ? Number(item.precio_serie1) : 0,
+        precio_serie2: item.precio_serie2 ? Number(item.precio_serie2) : 0,
+        precio_serie3: item.precio_serie3 ? Number(item.precio_serie3) : 0,
+        totalVendido: ventasMap.get(Number(item.id)) ?? 0,
+      }))
+      .sort((a, b) => b.totalVendido - a.totalVendido);
   }
 
   async obtenerLentePorId(id: number, sedeId: number) {
@@ -479,21 +497,13 @@ export class ProductosService {
     }
   }
 
-  // Ordena por producto mas vendido
   async buscarLente(sedeId: number, busqueda?: string, limite = 50, desplazamiento = 0) {
     const query = this.lenteRepository.createQueryBuilder('lente')
-      .leftJoin(
-        'stock',
-        's',
-        's."lenteId" = lente.id AND s."sedeId" = :sedeId',
-        { sedeId },
-      )
-      .leftJoin('venta_producto', 'vp', 'vp."stockId" = s.id')
       .leftJoin(
         LentePrecio,
         'lp',
         'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
-        { sedeId },
+        { sedeId }
       )
       .select([
         'lente.id AS id',
@@ -505,10 +515,7 @@ export class ProductosService {
         'lp.precio_serie1 AS precio_serie1',
         'lp.precio_serie2 AS precio_serie2',
         'lp.precio_serie3 AS precio_serie3',
-        'COALESCE(SUM(vp.cantidad), 0) AS "totalVendido"',
-      ])
-      .groupBy('lente.id')
-      .addGroupBy('lp.id');
+      ]);
 
     if (busqueda) {
       query.where('lente.marca ILIKE :busqueda OR lente.material ILIKE :busqueda', {
@@ -516,21 +523,10 @@ export class ProductosService {
       });
     }
 
-    // COUNT por separado para evitar conflicto con GROUP BY
-    const total = await this.lenteRepository.createQueryBuilder('lente')
-      .where(busqueda
-        ? 'lente.marca ILIKE :busqueda OR lente.material ILIKE :busqueda'
-        : '1=1',
-        busqueda ? { busqueda: `%${busqueda}%` } : {},
-      )
-      .getCount();
-
-    const lentesRaw = await query
-      .orderBy('"totalVendido"', 'DESC')
-      .addOrderBy('lente.marca', 'ASC')
-      .take(limite)
-      .skip(desplazamiento)
-      .getRawMany();
+    const [lentesRaw, total] = await Promise.all([
+      query.orderBy('lente.marca', 'ASC').take(limite).skip(desplazamiento).getRawMany(),
+      query.getCount(),
+    ]);
 
     const lentes = lentesRaw.map((raw) => ({
       id: raw.id,
