@@ -343,4 +343,10 @@ export class ProductosController {
   obtenerAccesoriosExcel(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return this.productosService.obtenerAccesoriosExcel(sedeId);
   }
+
+  @Public()
+  @Get('stockOtrasSedes/:productoId')
+  obtenerStockOtrasSedes(@Param('productoId', ParseIntPipe) productoId: number) {
+    return this.productosService.obtenerStockOtrasSedes(productoId);
+  }
 }

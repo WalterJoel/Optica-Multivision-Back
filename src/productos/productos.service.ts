@@ -13,6 +13,7 @@ import {
   LessThan,
   Repository,
   In,
+  Not,
 } from 'typeorm';
 import { v4 } from 'uuid';
 import {
@@ -1789,5 +1790,45 @@ export class ProductosService {
         total: rows.length,
       };
     });
+  }
+
+  async obtenerStockOtrasSedes(productoId: number) {
+    const productoActual = await this.dataSource.getRepository(Producto).findOne({
+      where: { id: productoId },
+      select: ['id', 'sedeId', 'tipo', 'monturaId', 'accesorioId'],
+    });
+
+    if (!productoActual) {
+      throw new NotFoundException({ message: `Producto con ID ${productoId} no encontrado` });
+    }
+
+    const esMontura = productoActual.tipo === TipoProducto.MONTURA;
+    const modeloId = esMontura ? productoActual.monturaId : productoActual.accesorioId;
+
+    if (!modeloId) {
+      return [];
+    }
+
+    const productosOtrasSedes = await this.dataSource.getRepository(Producto).find({
+      where: esMontura
+        ? { monturaId: modeloId, sedeId: Not(productoActual.sedeId), activo: true }
+        : { accesorioId: modeloId, sedeId: Not(productoActual.sedeId), activo: true },
+      relations: ['sede'],
+      select: {
+        id: true,
+        sedeId: true,
+        cantidad: true,
+        ubicacion: true,
+        sede: { id: true, nombre: true },
+      },
+    });
+
+    return productosOtrasSedes.map((p) => ({
+      productoId: p.id,
+      sedeId: p.sedeId,
+      nombreSede: p.sede?.nombre || `Sede #${p.sedeId}`,
+      cantidad: p.cantidad,
+      ubicacion: p.ubicacion || '',
+    }));
   }
 }

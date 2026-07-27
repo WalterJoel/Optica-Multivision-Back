@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -18,7 +18,7 @@ export class ChatService {
 
   async create(params: { userId: number; mensaje: string }) {
     const user = await this.userRepo.findOne({ where: { id: params.userId } });
-    if (!user) throw new Error('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     const message = this.chatRepo.create({ mensaje: params.mensaje, user });
     return this.chatRepo.save(message);
@@ -53,7 +53,7 @@ export class ChatService {
     file: Express.Multer.File;
   }) {
     const user = await this.userRepo.findOne({ where: { id: params.userId } });
-    if (!user) throw new Error('Usuario no existe');
+    if (!user) throw new NotFoundException({ message: 'Usuario no existe' });
 
     const fileUrl = `/uploads/chat/${params.file.filename}`;
 

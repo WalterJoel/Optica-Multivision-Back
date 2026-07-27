@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, Between } from 'typeorm';
 import { Venta } from './entities/venta.entity';
@@ -583,9 +583,9 @@ export class VentasService {
               });
 
               if (!productoAccesorio || productoAccesorio.cantidad < cantidadADescontar) {
-                throw new ConflictException(
-                  `Stock insuficiente para el accesorio '${ka.accesorio.nombre}' del kit '${stock.lente.kit.nombre}' (requerido: ${cantidadADescontar}, disponible: ${productoAccesorio?.cantidad || 0}).`
-                );
+                throw new ConflictException({
+                  message: `Stock insuficiente para el accesorio '${ka.accesorio.nombre}' del kit '${stock.lente.kit.nombre}' (requerido: ${cantidadADescontar}, disponible: ${productoAccesorio?.cantidad || 0}).`,
+                });
               }
 
               const cantidadAnterior = productoAccesorio.cantidad;
@@ -717,7 +717,7 @@ export class VentasService {
     });
 
     if (!venta) {
-      throw new Error(`La venta #${id} no existe.`);
+      throw new NotFoundException({ message: `La venta #${id} no existe.` });
     }
 
     if (dto.observaciones !== undefined) venta.observaciones = dto.observaciones;
@@ -734,9 +734,9 @@ export class VentasService {
   async registrarPago(id: number, dto: RegistrarPagoDto) {
     const venta = await this.ventaRepository.findOne({ where: { id } });
 
-    if (!venta) throw new Error(`La venta #${id} no existe.`);
-    if (!venta.activo) throw new Error(`La venta #${id} está anulada.`);
-    if (venta.estadoPago === 'PAGADO') throw new Error(`La venta #${id} ya está completamente pagada.`);
+    if (!venta) throw new NotFoundException({ message: `La venta #${id} no existe.` });
+    if (!venta.activo) throw new BadRequestException({ message: `La venta #${id} está anulada.` });
+    if (venta.estadoPago === 'PAGADO') throw new BadRequestException({ message: `La venta #${id} ya está completamente pagada.` });
 
     const montoAnterior = Number(venta.montoPagado);
     const total = Number(venta.total);
