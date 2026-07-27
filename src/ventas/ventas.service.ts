@@ -13,6 +13,9 @@ import { CrearSeguimientoPedidoDto } from './dto/crear-seguimiento-pedido-dto';
 import { CajaService } from 'src/caja/caja.service';
 import { MovimientoCaja, TipoMovimiento } from 'src/caja/entities/movimientoCaja.entity';
 
+import { KardexService } from 'src/kardex/kardex.service';
+import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
+
 @Injectable()
 export class VentasService {
   constructor(
@@ -22,6 +25,7 @@ export class VentasService {
     private readonly seguimientoRepository: Repository<SeguimientoPedido>,
 
     private readonly cajaService: CajaService,
+    private readonly kardexService: KardexService,
   ) { }
 
   async crearVenta(createVentaDto: CrearVentaDto) {
@@ -31,9 +35,6 @@ export class VentasService {
       try {
         // 1. Validar y descontar stock antes de crear la venta (Fail-Fast)
         await this.descontarStock(manager, productos);
-
-        // 1.1 Validar y descontar stock de los accesorios incluidos en los KITS de los lentes vendidos (si aplica)
-        await this.descontarStockKitsLente(manager, productos, ventaData.sedeId);
 
         // 2. Crear y guardar la venta con sus productos en cascada (Instanciación Explícita Tipo-Segura)
         const venta = manager.getRepository(Venta).create(ventaData);
@@ -49,6 +50,40 @@ export class VentasService {
         });
 
         const ventaGuardada = await manager.getRepository(Venta).save(venta);
+
+        // 2.1 Validar y descontar stock de los accesorios incluidos en los KITS de los lentes vendidos (si aplica)
+        await this.descontarStockKitsLente(manager, productos, ventaData.sedeId);
+
+        // 2.2 Registrar movimientos de venta en el Kardex
+        for (const p of productos) {
+          if (p.tipoProducto === TipoProducto.LENTE) {
+            const stock = await manager.getRepository(Stock).findOne({ where: { id: p.stockId } });
+            if (stock) {
+              // Kardex: Registro de movimiento
+              await this.kardexService.registrarMovimiento(manager, {
+                sedeId: ventaData.sedeId,
+                tipoProducto: TipoProducto.LENTE,
+                stockId: p.stockId,
+                origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
+                cantidadAnterior: stock.cantidad + p.cantidad,
+                cantidadMovimiento: -p.cantidad,
+              });
+            }
+          } else {
+            const producto = await manager.getRepository(Producto).findOne({ where: { id: p.productoId } });
+            if (producto) {
+              // Kardex: Registro de movimiento
+              await this.kardexService.registrarMovimiento(manager, {
+                sedeId: ventaData.sedeId,
+                tipoProducto: p.tipoProducto,
+                productoId: p.productoId,
+                origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
+                cantidadAnterior: producto.cantidad + p.cantidad,
+                cantidadMovimiento: -p.cantidad,
+              });
+            }
+          }
+        }
 
         // 3. Registrar el ingreso correspondiente en la caja activa (solo si se realizó un pago en efectivo/yape/tarjeta/etc.)
         if (Number(ventaGuardada.montoPagado) > 0) {
@@ -352,8 +387,19 @@ export class VentasService {
                 lock: { mode: 'pessimistic_write' },
               });
               if (stock) {
+                const cantidadAnterior = stock.cantidad;
                 stock.cantidad += p.cantidad;
                 await manager.getRepository(Stock).save(stock);
+
+                // Kardex: Registro de movimiento
+                await this.kardexService.registrarMovimiento(manager, {
+                  sedeId: venta.sedeId,
+                  tipoProducto: TipoProducto.LENTE,
+                  stockId: p.stockId,
+                  origenEvento: OrigenEventoKardex.VENTA_ANULADA,
+                  cantidadAnterior,
+                  cantidadMovimiento: p.cantidad,
+                });
               }
             }
           } else {
@@ -363,8 +409,19 @@ export class VentasService {
                 lock: { mode: 'pessimistic_write' },
               });
               if (producto) {
+                const cantidadAnterior = producto.cantidad;
                 producto.cantidad += p.cantidad;
                 await manager.getRepository(Producto).save(producto);
+
+                // Kardex: Registro de movimiento
+                await this.kardexService.registrarMovimiento(manager, {
+                  sedeId: venta.sedeId,
+                  tipoProducto: p.tipoProducto as TipoProducto,
+                  productoId: p.productoId,
+                  origenEvento: OrigenEventoKardex.VENTA_ANULADA,
+                  cantidadAnterior,
+                  cantidadMovimiento: p.cantidad,
+                });
               }
             }
           }
@@ -491,8 +548,19 @@ export class VentasService {
                 );
               }
 
+              const cantidadAnterior = productoAccesorio.cantidad;
               productoAccesorio.cantidad -= cantidadADescontar;
               await manager.getRepository(Producto).save(productoAccesorio);
+
+              // Kardex: Registro de movimiento
+              await this.kardexService.registrarMovimiento(manager, {
+                sedeId,
+                tipoProducto: TipoProducto.ACCESORIO,
+                productoId: productoAccesorio.id,
+                origenEvento: OrigenEventoKardex.VENTA_KIT_ACCESORIO,
+                cantidadAnterior,
+                cantidadMovimiento: -cantidadADescontar,
+              });
             }
           }
         }
@@ -528,8 +596,19 @@ export class VentasService {
               });
 
               if (productoAccesorio) {
+                const cantidadAnterior = productoAccesorio.cantidad;
                 productoAccesorio.cantidad += cantidadARevertir;
                 await manager.getRepository(Producto).save(productoAccesorio);
+
+                // Kardex: Registro de movimiento
+                await this.kardexService.registrarMovimiento(manager, {
+                  sedeId,
+                  tipoProducto: TipoProducto.ACCESORIO,
+                  productoId: productoAccesorio.id,
+                  origenEvento: OrigenEventoKardex.ANULACION_KIT_ACCESORIO,
+                  cantidadAnterior,
+                  cantidadMovimiento: cantidadARevertir,
+                });
               }
             }
           }

@@ -19,6 +19,7 @@ import { VentasModule } from './ventas/ventas.module';
 import { CajaModule } from './caja/caja.module';
 import { S3Module } from './aws-infrastructure/s3/s3.module';
 import { TrasladosModule } from './traslados/traslados.module';
+import { KardexModule } from './kardex/kardex.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { TrasladosModule } from './traslados/traslados.module';
     CajaModule,
     S3Module,
     TrasladosModule,
+    KardexModule,
   ],
 
   controllers: [AppController],

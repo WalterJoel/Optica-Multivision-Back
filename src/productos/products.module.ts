@@ -3,9 +3,13 @@ import { ProductosService } from './productos.service';
 import { ProductosController } from './productos.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ENTITIES } from './entities';
+import { KardexModule } from 'src/kardex/kardex.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature(ENTITIES)],
+  imports: [
+    TypeOrmModule.forFeature(ENTITIES),
+    KardexModule,
+  ],
   controllers: [ProductosController],
   providers: [ProductosService],
 })

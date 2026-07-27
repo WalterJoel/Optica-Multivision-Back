@@ -10,9 +10,10 @@ import { TrasladoDetalle } from './entities/trasladoDetalle.entity';
 import { CrearTrasladoDto } from './dto/crear-traslado.dto';
 import { EnviarMercaderiaDto } from './dto/enviar-mercaderia.dto';
 import { RecibirMercaderiaDto } from './dto/recibir-mercaderia.dto';
-import { CambiarEstadoTrasladoDto } from './dto/cambiar-estado-traslado.dto';
 import { EstadoTraslado, TipoProducto } from 'src/common/constants';
 import { Producto, Stock } from 'src/productos/entities';
+import { KardexService } from 'src/kardex/kardex.service';
+import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
 
 @Injectable()
 export class TrasladosService {
@@ -22,6 +23,7 @@ export class TrasladosService {
     @InjectRepository(TrasladoDetalle)
     private readonly trasladoDetalleRepository: Repository<TrasladoDetalle>,
     private readonly dataSource: DataSource,
+    private readonly kardexService: KardexService,
   ) { }
 
   async crearTraslado(dto: CrearTrasladoDto): Promise<Traslado> {
@@ -107,16 +109,38 @@ export class TrasladosService {
               detalle.productoId!,
               traslado.sedeProveedoraId,
             );
+            const cantidadAnterior = productoProveedora.cantidad;
             productoProveedora.cantidad -= item.cantidadEnviada;
             await manager.getRepository(Producto).save(productoProveedora);
+
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: traslado.sedeProveedoraId,
+              tipoProducto: detalle.tipoProducto,
+              productoId: productoProveedora.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
+              cantidadAnterior,
+              cantidadMovimiento: -item.cantidadEnviada,
+            });
           } else {
             const stockProveedora = await this.obtenerStockEquivalente(
               manager,
               detalle.stockId!,
               traslado.sedeProveedoraId,
             );
+            const cantidadAnterior = stockProveedora.cantidad;
             stockProveedora.cantidad -= item.cantidadEnviada;
             await manager.getRepository(Stock).save(stockProveedora);
+
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: traslado.sedeProveedoraId,
+              tipoProducto: TipoProducto.LENTE,
+              stockId: stockProveedora.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
+              cantidadAnterior,
+              cantidadMovimiento: -item.cantidadEnviada,
+            });
           }
         }
 
@@ -306,16 +330,38 @@ export class TrasladosService {
               detalle.productoId!,
               traslado.sedeSolicitanteId,
             );
+            const cantidadAnterior = productoSolicitante.cantidad;
             productoSolicitante.cantidad += itemDto.cantidadRecibida;
             await manager.getRepository(Producto).save(productoSolicitante);
+
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: traslado.sedeSolicitanteId,
+              tipoProducto: detalle.tipoProducto,
+              productoId: productoSolicitante.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_RECIBIDO,
+              cantidadAnterior,
+              cantidadMovimiento: itemDto.cantidadRecibida,
+            });
           } else {
             const stockSolicitante = await this.obtenerStockEquivalente(
               manager,
               detalle.stockId!,
               traslado.sedeSolicitanteId,
             );
+            const cantidadAnterior = stockSolicitante.cantidad;
             stockSolicitante.cantidad += itemDto.cantidadRecibida;
             await manager.getRepository(Stock).save(stockSolicitante);
+
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: traslado.sedeSolicitanteId,
+              tipoProducto: TipoProducto.LENTE,
+              stockId: stockSolicitante.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_RECIBIDO,
+              cantidadAnterior,
+              cantidadMovimiento: itemDto.cantidadRecibida,
+            });
           }
         }
       }
@@ -361,10 +407,8 @@ export class TrasladosService {
     return await qb.getMany();
   }
 
-  async cambiarEstado(
-    id: number,
-    dto: CambiarEstadoTrasladoDto,
-  ): Promise<Traslado> {
+
+  async eliminarTraslado(id: number) {
     const traslado = await this.trasladoRepository.findOne({
       where: { id },
       relations: ['detalles'],
@@ -376,26 +420,22 @@ export class TrasladosService {
       });
     }
 
-    traslado.estado = dto.estado;
-
-    if (dto.detalles && dto.detalles.length > 0) {
-      for (const detDto of dto.detalles) {
-        const item = traslado.detalles.find((d) => d.id === detDto.detalleId);
-        if (item) {
-          if (detDto.cantidadEnviada !== undefined) {
-            item.cantidadEnviada = detDto.cantidadEnviada;
-          }
-          if (detDto.cantidadRecibida !== undefined) {
-            item.cantidadRecibida = detDto.cantidadRecibida;
-          }
-          if (detDto.observacion !== undefined) {
-            item.observacion = detDto.observacion;
-          }
-          await this.trasladoDetalleRepository.save(item);
-        }
-      }
+    if (traslado.estado !== EstadoTraslado.SOLICITADO) {
+      throw new BadRequestException({
+        message: 'Solo se pueden eliminar traslados en estado SOLICITADO',
+      });
     }
 
-    return await this.trasladoRepository.save(traslado);
+    if (traslado.detalles && traslado.detalles.length > 0) {
+      await this.trasladoDetalleRepository.remove(traslado.detalles);
+    }
+
+    await this.trasladoRepository.remove(traslado);
+
+    return {
+      message: `Solicitud de traslado #${id} eliminada correctamente`,
+      id,
+    };
   }
 }
+

@@ -3,22 +3,23 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
   ParseIntPipe,
 } from '@nestjs/common';
+
 import { TrasladosService } from './traslados.service';
 import { CrearTrasladoDto } from './dto/crear-traslado.dto';
 import { EnviarMercaderiaDto } from './dto/enviar-mercaderia.dto';
 import { RecibirMercaderiaDto } from './dto/recibir-mercaderia.dto';
-import { CambiarEstadoTrasladoDto } from './dto/cambiar-estado-traslado.dto';
 import { Public } from 'src/auth/public.decorator';
 import { EstadoTraslado } from 'src/common/constants';
 
 @Controller('traslados')
 export class TrasladosController {
-  constructor(private readonly trasladosService: TrasladosService) {}
+  constructor(private readonly trasladosService: TrasladosService) { }
 
   @Public()
   @Post()
@@ -52,13 +53,10 @@ export class TrasladosController {
     });
   }
 
-
   @Public()
-  @Patch(':id/estado')
-  cambiarEstado(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() cambiarEstadoDto: CambiarEstadoTrasladoDto,
-  ) {
-    return this.trasladosService.cambiarEstado(id, cambiarEstadoDto);
+  @Delete(':id')
+  eliminar(@Param('id', ParseIntPipe) id: number) {
+    return this.trasladosService.eliminarTraslado(id);
   }
 }
+

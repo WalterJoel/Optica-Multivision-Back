@@ -50,6 +50,9 @@ import {
 import { editarAccesoriosExcelSchema } from './utils/accesorios/excel/editarAccesoriosExcelSchema';
 import { FilaExcelEditarMontura, FilaExcelEditarAccesorio } from './types';
 
+import { KardexService } from 'src/kardex/kardex.service';
+import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
+
 type StockCell = {
   id: number;
   cantidad: number;
@@ -88,6 +91,7 @@ export class ProductosService {
     private readonly lenteRepository: Repository<Lente>,
     @InjectRepository(Montura)
     private readonly monturaRepository: Repository<Montura>,
+    private readonly kardexService: KardexService,
   ) { }
 
   // ========================================================================================================
@@ -598,17 +602,15 @@ export class ProductosService {
     await qr.startTransaction();
 
     try {
-      // const stockRepo = qr.manager.getRepository(Stock);
-
-      // Bulk update con QueryBuilder
-      // Generamos un CASE WHEN para cada item
       const ids = items.map((i) => i.id);
+      const currentStocks = await qr.manager.getRepository(Stock).find({
+        where: { id: In(ids) },
+      });
+
       const cases = items
         .map((i) => `WHEN id = ${i.id} THEN ${i.cantidad}`)
         .join(' ');
 
-      // Nota: TypeORM QueryBuilder no tiene CASE directo,
-      // entonces usamos queryRunner.query con SQL dentro de la transacción
       await qr.query(`
         UPDATE stock
         SET cantidad = CASE
@@ -616,6 +618,25 @@ export class ProductosService {
         END
         WHERE id IN (${ids.join(',')});
       `);
+
+      for (const item of items) {
+        const stockActual = currentStocks.find((s) => s.id === item.id);
+        if (stockActual) {
+          const cantidadAnterior = stockActual.cantidad;
+          const cantidadMovimiento = item.cantidad - cantidadAnterior;
+          if (cantidadMovimiento !== 0) {
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(qr.manager, {
+              sedeId: stockActual.sedeId,
+              tipoProducto: TipoProducto.LENTE,
+              stockId: stockActual.id,
+              origenEvento: OrigenEventoKardex.AJUSTE_MANUAL_MATRIZ,
+              cantidadAnterior,
+              cantidadMovimiento,
+            });
+          }
+        }
+      }
 
       await qr.commitTransaction();
       return { success: true, updated: items.length };
@@ -666,7 +687,21 @@ export class ProductosService {
         })
       );
 
-      await manager.save(Producto, productosParaGuardar);
+      const productosGuardados = await manager.save(Producto, productosParaGuardar);
+
+      for (const prodSaved of productosGuardados) {
+        if (prodSaved.cantidad > 0) {
+          // Kardex: Registro de movimiento
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId: prodSaved.sedeId,
+            tipoProducto: TipoProducto.MONTURA,
+            productoId: prodSaved.id,
+            origenEvento: OrigenEventoKardex.CREACION_INICIAL,
+            cantidadAnterior: 0,
+            cantidadMovimiento: prodSaved.cantidad,
+          });
+        }
+      }
 
       return {
         montura: {
@@ -946,7 +981,21 @@ export class ProductosService {
         }
       }
 
-      await manager.save(Producto, productosParaGuardar);
+      const productosGuardados = await manager.save(Producto, productosParaGuardar);
+
+      for (const prodSaved of productosGuardados) {
+        if (prodSaved.cantidad > 0) {
+          // Kardex: Registro de movimiento
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId: prodSaved.sedeId,
+            tipoProducto: TipoProducto.MONTURA,
+            productoId: prodSaved.id,
+            origenEvento: OrigenEventoKardex.CARGA_EXCEL,
+            cantidadAnterior: 0,
+            cantidadMovimiento: prodSaved.cantidad,
+          });
+        }
+      }
 
       return {
         ok: true,
@@ -1065,10 +1114,10 @@ export class ProductosService {
       // ===============================
       const productosDB = await manager.find(Producto, {
         where: { id: In(productoIds), tipo: TipoProducto.MONTURA },
-        select: ['id'],
+        select: ['id', 'sedeId', 'tipo', 'cantidad'],
       });
 
-      const productoMap = new Map(productosDB.map((p) => [p.id, true]));
+      const productoMap = new Map(productosDB.map((p) => [p.id, p]));
 
       const productosFaltantes = productoIds.filter(
         (id) => !productoMap.has(id),
@@ -1078,6 +1127,25 @@ export class ProductosService {
         throw new BadRequestException({
           message: `Los siguientes PRODUCTOS no existen: ${productosFaltantes.join(', ')}`,
         });
+      }
+
+      for (const r of rows) {
+        const prod = productoMap.get(r.productoId);
+        if (prod) {
+          const cantidadAnterior = prod.cantidad;
+          const cantidadMovimiento = r.cantidad - cantidadAnterior;
+          if (cantidadMovimiento !== 0) {
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: prod.sedeId,
+              tipoProducto: prod.tipo as TipoProducto,
+              productoId: prod.id,
+              origenEvento: OrigenEventoKardex.EDICION_EXCEL,
+              cantidadAnterior,
+              cantidadMovimiento,
+            });
+          }
+        }
       }
 
       // =========================
@@ -1194,7 +1262,21 @@ export class ProductosService {
         })
       );
 
-      await manager.save(Producto, productosParaGuardar);
+      const productosGuardados = await manager.save(Producto, productosParaGuardar);
+
+      for (const prodSaved of productosGuardados) {
+        if (prodSaved.cantidad > 0) {
+          // Kardex: Registro de movimiento
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId: prodSaved.sedeId,
+            tipoProducto: TipoProducto.ACCESORIO,
+            productoId: prodSaved.id,
+            origenEvento: OrigenEventoKardex.CREACION_INICIAL,
+            cantidadAnterior: 0,
+            cantidadMovimiento: prodSaved.cantidad,
+          });
+        }
+      }
 
       return {
         accesorio: {
@@ -1502,7 +1584,21 @@ export class ProductosService {
         }
       }
 
-      await manager.save(Producto, productosParaGuardar);
+      const productosGuardados = await manager.save(Producto, productosParaGuardar);
+
+      for (const prodSaved of productosGuardados) {
+        if (prodSaved.cantidad > 0) {
+          // Kardex: Registro de movimiento
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId: prodSaved.sedeId,
+            tipoProducto: TipoProducto.ACCESORIO,
+            productoId: prodSaved.id,
+            origenEvento: OrigenEventoKardex.CARGA_EXCEL,
+            cantidadAnterior: 0,
+            cantidadMovimiento: prodSaved.cantidad,
+          });
+        }
+      }
 
       return {
         ok: true,
@@ -1601,16 +1697,35 @@ export class ProductosService {
       // Validar Productos
       const productosDB = await manager.find(Producto, {
         where: { id: In(productoIds), tipo: TipoProducto.ACCESORIO },
-        select: ['id'],
+        select: ['id', 'sedeId', 'tipo', 'cantidad'],
       });
 
-      const productoMap = new Map(productosDB.map((p) => [p.id, true]));
+      const productoMap = new Map(productosDB.map((p) => [p.id, p]));
       const productosFaltantes = productoIds.filter((id) => !productoMap.has(id));
 
       if (productosFaltantes.length > 0) {
         throw new BadRequestException({
           message: `Los siguientes PRODUCTOS no existen: ${productosFaltantes.join(', ')}`,
         });
+      }
+
+      for (const r of rows) {
+        const prod = productoMap.get(r.productoId);
+        if (prod) {
+          const cantidadAnterior = prod.cantidad;
+          const cantidadMovimiento = r.cantidad - cantidadAnterior;
+          if (cantidadMovimiento !== 0) {
+            // Kardex: Registro de movimiento
+            await this.kardexService.registrarMovimiento(manager, {
+              sedeId: prod.sedeId,
+              tipoProducto: TipoProducto.ACCESORIO,
+              productoId: prod.id,
+              origenEvento: OrigenEventoKardex.EDICION_EXCEL,
+              cantidadAnterior,
+              cantidadMovimiento,
+            });
+          }
+        }
       }
 
       // 1. UPDATE STOCK Y PRECIOS (PRODUCTOS)
