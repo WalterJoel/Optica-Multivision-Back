@@ -291,50 +291,90 @@ export class VentasService {
       .where('v.sedeId = :sedeId', { sedeId })
       .andWhere('v.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('v.activo = true')
-      .andWhere('vp.tipoProducto = :tipo', { tipo })
-      .orderBy('v.createdAt', 'DESC');
+      .andWhere('vp.tipoProducto = :tipo', { tipo });
 
     if (tipo === TipoProducto.MONTURA) {
       qb.innerJoin('vp.producto', 'p')
         .innerJoin('p.montura', 'm')
         .select([
-          'vp.id AS id',
+          'MIN(vp.id) AS id',
           'vp.productoId AS "productoId"',
           'm.codigo AS codigo',
           'm.marca AS marca',
           'm.material AS material',
-          'vp.cantidad AS cantidad',
-        ]);
-      return await qb.getRawMany();
+          'SUM(vp.cantidad) AS cantidad',
+        ])
+        .groupBy('vp.productoId')
+        .addGroupBy('m.codigo')
+        .addGroupBy('m.marca')
+        .addGroupBy('m.material')
+        .orderBy('MAX(v.createdAt)', 'DESC');
+
+      const raw = await qb.getRawMany();
+      return raw.map((r) => ({
+        ...r,
+        id: Number(r.id),
+        productoId: Number(r.productoId),
+        cantidad: Number(r.cantidad),
+      }));
     }
 
     if (tipo === TipoProducto.ACCESORIO) {
       qb.innerJoin('vp.producto', 'p')
         .leftJoin('p.accesorio', 'a')
         .select([
-          'vp.id AS id',
+          'MIN(vp.id) AS id',
           'vp.productoId AS "productoId"',
           "COALESCE(a.codigoAccesorio, '') AS codigo",
           "COALESCE(a.nombre, p.nombre, '') AS nombre",
-          'vp.cantidad AS cantidad',
-        ]);
-      return await qb.getRawMany();
+          'SUM(vp.cantidad) AS cantidad',
+        ])
+        .groupBy('vp.productoId')
+        .addGroupBy('a.codigoAccesorio')
+        .addGroupBy('a.nombre')
+        .addGroupBy('p.nombre')
+        .orderBy('MAX(v.createdAt)', 'DESC');
+
+      const raw = await qb.getRawMany();
+      return raw.map((r) => ({
+        ...r,
+        id: Number(r.id),
+        productoId: Number(r.productoId),
+        cantidad: Number(r.cantidad),
+      }));
     }
 
     if (tipo === TipoProducto.LENTE) {
       qb.innerJoin('vp.stock', 's')
         .innerJoin('s.lente', 'l')
         .select([
-          'vp.id AS id',
+          'MIN(vp.id) AS id',
           'vp.stockId AS "stockId"',
           's.lenteId AS "lenteId"',
           'l.marca AS marca',
           'l.material AS material',
-          'vp.cantidad AS cantidad',
+          'SUM(vp.cantidad) AS cantidad',
           'COALESCE(vp.esf, s.esf) AS sph',
           'COALESCE(vp.cyl, s.cyl) AS cyl',
-        ]);
-      return await qb.getRawMany();
+        ])
+        .groupBy('vp.stockId')
+        .addGroupBy('s.lenteId')
+        .addGroupBy('l.marca')
+        .addGroupBy('l.material')
+        .addGroupBy('COALESCE(vp.esf, s.esf)')
+        .addGroupBy('COALESCE(vp.cyl, s.cyl)')
+        .orderBy('MAX(v.createdAt)', 'DESC');
+
+      const raw = await qb.getRawMany();
+      return raw.map((r) => ({
+        ...r,
+        id: Number(r.id),
+        stockId: Number(r.stockId),
+        lenteId: Number(r.lenteId),
+        cantidad: Number(r.cantidad),
+        sph: r.sph !== null ? Number(r.sph) : null,
+        cyl: r.cyl !== null ? Number(r.cyl) : null,
+      }));
     }
 
     return [];
