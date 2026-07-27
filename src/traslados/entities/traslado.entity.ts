@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Sede } from 'src/sedes/entities/sede.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -14,6 +15,8 @@ import { EstadoTraslado, OrigenSolicitudTraslado } from 'src/common/constants';
 import { TrasladoDetalle } from './trasladoDetalle.entity';
 
 @Entity('traslado')
+@Index(['sedeProveedoraId', 'estado'])
+@Index(['sedeSolicitanteId', 'estado'])
 export class Traslado {
   @PrimaryGeneratedColumn()
   id: number;

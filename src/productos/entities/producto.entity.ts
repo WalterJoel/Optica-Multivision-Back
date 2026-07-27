@@ -14,6 +14,8 @@ import { Accesorio } from './accesorio.entity';
 import { Sede } from 'src/sedes/entities/sede.entity';
 
 @Entity('productos')
+@Index(['monturaId', 'sedeId', 'activo'])
+@Index(['accesorioId', 'sedeId', 'activo'])
 export class Producto {
   @PrimaryGeneratedColumn()
   id: number;

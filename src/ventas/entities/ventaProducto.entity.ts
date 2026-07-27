@@ -5,11 +5,15 @@ import {
   ManyToOne,
   CreateDateColumn,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Venta } from './venta.entity';
 import { Producto, Stock } from '../../productos/entities';
 
 @Entity('venta_productos')
+@Index(['ventaId'])
+@Index(['productoId'])
+@Index(['stockId'])
 export class VentaProducto {
   @PrimaryGeneratedColumn()
   id: number;

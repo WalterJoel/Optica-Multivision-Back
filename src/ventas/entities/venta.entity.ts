@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
@@ -15,6 +16,8 @@ import { Sede } from 'src/sedes/entities/sede.entity';
 
 
 @Entity('ventas')
+@Index(['sedeId', 'createdAt'])
+@Index(['clienteId'])
 export class Venta {
   @PrimaryGeneratedColumn()
   id: number;
