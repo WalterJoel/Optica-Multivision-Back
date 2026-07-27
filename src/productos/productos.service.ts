@@ -279,27 +279,13 @@ export class ProductosService {
     await qr.connect();
     await qr.startTransaction();
 
-    //Validando que la prioridad no se repita
     try {
-      if (crearLenteDto.prioridad) {
-        const existe = await qr.manager.findOne(Lente, {
-          where: { prioridad: crearLenteDto.prioridad },
-        });
-        if (existe) {
-          throw new ConflictException({
-            message: `La prioridad '${crearLenteDto.prioridad}' ya está asignada al lente '${existe.marca} - ${existe.material}'`,
-          });
-        }
-      }
-
       // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
-        // producto: { id: producto.id },
         kitId: crearLenteDto.kitId,
         marca: crearLenteDto.marca,
         material: crearLenteDto.material,
         clasificacion: crearLenteDto.clasificacion,
-        prioridad: crearLenteDto.prioridad ?? null,
         imagenUrl: crearLenteDto.imagenUrl,
       });
       await qr.manager.save(lente);
@@ -364,7 +350,6 @@ export class ProductosService {
         'lente.marca AS marca',
         'lente.material AS material',
         'lente.clasificacion AS clasificacion',
-        'lente.prioridad AS prioridad',
         'lente.imagenUrl AS "imagenUrl"',
         'lente.activo AS activo',
         'lente.createdAt AS "createdAt"',
@@ -383,7 +368,6 @@ export class ProductosService {
       marca: item.marca,
       material: item.material,
       clasificacion: item.clasificacion,
-      prioridad: item.prioridad,
       imagenUrl: item.imagenUrl,
       activo: item.activo,
       createdAt: item.createdAt,
@@ -428,16 +412,6 @@ export class ProductosService {
 
       const { sedeId, precio_serie1, precio_serie2, precio_serie3, ...restDto } = dto;
 
-      if (restDto.prioridad) {
-        const existe = await this.lenteRepository.findOne({
-          where: { prioridad: restDto.prioridad },
-        });
-        if (existe && existe.id !== id) {
-          throw new ConflictException({
-            message: `La prioridad '${restDto.prioridad}' ya está asignada al lente '${existe.marca} - ${existe.material}'`,
-          });
-        }
-      }
 
       if (precio_serie1 !== undefined || precio_serie2 !== undefined || precio_serie3 !== undefined) {
         const updateData: any = {};
@@ -526,7 +500,6 @@ export class ProductosService {
         'lente.marca AS marca',
         'lente.material AS material',
         'lente.clasificacion AS clasificacion',
-        'lente.prioridad AS prioridad',
         'lente.imagenUrl AS "imagenUrl"',
         'lente.activo AS activo',
         'lp.precio_serie1 AS precio_serie1',
@@ -554,7 +527,6 @@ export class ProductosService {
 
     const lentesRaw = await query
       .orderBy('"totalVendido"', 'DESC')
-      .addOrderBy('lente.prioridad', 'ASC')
       .addOrderBy('lente.marca', 'ASC')
       .take(limite)
       .skip(desplazamiento)
@@ -565,7 +537,6 @@ export class ProductosService {
       marca: raw.marca,
       material: raw.material,
       clasificacion: raw.clasificacion,
-      prioridad: raw.prioridad,
       imagenUrl: raw.imagenUrl,
       activo: raw.activo,
       precio_serie1: raw.precio_serie1 ? Number(raw.precio_serie1) : 0,

@@ -9,7 +9,7 @@ import {
   IsPositive,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ClasificacionLentes, PrioridadLentes, TipoProducto } from '../../common/constants';
+import { ClasificacionLentes, TipoProducto } from '../../common/constants';
 
 export class CrearLenteDto {
   @IsOptional()
@@ -43,10 +43,6 @@ export class CrearLenteDto {
   @IsEnum(ClasificacionLentes)
   clasificacion: ClasificacionLentes;
 
-  @IsOptional()
-  @IsEnum(PrioridadLentes)
-  @Type(() => Number)
-  prioridad?: PrioridadLentes;
 
   @IsString()
   @IsOptional()

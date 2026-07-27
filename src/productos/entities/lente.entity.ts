@@ -6,15 +6,13 @@ import {
   CreateDateColumn,
   JoinColumn,
   ManyToOne,
-  Index,
 } from 'typeorm';
 import { Producto } from './producto.entity';
 import { Kit } from 'src/kits/entities/kit.entity';
-import { PrioridadLentes } from 'src/common/constants';
+
 
 
 @Entity('lentes')
-@Index(['prioridad'], { unique: true, where: 'prioridad IS NOT NULL' })
 export class Lente {
   @PrimaryGeneratedColumn()
   id: number;
@@ -35,11 +33,6 @@ export class Lente {
   })
   clasificacion: string;
 
-  @Column({
-    type: 'integer',
-    nullable: true,
-  })
-  prioridad: PrioridadLentes | null;
 
   @Column({ length: 255, nullable: true })
   imagenUrl: string;
