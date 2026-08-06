@@ -53,6 +53,21 @@ export const editarMonturasExcelSchema: ExcelSchemaField[] = [
     required: true,
   },
   {
+    header: HEADERS_MONTURA_EXCEL.FORMA_FACIAL,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.SEXO,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.CLASIFICACION,
+    type: 'string',
+    required: true,
+  },
+  {
     header: HEADERS_MONTURA_EXCEL.TIPO,
     type: 'string',
     required: false,

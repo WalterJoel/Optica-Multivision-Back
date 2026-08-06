@@ -8,6 +8,7 @@ export const HEADERS_ACCESORIO_EXCEL = {
   CODIGO: 'CODIGO',
   NOMBRE: 'NOMBRE',
   COLOR: 'COLOR',
+  CLASIFICACION: 'CLASIFICACION',
   TIPO: 'TIPO',
   CANTIDAD: 'CANTIDAD',
   SEDE: 'SEDE',
@@ -38,6 +39,11 @@ export const crearAccesoriosExcelSchema: ExcelSchemaField[] = [
   },
   {
     header: HEADERS_ACCESORIO_EXCEL.COLOR,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_ACCESORIO_EXCEL.CLASIFICACION,
     type: 'string',
     required: true,
   },

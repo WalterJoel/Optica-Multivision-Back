@@ -12,6 +12,9 @@ export interface FilaExcelEditarMontura {
   codigo?: string;
   codigoMontura?: string;
   talla?: string;
+  formaFacial?: string;
+  sexo?: string;
+  clasificacion?: string;
 }
 
 export interface FilaExcelEditarAccesorio {
@@ -23,4 +26,5 @@ export interface FilaExcelEditarAccesorio {
   nombre?: string;
   color?: string;
   codigoAccesorio?: string;
+  clasificacion?: string;
 }

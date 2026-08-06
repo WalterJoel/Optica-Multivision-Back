@@ -78,7 +78,7 @@ export class DatosParaCrearMonturaDto {
 }
 
 export class CrearMonturaExcelDto extends OmitType(DatosParaCrearMonturaDto, [
-  'cantidad', 'ubicacion', 'formaFacial', 'sexo', 'sedeId'
+  'cantidad', 'ubicacion', 'sedeId'
 ] as const) {
   // @IsNumber()
   // productoId: number;

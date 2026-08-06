@@ -10,6 +10,9 @@ export const HEADERS_MONTURA_EXCEL = {
   MARCA: 'MARCA',
   COLOR: 'COLOR',
   MATERIAL: 'MATERIAL',
+  FORMA_FACIAL: 'FORMA FACIAL',
+  SEXO: 'SEXO',
+  CLASIFICACION: 'CLASIFICACION',
   TIPO: 'TIPO',
   CANTIDAD: 'CANTIDAD',
   SEDE: 'SEDE',
@@ -55,6 +58,21 @@ export const crearMonturasExcelSchema: ExcelSchemaField[] = [
   },
   {
     header: HEADERS_MONTURA_EXCEL.COLOR,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.FORMA_FACIAL,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.SEXO,
+    type: 'string',
+    required: true,
+  },
+  {
+    header: HEADERS_MONTURA_EXCEL.CLASIFICACION,
     type: 'string',
     required: true,
   },

@@ -33,6 +33,11 @@ export const editarAccesoriosExcelSchema: ExcelSchemaField[] = [
     required: true,
   },
   {
+    header: HEADERS_ACCESORIO_EXCEL.CLASIFICACION,
+    type: 'string',
+    required: true,
+  },
+  {
     header: HEADERS_ACCESORIO_EXCEL.CANTIDAD,
     type: 'number',
     required: true,

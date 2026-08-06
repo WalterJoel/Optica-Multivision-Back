@@ -33,7 +33,7 @@ import * as ExcelJS from 'exceljs';
 import { Producto, Lente, Stock, Montura, LentePrecio } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
-import { Codigos, TipoProducto } from '../common/constants';
+import { Codigos, TipoProducto, FormaFacial, SexoMontura, ClasificacionMonturas, ClasificacionAccesorios } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
@@ -915,6 +915,9 @@ export class ProductosService {
         material: String(getByHeader(HEADERS_MONTURA_EXCEL.MATERIAL)),
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA)),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR)),
+        formaFacial: String(getByHeader(HEADERS_MONTURA_EXCEL.FORMA_FACIAL) ?? '') as FormaFacial,
+        sexo: String(getByHeader(HEADERS_MONTURA_EXCEL.SEXO) ?? '') as SexoMontura,
+        clasificacion: String(getByHeader(HEADERS_MONTURA_EXCEL.CLASIFICACION) ?? '') as ClasificacionMonturas,
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
         sedeId: rowSedeId,
       });
@@ -945,6 +948,9 @@ export class ProductosService {
             material: r.material,
             talla: r.talla,
             color: r.color,
+            formaFacial: r.formaFacial,
+            sexo: r.sexo,
+            clasificacion: r.clasificacion,
           })
         )
       );
@@ -1016,6 +1022,9 @@ export class ProductosService {
         `montura.material AS "${HEADERS_MONTURA_EXCEL.MATERIAL}"`,
         `montura.talla AS "${HEADERS_MONTURA_EXCEL.TALLA}"`,
         `montura.color AS "${HEADERS_MONTURA_EXCEL.COLOR}"`,
+        `montura.formaFacial AS "${HEADERS_MONTURA_EXCEL.FORMA_FACIAL}"`,
+        `montura.sexo AS "${HEADERS_MONTURA_EXCEL.SEXO}"`,
+        `montura.clasificacion AS "${HEADERS_MONTURA_EXCEL.CLASIFICACION}"`,
         `producto.cantidad AS "${HEADERS_MONTURA_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_MONTURA_EXCEL.TIPO}"`,
         `sede.id AS "${HEADERS_MONTURA_EXCEL.SEDE}"`,
@@ -1080,6 +1089,9 @@ export class ProductosService {
         material: String(getByHeader(HEADERS_MONTURA_EXCEL.MATERIAL) || ''),
         talla: String(getByHeader(HEADERS_MONTURA_EXCEL.TALLA) || ''),
         color: String(getByHeader(HEADERS_MONTURA_EXCEL.COLOR) || ''),
+        formaFacial: String(getByHeader(HEADERS_MONTURA_EXCEL.FORMA_FACIAL) || ''),
+        sexo: String(getByHeader(HEADERS_MONTURA_EXCEL.SEXO) || ''),
+        clasificacion: String(getByHeader(HEADERS_MONTURA_EXCEL.CLASIFICACION) || ''),
         cantidad: Number(getByHeader(HEADERS_MONTURA_EXCEL.CANTIDAD) || 0),
       });
     });
@@ -1176,6 +1188,9 @@ export class ProductosService {
       const codigoArr = rows.map((r) => r.codigo ?? null);
       const codigoMonturaArr = rows.map((r) => r.codigoMontura ?? null);
       const tallaArr = rows.map((r) => r.talla ?? null);
+      const formaFacialArr = rows.map((r) => r.formaFacial ?? null);
+      const sexoArr = rows.map((r) => r.sexo ?? null);
+      const clasificacionArr = rows.map((r) => r.clasificacion ?? null);
 
       await manager.query(
         `
@@ -1186,7 +1201,10 @@ export class ProductosService {
         color = COALESCE(data.color, m.color),
         codigo = COALESCE(data.codigo, m.codigo),
         "codigoMontura" = COALESCE(data."codigoMontura", m."codigoMontura"),
-        talla = COALESCE(data.talla, m.talla)
+        talla = COALESCE(data.talla, m.talla),
+        "formaFacial" = COALESCE(data."formaFacial", m."formaFacial"),
+        sexo = COALESCE(data.sexo, m.sexo),
+        clasificacion = COALESCE(data.clasificacion, m.clasificacion)
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
@@ -1195,7 +1213,10 @@ export class ProductosService {
           unnest($4::text[]) AS color,
           unnest($5::text[]) AS codigo,
           unnest($6::text[]) AS "codigoMontura",
-          unnest($7::text[]) AS talla
+          unnest($7::text[]) AS talla,
+          unnest($8::text[]) AS "formaFacial",
+          unnest($9::text[]) AS sexo,
+          unnest($10::text[]) AS clasificacion
       ) AS data
       INNER JOIN productos AS p ON p.id = data."productoId"
       WHERE m.id = p."monturaId"
@@ -1208,6 +1229,9 @@ export class ProductosService {
           codigoArr,
           codigoMonturaArr,
           tallaArr,
+          formaFacialArr,
+          sexoArr,
+          clasificacionArr,
         ],
       );
 
@@ -1517,6 +1541,7 @@ export class ProductosService {
         precioCompra: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA)),
         precioVenta: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA)),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR)),
+        clasificacion: String(getByHeader(HEADERS_ACCESORIO_EXCEL.CLASIFICACION) ?? '') as ClasificacionAccesorios,
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
         sedeId: rowSedeId,
       });
@@ -1549,6 +1574,7 @@ export class ProductosService {
             codigoAccesorio: r.codigoAccesorio,
             nombre: r.nombre,
             color: r.color,
+            clasificacion: r.clasificacion,
           })
         )
       );
@@ -1615,6 +1641,7 @@ export class ProductosService {
         `producto.precioCompra AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_COMPRA}"`,
         `producto.precioVenta AS "${HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA}"`,
         `accesorio.color AS "${HEADERS_ACCESORIO_EXCEL.COLOR}"`,
+        `accesorio.clasificacion AS "${HEADERS_ACCESORIO_EXCEL.CLASIFICACION}"`,
         `producto.cantidad AS "${HEADERS_ACCESORIO_EXCEL.CANTIDAD}"`,
         `producto.tipo AS "${HEADERS_ACCESORIO_EXCEL.TIPO}"`,
         `sede.id AS "${HEADERS_ACCESORIO_EXCEL.SEDE}"`,
@@ -1669,6 +1696,7 @@ export class ProductosService {
           getByHeader(HEADERS_ACCESORIO_EXCEL.PRECIO_VENTA) || 0,
         ),
         color: String(getByHeader(HEADERS_ACCESORIO_EXCEL.COLOR) || ''),
+        clasificacion: String(getByHeader(HEADERS_ACCESORIO_EXCEL.CLASIFICACION) || ''),
         cantidad: Number(getByHeader(HEADERS_ACCESORIO_EXCEL.CANTIDAD) || 0),
       });
     });
@@ -1749,6 +1777,7 @@ export class ProductosService {
       const nombreArr = rows.map((r) => r.nombre ?? null);
       const colorArr = rows.map((r) => r.color ?? null);
       const codigoAccesorioArr = rows.map((r) => r.codigoAccesorio ?? null);
+      const clasificacionArr = rows.map((r) => r.clasificacion ?? null);
 
       await manager.query(
         `
@@ -1756,13 +1785,15 @@ export class ProductosService {
       SET
         nombre = COALESCE(data.nombre, a.nombre),
         color = COALESCE(data.color, a.color),
-        "codigoAccesorio" = COALESCE(data."codigoAccesorio", a."codigoAccesorio")
+        "codigoAccesorio" = COALESCE(data."codigoAccesorio", a."codigoAccesorio"),
+        clasificacion = COALESCE(data.clasificacion, a.clasificacion)
       FROM (
         SELECT
           unnest($1::int[]) AS "productoId",
           unnest($2::text[]) AS nombre,
           unnest($3::text[]) AS color,
-          unnest($4::text[]) AS "codigoAccesorio"
+          unnest($4::text[]) AS "codigoAccesorio",
+          unnest($5::text[]) AS clasificacion
       ) AS data
       INNER JOIN productos AS p ON p.id = data."productoId"
       WHERE a.id = p."accesorioId"
@@ -1772,6 +1803,7 @@ export class ProductosService {
           nombreArr,
           colorArr,
           codigoAccesorioArr,
+          clasificacionArr,
         ],
       );
 
