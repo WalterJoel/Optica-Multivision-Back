@@ -10,7 +10,7 @@ import { CrearSedeDto } from './dto/crear-sede.dto';
 import { UpdateSedeDto } from './dto/update-sede.dto';
 import { Accesorio, Lente, Montura, Stock, Producto, LentePrecio } from 'src/productos/entities';
 import { buildStockSeed } from 'src/seeds';
-import { TipoProducto } from 'src/common/constants';
+import { CHUNK_SIZE, TipoProducto } from 'src/common/constants';
 
 @Injectable()
 export class SedesService {
@@ -74,13 +74,16 @@ export class SedesService {
     }
 
     if (bulkLentes.length) {
-      await qr.manager
-        .createQueryBuilder()
-        .insert()
-        .into(Stock)
-        .values(bulkLentes)
-        .orIgnore()
-        .execute();
+      for (let i = 0; i < bulkLentes.length; i += CHUNK_SIZE) {
+        const chunk = bulkLentes.slice(i, i + CHUNK_SIZE);
+        await qr.manager
+          .createQueryBuilder()
+          .insert()
+          .into(Stock)
+          .values(chunk)
+          .orIgnore()
+          .execute();
+      }
     }
 
     if (bulkPrecios.length) {

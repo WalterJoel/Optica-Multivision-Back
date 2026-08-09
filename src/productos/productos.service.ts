@@ -33,7 +33,7 @@ import * as ExcelJS from 'exceljs';
 import { Producto, Lente, Stock, Montura, LentePrecio } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
-import { Codigos, TipoProducto, FormaFacial, SexoMontura, ClasificacionMonturas, ClasificacionAccesorios } from '../common/constants';
+import { Codigos, TipoProducto, FormaFacial, SexoMontura, ClasificacionMonturas, ClasificacionAccesorios, CHUNK_SIZE } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
@@ -306,7 +306,10 @@ export class ProductosService {
         );
       }
 
-      await stockRepo.insert(bulk);
+      for (let i = 0; i < bulk.length; i += CHUNK_SIZE) {
+        const chunk = bulk.slice(i, i + CHUNK_SIZE);
+        await stockRepo.insert(chunk);
+      }
 
       // ✅ 5️ LENTE PRECIOS
       const precioRepo = qr.manager.getRepository(LentePrecio);
