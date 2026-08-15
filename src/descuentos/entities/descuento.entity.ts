@@ -1,4 +1,5 @@
 import { Producto, Lente } from 'src/productos/entities';
+import { Sede } from 'src/sedes/entities/sede.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -10,14 +11,17 @@ import {
 } from 'typeorm';
 
 @Entity('descuentos')
-@Index(['clienteId', 'productoId', 'serie'], { unique: false })
-@Index(['clienteId', 'lenteId', 'serie'], { unique: false })
+@Index(['clienteId', 'sedeId', 'productoId', 'serie'], { unique: false })
+@Index(['clienteId', 'sedeId', 'lenteId', 'serie'], { unique: false })
 export class Descuento {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
   clienteId: number;
+
+  @Column()
+  sedeId: number;
 
   @Column({ nullable: true })
   productoId?: number | null;
@@ -42,7 +46,11 @@ export class Descuento {
   @Column({ type: 'int', nullable: true })
   serie: number | null;
 
-  /*Productos*/
+  /*Relaciones*/
+
+  @ManyToOne(() => Sede)
+  @JoinColumn({ name: 'sedeId' })
+  sede: Sede;
 
   @ManyToOne(() => Producto, { nullable: true })
   @JoinColumn({ name: 'productoId' })

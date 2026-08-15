@@ -16,6 +16,10 @@ export class CrearDescuentoDto {
 
   @IsNumber()
   @IsPositive()
+  sedeId: number;
+
+  @IsNumber()
+  @IsPositive()
   @IsOptional()
   productoId?: number;
 

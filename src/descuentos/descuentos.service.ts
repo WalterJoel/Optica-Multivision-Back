@@ -33,25 +33,28 @@ export class DescuentosService {
     return Math.min(3, Math.ceil(abs / 2));
   }
 
+  // 
   async obtenerDescuentos(dto: ObtenerDescuentosDto) {
-    const { clienteId, productos } = dto;
+    const { clienteId, sedeId, productos } = dto;
 
+    // Para los lentes
     const lenteIds = productos
       .filter((p) => p.esLente)
-      .map((p) => p.lenteId || p.productoId)
+      .map((p) => p.lenteId)
       .filter(Boolean);
+
+    // Para las monturas o accesorios
     const productoIds = productos
       .filter((p) => !p.esLente)
       .map((p) => p.productoId)
       .filter(Boolean);
-    console.log(lenteIds, ' IDS LENTE')
 
     const whereConditions: any[] = [];
     if (productoIds.length > 0) {
-      whereConditions.push({ clienteId, productoId: In(productoIds), activo: true });
+      whereConditions.push({ clienteId, sedeId, productoId: In(productoIds), activo: true });
     }
     if (lenteIds.length > 0) {
-      whereConditions.push({ clienteId, lenteId: In(lenteIds), activo: true });
+      whereConditions.push({ clienteId, sedeId, lenteId: In(lenteIds), activo: true });
     }
 
     if (whereConditions.length === 0) return [];
@@ -61,22 +64,25 @@ export class DescuentosService {
       relations: ['producto', 'lente'],
     });
 
+    // Recorrer productos del carrito para buscarles descuento
     const resultado = productos
       .map((producto) => {
         const esLente = !!producto.esLente;
-        const targetId = esLente ? (producto.lenteId || producto.productoId) : producto.productoId;
+        const targetId = esLente ? producto.lenteId : producto.productoId;
 
         if (!targetId) return null;
 
         let serieBuscada: number | null = null;
-
         if (esLente) {
           serieBuscada = this.obtenerSeriePorCilindro(producto.cyl ?? null);
         }
 
+        // Filtrar descuentos que coincidan en sede y producto/lente
         const matchingDescuentos = descuentos.filter((d) => {
+          if (d.sedeId !== sedeId) return false;
+
           if (esLente) {
-            return d.lenteId === targetId && (d.serie === serieBuscada || d.serie === null);
+            return d.lenteId === targetId && d.serie === serieBuscada;
           } else {
             return d.productoId === targetId;
           }
@@ -84,13 +90,11 @@ export class DescuentosService {
 
         if (matchingDescuentos.length === 0) return null;
 
-        // Prefer specific series discount; fallback to generic (null series)
-        const descuento = matchingDescuentos.find((d) => esLente ? d.serie === serieBuscada : true)
-          || matchingDescuentos[0];
+        const descuento = matchingDescuentos[0];
 
         return {
           id: descuento.id,
-          productoId: producto.productoId || null,
+          productoId: producto.productoId,
           lenteId: esLente ? targetId : null,
           nombreProducto: esLente
             ? `${descuento.lente?.marca} - ${descuento.lente?.material}`
@@ -101,7 +105,7 @@ export class DescuentosService {
           montoDescuento: Number(descuento.montoDescuento),
         };
       })
-      .filter(Boolean);
+      .filter(Boolean); // Filtrar nulos (productos sin descuento)
 
     return resultado;
   }

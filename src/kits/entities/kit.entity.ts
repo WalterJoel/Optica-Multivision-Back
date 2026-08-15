@@ -15,7 +15,7 @@ export class Kit {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ nullable: true })
+  @Column()
   sedeId: number;
 
   @Column({ length: 100 })

@@ -37,6 +37,10 @@ export class ObtenerDescuentosDto {
   @IsPositive()
   clienteId: number;
 
+  @IsNumber()
+  @IsPositive()
+  sedeId: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductoCylDto)
