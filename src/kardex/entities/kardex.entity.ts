@@ -32,6 +32,7 @@ export enum OrigenEventoKardex {
 @Index(['stockId'])
 @Index(['origenEvento'])
 @Index(['createdAt'])
+@Index('idx_kardex_sede_createdat', ['sedeId', 'createdAt'])
 export class Kardex {
   @PrimaryGeneratedColumn()
   id: number;

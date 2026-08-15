@@ -16,6 +16,7 @@ import { Sede } from 'src/sedes/entities/sede.entity';
 @Entity('productos')
 @Index(['monturaId', 'sedeId', 'activo'])
 @Index(['accesorioId', 'sedeId', 'activo'])
+@Index('idx_producto_sede_tipo_activo', ['sedeId', 'tipo', 'activo'])
 export class Producto {
   @PrimaryGeneratedColumn()
   id: number;

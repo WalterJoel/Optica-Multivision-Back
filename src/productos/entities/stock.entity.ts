@@ -19,6 +19,7 @@ import { MatrixTipo } from '../types';
 @Index(['lenteId', 'sedeId', 'matrix', 'row', 'col'], { unique: true })
 @Index(['lenteId'])
 @Index(['sedeId'])
+@Index('idx_stock_sede_lente_matrix', ['sedeId', 'lenteId', 'matrix'])
 @Index('idx_stock_graduacion', ['lenteId', 'matrix', 'esf', 'cyl'])
 export class Stock {
   @PrimaryGeneratedColumn()
