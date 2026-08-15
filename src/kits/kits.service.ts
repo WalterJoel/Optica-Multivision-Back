@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -29,12 +30,12 @@ export class KitsService {
   async create(
     createKitDto: CrearKitDto,
   ): Promise<{ message: string; kitId: number }> {
-    const { nombre, precio, accesorios, descripcion } = createKitDto;
+    const { sedeId, nombre, precio, accesorios, descripcion } = createKitDto;
 
     try {
       const kit = await this.dataSource.transaction(async (manager) => {
         // Crear el kit
-        const kit = manager.create(Kit, { nombre, precio, descripcion });
+        const kit = manager.create(Kit, { sedeId, nombre, precio, descripcion });
         await manager.save(kit);
 
         // Crear los registros de KitAccesorio
@@ -71,10 +72,14 @@ export class KitsService {
     }
   }
 
-  // Listar todos los kits con sus accesorios
-  async obtenerKits(): Promise<Kit[]> {
+  // Listar kits con sus accesorios obligatoriamente filtrados por sedeId
+  async obtenerKits(sedeId: number): Promise<Kit[]> {
+    if (!sedeId) {
+      throw new BadRequestException('El parámetro sedeId es obligatorio');
+    }
     return this.kitRepository.find({
-      relations: ['accesorios', 'accesorios.accesorio'],
+      where: { sedeId },
+      relations: ['accesorios', 'accesorios.accesorio', 'sede'],
     });
   }
 

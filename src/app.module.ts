@@ -35,7 +35,7 @@ import { KardexModule } from './kardex/kardex.module';
 
         autoLoadEntities: true,
 
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: true,
 
         ssl:
           process.env.NODE_ENV === 'production'

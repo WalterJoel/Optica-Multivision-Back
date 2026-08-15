@@ -22,6 +22,11 @@ class AccesorioCantidadDto {
 }
 
 export class CrearKitDto {
+  @IsNumber()
+  @IsNotEmpty()
+  @Type(() => Number)
+  sedeId: number;
+
   @IsString()
   @IsNotEmpty()
   nombre: string;

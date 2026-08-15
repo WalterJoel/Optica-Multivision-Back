@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { KitsService } from './kits.service';
 import { CrearKitDto } from './dto/crear-kit.dto';
@@ -23,8 +25,11 @@ export class KitsController {
 
   @Public()
   @Get('kits')
-  obtenerKits() {
-    return this.kitsService.obtenerKits();
+  obtenerKits(@Query('sedeId') sedeId: string) {
+    if (!sedeId) {
+      throw new BadRequestException('El parámetro sedeId es obligatorio');
+    }
+    return this.kitsService.obtenerKits(+sedeId);
   }
 
   @Get(':id')
