@@ -798,7 +798,9 @@ export class VentasService {
 
     if (!venta) throw new NotFoundException({ message: `La venta #${id} no existe.` });
     if (!venta.activo) throw new BadRequestException({ message: `La venta #${id} está anulada.` });
-    if (venta.estadoPago === 'PAGADO') throw new BadRequestException({ message: `La venta #${id} ya está completamente pagada.` });
+    if (venta.estadoPago === 'PAGADO' || Number(venta.deuda) <= 0) {
+      throw new BadRequestException({ message: `La venta #${id} ya está completamente pagada.` });
+    }
 
     const montoAnterior = Number(venta.montoPagado);
     const total = Number(venta.total);
