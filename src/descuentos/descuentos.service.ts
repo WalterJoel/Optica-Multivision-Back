@@ -110,9 +110,13 @@ export class DescuentosService {
     return resultado;
   }
 
-  async findAll() {
+  async findAll(sedeId: number) {
+    if (!sedeId) {
+      throw new BadRequestException('El parámetro sedeId es obligatorio');
+    }
     return await this.descuentoRepository.find({
-      relations: ['producto', 'lente'],
+      where: { sedeId },
+      relations: ['producto', 'lente', 'sede'],
     });
   }
 

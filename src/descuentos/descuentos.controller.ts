@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { DescuentosService } from './descuentos.service';
 import { CrearDescuentoDto } from './dto/create-descuento.dto';
@@ -29,9 +31,13 @@ export class DescuentosController {
     return this.descuentosService.obtenerDescuentos(obtenerDescuentosDto);
   }
 
+  @Public()
   @Get()
-  findAll() {
-    return this.descuentosService.findAll();
+  findAll(@Query('sedeId') sedeId: string) {
+    if (!sedeId) {
+      throw new BadRequestException('El parámetro sedeId es obligatorio');
+    }
+    return this.descuentosService.findAll(+sedeId);
   }
 
   @Get(':id')
