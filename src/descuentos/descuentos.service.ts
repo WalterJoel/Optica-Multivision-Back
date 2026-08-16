@@ -94,6 +94,7 @@ export class DescuentosService {
 
         return {
           id: descuento.id,
+          cartItemId: producto.cartItemId,
           productoId: producto.productoId,
           lenteId: esLente ? targetId : null,
           nombreProducto: esLente

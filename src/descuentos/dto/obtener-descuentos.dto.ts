@@ -11,6 +11,9 @@ import { Type } from 'class-transformer';
 import { TipoProducto } from 'src/common/constants';
 
 class ProductoCylDto {
+  @IsNumber()
+  @IsPositive()
+  cartItemId: number; // Identidad única del carrito
 
   @IsOptional()
   @IsNumber()
