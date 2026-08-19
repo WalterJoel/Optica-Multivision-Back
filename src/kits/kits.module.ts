@@ -10,5 +10,6 @@ import { Accesorio } from 'src/productos/entities/accesorio.entity';
   imports: [TypeOrmModule.forFeature([Kit, KitAccesorio, Accesorio])],
   controllers: [KitsController],
   providers: [KitsService],
+  exports: [KitsService],
 })
 export class KitsModule {}

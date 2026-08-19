@@ -12,6 +12,7 @@ import {
 import { User } from 'src/users/entities/user.entity';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { VentaProducto } from './ventaProducto.entity';
+import { VentaKit } from './ventaKit.entity';
 import { Sede } from 'src/sedes/entities/sede.entity';
 
 
@@ -94,4 +95,9 @@ export class Venta {
     cascade: true,
   })
   productos: VentaProducto[];
+
+  @OneToMany(() => VentaKit, (vk) => vk.venta, {
+    cascade: true,
+  })
+  ventaKits: VentaKit[];
 }

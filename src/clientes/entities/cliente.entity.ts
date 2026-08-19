@@ -59,7 +59,7 @@ export class Cliente {
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   odCyl: number | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   odEje: number | null;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
@@ -72,7 +72,7 @@ export class Cliente {
   @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   oiCyl: number | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
   oiEje: number | null;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })

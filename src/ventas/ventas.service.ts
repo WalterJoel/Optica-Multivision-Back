@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, Between } from 'typeorm';
 import { Venta } from './entities/venta.entity';
 import { VentaProducto } from './entities/ventaProducto.entity';
+import { VentaKit } from './entities/ventaKit.entity';
 import { SeguimientoPedido } from './entities/seguimientoPedido.entity';
 import { Producto, Stock } from '../productos/entities';
+import { Kit } from '../kits/entities/kit.entity';
 import { CrearVentaDto, VentaProductoDto } from './dto/crear-venta.dto';
 import { EditarVentaDto } from './dto/editar-venta.dto';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
@@ -15,28 +17,34 @@ import { MovimientoCaja, TipoMovimiento } from 'src/caja/entities/movimientoCaja
 
 import { KardexService } from 'src/kardex/kardex.service';
 import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
+import { KitsService } from 'src/kits/kits.service';
 
 @Injectable()
 export class VentasService {
   constructor(
     @InjectRepository(Venta)
     private readonly ventaRepository: Repository<Venta>,
-    @InjectRepository(SeguimientoPedido)
+    @InjectRepository(SeguimientoPedido) // (TODO V2)
     private readonly seguimientoRepository: Repository<SeguimientoPedido>,
 
     private readonly cajaService: CajaService,
     private readonly kardexService: KardexService,
+    private readonly kitsService: KitsService,
   ) { }
 
+  // ✅ REVISADO POR JOEL
   async crearVenta(createVentaDto: CrearVentaDto) {
     const { productos, ...ventaData } = createVentaDto;
 
     return await this.ventaRepository.manager.transaction(async (manager) => {
       try {
-        // 1. Validar y descontar stock antes de crear la venta (Fail-Fast)
-        await this.descontarStock(manager, productos);
+        // 1. Determinar los kits de regalo otorgados en la venta (VERIFICADO POR JOEL)
+        const kitsRegalo = await this.determinarKitsDeVenta(manager, productos, ventaData.sedeId);
 
-        // 2. Crear y guardar la venta con sus productos en cascada (Instanciación Explícita Tipo-Segura)
+        // 2. Validar, descontar stock y registrar movimientos en el Kardex (Productos vendidos y Kits de regalo)
+        await this.descontarStock(manager, productos, kitsRegalo, ventaData.sedeId);
+
+        // 3. Crear y guardar la venta con sus productos y kits en cascada
         const venta = manager.getRepository(Venta).create(ventaData);
 
         venta.productos = productos.map((p) => {
@@ -49,43 +57,12 @@ export class VentasService {
           });
         });
 
+        // Registro los KITS para esta venta(tabla ventaKits)
+        venta.ventaKits = kitsRegalo.map((k) => manager.getRepository(VentaKit).create(k));
+
         const ventaGuardada = await manager.getRepository(Venta).save(venta);
 
-        // 2.1 Validar y descontar stock de los accesorios incluidos en los KITS de los lentes vendidos (si aplica)
-        await this.descontarStockKitsLente(manager, productos, ventaData.sedeId);
-
-        // 2.2 Registrar movimientos de venta en el Kardex
-        for (const p of productos) {
-          if (p.tipoProducto === TipoProducto.LENTE) {
-            const stock = await manager.getRepository(Stock).findOne({ where: { id: p.stockId } });
-            if (stock) {
-              // Kardex: Registro de movimiento
-              await this.kardexService.registrarMovimiento(manager, {
-                sedeId: ventaData.sedeId,
-                tipoProducto: TipoProducto.LENTE,
-                stockId: p.stockId,
-                origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
-                cantidadAnterior: stock.cantidad + p.cantidad,
-                cantidadMovimiento: -p.cantidad,
-              });
-            }
-          } else {
-            const producto = await manager.getRepository(Producto).findOne({ where: { id: p.productoId } });
-            if (producto) {
-              // Kardex: Registro de movimiento
-              await this.kardexService.registrarMovimiento(manager, {
-                sedeId: ventaData.sedeId,
-                tipoProducto: p.tipoProducto,
-                productoId: p.productoId,
-                origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
-                cantidadAnterior: producto.cantidad + p.cantidad,
-                cantidadMovimiento: -p.cantidad,
-              });
-            }
-          }
-        }
-
-        // 3. Registrar el ingreso correspondiente en la caja activa (solo si se realizó un pago en efectivo/yape/tarjeta/etc.)
+        // 4. Registrar el ingreso correspondiente en caja (Buena practica llamar al metodo del modulo de Caja)
         if (Number(ventaGuardada.montoPagado) > 0) {
           await this.cajaService.registrarMovimientoTransaction(manager, {
             sedeId: ventaData.sedeId,
@@ -97,9 +74,10 @@ export class VentasService {
           });
         }
 
-        // 4. Si la venta requiere montaje, crear automáticamente el seguimiento del pedido (Modularizado)
+        // 5. Si la venta requiere montaje, crear automáticamente el seguimiento del pedido (TODO V2)
         await this.registrarSeguimientoSiCorresponde(manager, ventaGuardada);
 
+        // 6. Retornar venta completa con sus productos, kits de regalo y relaciones
         const ventaCompleta = await manager.getRepository(Venta).findOne({
           where: { id: ventaGuardada.id },
           relations: {
@@ -112,14 +90,26 @@ export class VentasService {
                 lente: true,
               },
             },
+            ventaKits: {
+              kit: {
+                accesorios: {
+                  accesorio: true,
+                },
+              },
+            },
             cliente: true,
             user: true,
+          },
+          order: {
+            productos: {
+              id: 'ASC',
+            },
           },
         });
 
         return {
           message: 'Venta creada correctamente',
-          data: ventaCompleta || ventaGuardada,
+          data: ventaCompleta,
         };
       } catch (error) {
         console.error(error);
@@ -131,42 +121,121 @@ export class VentasService {
   }
 
   /**
-   * Valida y descuenta el stock de lentes, monturas o accesorios de manera segura.
+   * Valida, descuenta el stock y registra en el Kardex los lentes, monturas, accesorios y KITS de regalo.
    * Emplea un bloqueo de escritura pesimista (SELECT FOR UPDATE) para evitar condiciones de carrera.
    */
-  private async descontarStock(manager: EntityManager, productos: VentaProductoDto[]) {
+  // ✅ REVISADO POR JOEL
+  private async descontarStock(
+    manager: EntityManager,
+    productos: VentaProductoDto[],
+    kitsRegalo: { kitId: number; cantidad: number }[] = [],
+    sedeId?: number,
+  ) {
+    // 1. Bloqueo, descuento y Kardex de productos vendidos
     for (const p of productos) {
+      // Valida y descuenta stock de lentes
       if (p.tipoProducto === TipoProducto.LENTE) {
-        // Bloqueo y descuento de Lentes en la grilla de stock
         const stock = await manager.getRepository(Stock).findOne({
           where: { id: p.stockId },
           lock: { mode: 'pessimistic_write' },
         });
 
         if (!stock || stock.cantidad < p.cantidad) {
-          console.log()
           throw new ConflictException({
             message: `Stock insuficiente para el lente solicitado.`,
           });
         }
 
+        const cantidadAnterior = stock.cantidad;
         stock.cantidad -= p.cantidad;
         await manager.getRepository(Stock).save(stock);
-      } else {
-        // Bloqueo y descuento de Monturas y Accesorios en la tabla de productos general
+
+        // Kardex: Registro de movimiento de Lente
+        if (sedeId) {
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId,
+            tipoProducto: TipoProducto.LENTE,
+            stockId: p.stockId,
+            origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
+            cantidadAnterior,
+            cantidadMovimiento: -p.cantidad,
+          });
+        }
+      }
+      // Valida y descuenta stock de monturas y accesorios
+      else {
         const producto = await manager.getRepository(Producto).findOne({
           where: { id: p.productoId },
           lock: { mode: 'pessimistic_write' },
         });
-        console.log(producto?.cantidad, ' EN BD', p.cantidad, 'EN LOTE')
+
         if (!producto || producto.cantidad < p.cantidad) {
           throw new ConflictException({
             message: `Stock insuficiente para el producto: ${producto?.nombre || p.productoId}`,
           });
         }
 
+        const cantidadAnterior = producto.cantidad;
         producto.cantidad -= p.cantidad;
         await manager.getRepository(Producto).save(producto);
+
+        // Kardex: Registro de movimiento de Montura / Accesorio
+        if (sedeId) {
+          await this.kardexService.registrarMovimiento(manager, {
+            sedeId,
+            tipoProducto: p.tipoProducto,
+            productoId: p.productoId,
+            origenEvento: OrigenEventoKardex.VENTA_REALIZADA,
+            cantidadAnterior,
+            cantidadMovimiento: -p.cantidad,
+          });
+        }
+      }
+    }
+
+    // 2. Bloqueo, descuento y Kardex de accesorios incluidos en los KITS de regalo otorgados
+    if (kitsRegalo.length > 0 && sedeId) {
+      // Itero por cada KIT
+      for (const kr of kitsRegalo) {
+        const numKits = kr.cantidad;
+
+        if (numKits <= 0) continue;
+
+        // Buena practica llamar al metodo del modulo de Kits
+        const kit = await this.kitsService.obtenerKitConAccesorios(kr.kitId, manager);
+        // Itero por cada accesorio del KIT
+        if (kit?.accesorios?.length) {
+          for (const ka of kit.accesorios) {
+            const cantidadADescontar = ka.cantidad * numKits;
+
+            if (ka.accesorio?.id) {
+              const productoAccesorio = await manager.getRepository(Producto).findOne({
+                where: { accesorioId: ka.accesorio.id, sedeId },
+                lock: { mode: 'pessimistic_write' },
+              });
+
+              if (!productoAccesorio || productoAccesorio.cantidad < cantidadADescontar) {
+                throw new ConflictException({
+                  message: `Stock insuficiente para el accesorio '${ka.accesorio.nombre}' del kit '${kit.nombre}' (requerido: ${cantidadADescontar}, disponible: ${productoAccesorio?.cantidad || 0}).`,
+                });
+              }
+
+              const cantidadAnterior = productoAccesorio.cantidad;
+              productoAccesorio.cantidad -= cantidadADescontar;
+              await manager.getRepository(Producto).save(productoAccesorio);
+
+              // Kardex: Registro de movimiento
+              await this.kardexService.registrarMovimiento(manager, {
+                sedeId,
+                tipoProducto: TipoProducto.ACCESORIO,
+                productoId: productoAccesorio.id,
+                origenEvento: OrigenEventoKardex.VENTA_KIT_ACCESORIO,
+                cantidadAnterior,
+                cantidadMovimiento: -cantidadADescontar,
+              });
+            }
+          }
+        }
       }
     }
   }
@@ -183,6 +252,13 @@ export class VentasService {
           },
           stock: {
             lente: true,
+          },
+        },
+        ventaKits: {
+          kit: {
+            accesorios: {
+              accesorio: true,
+            },
           },
         },
         cliente: true,
@@ -213,6 +289,13 @@ export class VentasService {
             lente: true,
           },
         },
+        ventaKits: {
+          kit: {
+            accesorios: {
+              accesorio: true,
+            },
+          },
+        },
         cliente: true,
         user: true,
       },
@@ -240,7 +323,20 @@ export class VentasService {
             accesorio: true,
           },
           stock: {
-            lente: true,
+            lente: {
+              kit: {
+                accesorios: {
+                  accesorio: true,
+                },
+              },
+            },
+          },
+        },
+        ventaKits: {
+          kit: {
+            accesorios: {
+              accesorio: true,
+            },
           },
         },
       },
@@ -249,18 +345,56 @@ export class VentasService {
       },
     });
 
-    const productosVendidos: any[] = [];
+    const productosMap = new Map<string, any>();
+
     for (const venta of ventas) {
       for (const prod of venta.productos) {
-        productosVendidos.push({
-          ...prod,
-          ventaId: venta.id,
-          fechaVenta: venta.createdAt,
-          lenteId: prod.tipoProducto === TipoProducto.LENTE ? (prod.stock?.lente?.id || null) : null,
-          nombreSede: venta.sede?.nombre || null,
-        });
+        const esLente = prod.tipoProducto === TipoProducto.LENTE;
+
+        const clave = esLente
+          ? `LENTE_${prod.stockId}_${prod.esf}_${prod.cyl}`
+          : `${prod.tipoProducto}_${prod.productoId}`;
+
+        if (!productosMap.has(clave)) {
+          const kit = venta.ventaKits?.find((vk) => vk.kit?.id === prod.stock?.lente?.kit?.id)?.kit
+            || (venta.ventaKits?.[0]?.kit)
+            || (prod.stock?.lente?.kit?.sedeId === Number(sedeId) ? prod.stock?.lente?.kit : null);
+
+          const infoKit = esLente && kit ? {
+            id: kit.id,
+            nombre: kit.nombre,
+            descripcion: kit.descripcion,
+            precio: Number(kit.precio || 0),
+            accesorios: kit.accesorios?.map((ka) => ({
+              id: ka.accesorio?.id,
+              nombre: ka.accesorio?.nombre,
+              codigo: ka.accesorio?.codigoAccesorio ?? null,
+              cantidad: ka.cantidad,
+            })) ?? [],
+          } : null;
+
+          productosMap.set(clave, {
+            ...prod,
+            ventaId: venta.id,
+            fechaVenta: venta.createdAt,
+            lenteId: esLente ? prod.stock?.lente?.id : null,
+            nombreSede: venta.sede?.nombre,
+            cantidad: Number(prod.cantidad),
+            subtotal: Number(prod.subtotal),
+            descuento: Number(prod.descuento ?? 0),
+            precioUnitario: Number(prod.precioUnitario),
+            infoKit,
+          });
+        } else {
+          const item = productosMap.get(clave);
+          item.cantidad += Number(prod.cantidad);
+          item.subtotal = Number((item.subtotal + Number(prod.subtotal)).toFixed(2));
+          item.descuento = Number((item.descuento + Number(prod.descuento ?? 0)).toFixed(2));
+        }
       }
     }
+
+    const productosVendidos = Array.from(productosMap.values());
 
     const typeOrder = {
       [TipoProducto.LENTE]: 1,
@@ -421,10 +555,10 @@ export class VentasService {
   async anularVenta(ventaId: number) {
     return await this.ventaRepository.manager.transaction(async (manager) => {
       try {
-        // 1. Buscar la venta con sus productos
+        // 1. Buscar la venta con sus productos y kits
         const venta = await manager.getRepository(Venta).findOne({
           where: { id: ventaId },
-          relations: ['productos'],
+          relations: ['productos', 'ventaKits'],
         });
 
         if (!venta) {
@@ -437,6 +571,7 @@ export class VentasService {
 
         // 2. Revertir el stock de forma segura para cada detalle de la venta
         for (const p of venta.productos) {
+          // Monturas y accesorios
           if (p.tipoProducto === TipoProducto.LENTE) {
             if (p.stockId) {
               const stock = await manager.getRepository(Stock).findOne({
@@ -459,7 +594,9 @@ export class VentasService {
                 });
               }
             }
-          } else {
+          }
+          // Lentes
+          else {
             if (p.productoId) {
               const producto = await manager.getRepository(Producto).findOne({
                 where: { id: p.productoId },
@@ -485,16 +622,16 @@ export class VentasService {
         }
 
         // 2.1 Revertir el stock de accesorios incluidos en los KITS de los lentes vendidos (si aplica)
-        await this.revertirStockKitsLente(manager, venta.productos, venta.sedeId);
+        await this.revertirStockKitsLente(manager, venta.ventaKits, venta.sedeId);
 
-        // 3. Registrar contra-movimiento (EGRESO) en la caja para la devolución
+        // 3. Registrar EGRESO en caja para la devolución
         if (Number(venta.montoPagado) > 0) {
           // Buscamos el movimiento original para obtener el método de pago correcto
           const movimientoOriginal = await manager.getRepository(MovimientoCaja).findOne({
             where: { ventaId: venta.id, tipo: TipoMovimiento.INGRESO },
           });
 
-          const metodoPagoOriginal = movimientoOriginal?.metodoPago || MetodoPago.EFECTIVO;
+          const metodoPagoOriginal = movimientoOriginal?.metodoPago;
 
           await this.cajaService.registrarMovimientoTransaction(manager, {
             sedeId: venta.sedeId,
@@ -506,7 +643,7 @@ export class VentasService {
           });
         }
 
-        // 4. Cancelar el seguimiento del pedido si existe (Modularizado)
+        // 4. Cancelar el seguimiento del pedido si existe (TODO V2)
         await this.anularSeguimientoSiExiste(manager, venta.id);
 
         // 5. Marcar la venta como inactiva
@@ -530,9 +667,9 @@ export class VentasService {
   }
 
   /**
-   * Crea un seguimiento de pedido transaccional para la venta si esta requiere montaje.
+   * (TODO V2) Crea un seguimiento de pedido transaccional para la venta si esta requiere montaje.
    */
-  // ✅  METODO REVISADO CON TODOS SUS SUS DTOS Y ENTITIES
+  // ✅ (TODO V2) METODO REVISADO CON TODOS SUS DTOS Y ENTITIES
   private async registrarSeguimientoSiCorresponde(manager: EntityManager, venta: Venta) {
     if (venta.montaje) {
 
@@ -551,9 +688,9 @@ export class VentasService {
   }
 
   /**
-   * Cancela/anula el seguimiento del pedido asociado a una venta si este existe.
+   * (TODO V2) Cancela/anula el seguimiento del pedido asociado a una venta si este existe.
    */
-  // ✅  METODO REVISADO CON TODOS SUS SUS DTOS Y ENTITIES
+  // ✅ (TODO V2) METODO REVISADO CON TODOS SUS DTOS Y ENTITIES
   private async anularSeguimientoSiExiste(manager: EntityManager, ventaId: number) {
     const seguimiento = await manager.getRepository(SeguimientoPedido).findOne({
       where: { ventaId },
@@ -573,79 +710,50 @@ export class VentasService {
 
   /**
    * REGLA DE NEGOCIO: 1 Kit por cada 2 lunas del mismo tipo de lente (Math.floor(totalLunas / 2))
-   * Valida y descuenta de manera segura el stock de los accesorios incluidos en los kits de los lentes vendidos.
+   * Valida y determina la cantidad de kits elegibles según los lentes vendidos.
    */
-  private async descontarStockKitsLente(
+  // ✅ REVISADO POR JOEL
+  private async determinarKitsDeVenta(
     manager: EntityManager,
     productos: VentaProductoDto[],
     sedeId: number,
-  ) {
-    // 1. Agrupar la cantidad total de lunas vendidas por cada tipo de lente (lenteId)
-    const lunasPorLente = new Map<number, { cantidadTotal: number; stockMuestra: Stock }>();
+  ): Promise<{ kitId: number; cantidad: number }[]> {
+    // 1. Agrupar la cantidad total de lunas vendidas por cada kit de lente [kitId, totalLunas]
+    const lunasPorKit = new Map<number, number>();
 
     for (const p of productos) {
       if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
+        // Busco la luna
         const stock = await manager.getRepository(Stock).findOne({
           where: { id: p.stockId },
-          relations: ['lente', 'lente.kit', 'lente.kit.accesorios', 'lente.kit.accesorios.accesorio'],
+          relations: { lente: { kit: true } },
         });
-
-        if (stock?.lenteId && stock.lente?.kit) {
-          // Validar estrictamente que el kit pertenezca a la sede de la venta
-          if (stock.lente.kit.sedeId !== sedeId) {
-            continue;
-          }
-
-          const current = lunasPorLente.get(stock.lenteId) || {
-            cantidadTotal: 0,
-            stockMuestra: stock,
-          };
-          current.cantidadTotal += p.cantidad;
-          lunasPorLente.set(stock.lenteId, current);
+        // Busco si lente tiene un kit asociado(para todas las series no hay distincion)
+        const kit = stock?.lente?.kit;
+        // Validar que el kit pertenezca a la sede de la venta
+        if (kit && kit.sedeId === Number(sedeId)) {
+          // Suma lunas al kit correspondiente
+          const totalLunas = lunasPorKit.get(kit.id) ?? 0;
+          lunasPorKit.set(kit.id, totalLunas + p.cantidad);
         }
       }
     }
 
-    // 2. Aplicar Regla de Negocio: Math.floor(cantidadTotal / 2) kits por tipo de lente
-    for (const { cantidadTotal, stockMuestra } of lunasPorLente.values()) {
-      // REGLA DE NEGOCIO: 1 Kit por cada 2 Lunas vendidas del mismo tipo de lente (Math.floor(totalLunas / 2))
-      const numKits = Math.floor(cantidadTotal / 2);
-      if (numKits <= 0) continue;
-
-      if (stockMuestra.lente?.kit?.accesorios?.length) {
-        for (const ka of stockMuestra.lente.kit.accesorios) {
-          const cantidadADescontar = ka.cantidad * numKits;
-
-          if (ka.accesorio?.id) {
-            const productoAccesorio = await manager.getRepository(Producto).findOne({
-              where: { accesorioId: ka.accesorio.id, sedeId },
-              lock: { mode: 'pessimistic_write' },
-            });
-
-            if (!productoAccesorio || productoAccesorio.cantidad < cantidadADescontar) {
-              throw new ConflictException({
-                message: `Stock insuficiente para el accesorio '${ka.accesorio.nombre}' del kit '${stockMuestra.lente.kit.nombre}' (requerido: ${cantidadADescontar}, disponible: ${productoAccesorio?.cantidad || 0}).`,
-              });
-            }
-
-            const cantidadAnterior = productoAccesorio.cantidad;
-            productoAccesorio.cantidad -= cantidadADescontar;
-            await manager.getRepository(Producto).save(productoAccesorio);
-
-            // Kardex: Registro de movimiento
-            await this.kardexService.registrarMovimiento(manager, {
-              sedeId,
-              tipoProducto: TipoProducto.ACCESORIO,
-              productoId: productoAccesorio.id,
-              origenEvento: OrigenEventoKardex.VENTA_KIT_ACCESORIO,
-              cantidadAnterior,
-              cantidadMovimiento: -cantidadADescontar,
-            });
-          }
-        }
+    // 2. Aplicar Regla de Negocio: 1 Kit por cada 2 Lunas vendidas (Math.floor(totalLunas / 2))
+    const totalKits: { kitId: number; cantidad: number }[] = [];
+    for (const [kitId, totalLunas] of lunasPorKit.entries()) {
+      // Un kit cada dos lunas
+      const cantidadKits = Math.floor(totalLunas / 2);
+      if (cantidadKits > 0) {
+        // Agrega kit si le corresponde
+        totalKits.push({ kitId, cantidad: cantidadKits });
       }
     }
+
+    return totalKits;
   }
+
+
 
   /**
    * REGLA DE NEGOCIO: 1 Kit por cada 2 lunas del mismo tipo de lente (Math.floor(totalLunas / 2))
@@ -653,43 +761,19 @@ export class VentasService {
    */
   private async revertirStockKitsLente(
     manager: EntityManager,
-    productos: VentaProducto[],
+    kits: VentaKit[],
     sedeId: number,
   ) {
-    // 1. Agrupar la cantidad total de lunas vendidas por cada tipo de lente (lenteId)
-    const lunasPorLente = new Map<number, { cantidadTotal: number; stockMuestra: Stock }>();
+    if (!kits || kits.length === 0) return;
 
-    for (const p of productos) {
-      if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
-        const stock = await manager.getRepository(Stock).findOne({
-          where: { id: p.stockId },
-          relations: ['lente', 'lente.kit', 'lente.kit.accesorios', 'lente.kit.accesorios.accesorio'],
-        });
-
-        if (stock?.lenteId && stock.lente?.kit) {
-          // Validar estrictamente que el kit pertenezca a la sede de la venta
-          if (stock.lente.kit.sedeId !== sedeId) {
-            continue;
-          }
-
-          const current = lunasPorLente.get(stock.lenteId) || {
-            cantidadTotal: 0,
-            stockMuestra: stock,
-          };
-          current.cantidadTotal += p.cantidad;
-          lunasPorLente.set(stock.lenteId, current);
-        }
-      }
-    }
-
-    // 2. Aplicar Regla de Negocio: Math.floor(cantidadTotal / 2) kits por tipo de lente
-    for (const { cantidadTotal, stockMuestra } of lunasPorLente.values()) {
-      // REGLA DE NEGOCIO: 1 Kit por cada 2 Lunas vendidas del mismo tipo de lente (Math.floor(totalLunas / 2))
-      const numKits = Math.floor(cantidadTotal / 2);
+    for (const vk of kits) {
+      const numKits = vk.cantidad;
       if (numKits <= 0) continue;
+      // Buena practica llamar al metodo del modulo de Kits
+      const kit = await this.kitsService.obtenerKitConAccesorios(vk.kitId, manager);
 
-      if (stockMuestra.lente?.kit?.accesorios?.length) {
-        for (const ka of stockMuestra.lente.kit.accesorios) {
+      if (kit?.accesorios?.length) {
+        for (const ka of kit.accesorios) {
           const cantidadARevertir = ka.cantidad * numKits;
 
           if (ka.accesorio?.id) {

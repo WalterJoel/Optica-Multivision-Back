@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Kit } from './entities/kit.entity';
 import { KitAccesorio } from './entities/kitAccesorio.entity';
 import { Accesorio } from '../productos/entities/accesorio.entity';
@@ -95,6 +95,20 @@ export class KitsService {
     }
 
     return kit;
+  }
+
+  /**
+   * Obtiene un kit con sus accesorios asociados (Soporta transacciones).
+   */
+  async obtenerKitConAccesorios(
+    id: number,
+    manager?: EntityManager,
+  ): Promise<Kit | null> {
+    const repo = manager ? manager.getRepository(Kit) : this.kitRepository;
+    return await repo.findOne({
+      where: { id },
+      relations: ['accesorios', 'accesorios.accesorio'],
+    });
   }
 
   // Actualizar un kit
