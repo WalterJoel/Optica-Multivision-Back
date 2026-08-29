@@ -90,7 +90,7 @@ export class VentasService {
 
         const ventaGuardada = await manager.getRepository(Venta).save(venta);
 
-        // 4. Registrar el ingreso correspondiente en caja (Buena practica llamar al metodo del modulo de Caja)
+        // 4. [RN-002] Registrar el ingreso correspondiente en caja (Si el monto recibido es 0, no entra a caja pero si descuenta stock)
         if (Number(ventaGuardada.montoPagado) > 0) {
           await this.cajaService.registrarMovimientoTransaction(manager, {
             sedeId: ventaData.sedeId,
@@ -202,7 +202,7 @@ export class VentasService {
       }
     }
 
-    // 2. Bloqueo, descuento y Kardex de accesorios incluidos en los KITS de regalo otorgados
+    // 2. [RN-001] Bloqueo, descuento y Kardex de accesorios incluidos en los KITS de regalo otorgados (1 kit por pareja de lunas)
     if (kitsRegalo.length > 0 && sedeId) {
       // Itero por cada KIT
       for (const kr of kitsRegalo) {

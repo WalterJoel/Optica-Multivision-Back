@@ -1,10 +1,10 @@
 # Reglas de Negocio - Óptica Multivisiones Backend
 
-Este documento contiene la especificación de las reglas de negocio clave aplicadas en el sistema backend.
+Este documento contiene la especificación y catálogo numerado de las reglas de negocio clave aplicadas en el sistema backend.
 
 ---
 
-## 1. Asignación de Kits de Accesorios por Lentes Vendidos
+## RN-001: Asignación de Kits de Accesorios por Lentes Vendidos
 
 ### Descripción
 Cuando se realiza la venta de un lente que tiene un Kit de Accesorios asignado (ej. estuche, paño de limpieza, spray limpiador), la asignación y descuento de stock de accesorios sigue la regla de parejas de lunas.
@@ -27,5 +27,20 @@ Cuando se realiza la venta de un lente que tiene un Kit de Accesorios asignado (
 * **Descuento de Stock por Sede:** Al realizarse la venta en una sede específica (`sedeId`), el sistema busca el inventario de accesorios (`Producto`) correspondiente a **esa misma sede** y efectúa el descuento (y el movimiento de Kardex) en dicha sede.
 
 ### Aplicación en el Código
-* **Ventas (`ventas.service.ts`):** `descontarStockKitsLente` agrupa las lunas de la venta por `lenteId` y descuenta del stock de accesorios de la sede de la venta (`sedeId`) únicamente la cantidad calculada con `Math.floor(totalLunas / 2)`.
-* **Anulación de Ventas (`ventas.service.ts`):** `revertirStockKitsLente` agrupa las lunas de la venta anulada por `lenteId` y devuelve al stock de accesorios de la sede (`sedeId`) únicamente la cantidad calculada con `Math.floor(totalLunas / 2)`.
+* **Ventas (`ventas.service.ts`):** `descontarStockKitsLente` (Referenciado en código como `// [RN-001]`).
+* **Anulación de Ventas (`ventas.service.ts`):** `revertirStockKitsLente` (Referenciado en código como `// [RN-001]`).
+
+---
+
+## RN-002: Ventas con Monto Recibido Cero (0.00)
+
+### Descripción
+El sistema permite registrar ventas donde el monto recibido / inicial a cuenta es `0.00`. Esta especificación responde al caso de negocio en el que se venden o rematan productos (ej. productos dañados o promociones a 0) y el usuario requiere que la venta quede registrada y que el stock de productos/lentes se descuente en el inventario.
+
+### Regla de Negocio
+* **Descuento de Stock y Kardex Activo:** Se realiza el descuento de stock correspondiente y se genera el registro del movimiento en el Kardex (`VENTA_REALIZADA`).
+* **Sin Registro en Caja:** Si `montoPagado == 0.00`, la venta **NO entra a la caja activa** ni genera movimientos de ingreso de dinero (`cajaService.registrarMovimientoTransaction` no se invoca).
+* **Fundamento:** Mantiene el control exacto de inventarios sin alterar el balance de efectivo/bancos de la caja en la sede.
+
+### Aplicación en el Código
+* **Ventas (`ventas.service.ts`):** Condición de ingreso a caja `if (Number(ventaGuardada.montoPagado) > 0)` (Referenciado en código como `// [RN-002]`).
