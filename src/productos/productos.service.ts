@@ -1857,4 +1857,119 @@ export class ProductosService {
       ubicacion: p.ubicacion || '',
     }));
   }
+
+  async buscarProductoParaTraslado(
+    sedeId: number,
+    tipo: string,
+    busqueda?: string,
+  ) {
+    const rawBusqueda = busqueda?.trim();
+    if (!rawBusqueda) return [];
+
+    const term = `%${rawBusqueda}%`;
+
+    // 1. MONTURA
+    if (tipo === TipoProducto.MONTURA || tipo === 'MONTURA') {
+      const qb = this.dataSource
+        .getRepository(Producto)
+        .createQueryBuilder('p')
+        .leftJoinAndSelect('p.montura', 'm')
+        .where('p.sedeId = :sedeId', { sedeId: Number(sedeId) })
+        .andWhere('p.tipo = :tipo', { tipo: TipoProducto.MONTURA })
+        .andWhere('p.activo = true')
+        .andWhere(
+          '(p.nombre ILIKE :term OR m.codigo ILIKE :term OR m.codigoMontura ILIKE :term OR m.marca ILIKE :term OR m.material ILIKE :term)',
+          { term },
+        );
+
+      const productos = await qb.take(50).getMany();
+      return productos.map((p) => ({
+        id: p.id,
+        productoId: p.id,
+        stockId: null,
+        nombre: p.nombre,
+        tipoProducto: TipoProducto.MONTURA,
+        codigo: p.montura?.codigo || p.montura?.codigoMontura || '',
+        marca: p.montura?.marca || '',
+        material: p.montura?.material || '',
+        cantidad: p.cantidad,
+      }));
+    }
+
+    // 2. ACCESORIO
+    if (tipo === TipoProducto.ACCESORIO || tipo === 'ACCESORIO') {
+      const qb = this.dataSource
+        .getRepository(Producto)
+        .createQueryBuilder('p')
+        .leftJoinAndSelect('p.accesorio', 'a')
+        .where('p.sedeId = :sedeId', { sedeId: Number(sedeId) })
+        .andWhere('p.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
+        .andWhere('p.activo = true')
+        .andWhere(
+          '(p.nombre ILIKE :term OR a.codigoAccesorio ILIKE :term OR a.nombre ILIKE :term)',
+          { term },
+        );
+
+      const productos = await qb.take(50).getMany();
+      return productos.map((p) => ({
+        id: p.id,
+        productoId: p.id,
+        stockId: null,
+        nombre: p.accesorio?.nombre || p.nombre,
+        tipoProducto: TipoProducto.ACCESORIO,
+        codigo: p.accesorio?.codigoAccesorio || '',
+        cantidad: p.cantidad,
+      }));
+    }
+
+    // 3. LENTE
+    if (tipo === TipoProducto.LENTE) {
+      const partes = rawBusqueda.trim().split(/\s+/);
+      const qb = this.stockRepository
+        .createQueryBuilder('s')
+        .leftJoinAndSelect('s.lente', 'l')
+        .where('s.sedeId = :sedeId', { sedeId: Number(sedeId) });
+      console.log(partes, ' ARTES')
+
+      // Si alguno es 0.00 va como NULL 
+      // Para neutro tomaria ambos nulos genial ..
+      if (partes.length >= 2) {
+        const num1 = partes[0]
+        const num2 = partes[1]
+        const esfCond = (num1 === '0')
+          ? 's.esf IS NULL'
+          : 's.esf = :num1';
+        const cylCond = (num2 === '0')
+          ? 's.cyl IS NULL'
+          : 's.cyl = :num2';
+        qb.andWhere(`${esfCond} AND ${cylCond}`, { num1, num2 });
+      }
+
+
+      const stocks = await qb
+        .orderBy('l.marca', 'ASC')
+        .addOrderBy('s.esf', 'ASC')
+        .addOrderBy('s.cyl', 'ASC')
+        .take(50)
+        .getMany();
+
+      console.log('STOCKS DIRECTOS DE BD:', stocks.map(s => ({ id: s.id, esf: s.esf, cyl: s.cyl, marca: s.lente?.marca })));
+
+      return stocks.map((s) => ({
+        id: s.id,
+        productoId: null,
+        stockId: s.id,
+        lenteId: s.lenteId,
+        nombre: `${s.lente?.marca} ${s.lente?.material}`.trim(),
+        tipoProducto: TipoProducto.LENTE,
+        marca: s.lente?.marca,
+        material: s.lente?.material,
+        sph: Number(s.esf),
+        cyl: Number(s.cyl),
+        cantidad: s.cantidad,
+      }));
+    }
+
+    return [];
+  }
 }

@@ -18,6 +18,34 @@ import { MovimientoCaja, TipoMovimiento } from 'src/caja/entities/movimientoCaja
 import { KardexService } from 'src/kardex/kardex.service';
 import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
 import { KitsService } from 'src/kits/kits.service';
+import { TerminateSessionCommand } from '@aws-sdk/client-ssm';
+
+/**
+ * Configuración estandarizada de relaciones para consultar Ventas Completas
+ */
+export const RELACIONES_VENTA_COMPLETA = {
+  sede: true,
+  cliente: true,
+  user: true,
+  productos: {
+    producto: {
+      montura: true,
+      accesorio: true,
+    },
+    stock: {
+      lente: {
+        kit: true,
+      },
+    },
+  },
+  ventaKits: {
+    kit: {
+      accesorios: {
+        accesorio: true,
+      },
+    },
+  },
+};
 
 @Injectable()
 export class VentasService {
@@ -80,26 +108,7 @@ export class VentasService {
         // 6. Retornar venta completa con sus productos, kits de regalo y relaciones
         const ventaCompleta = await manager.getRepository(Venta).findOne({
           where: { id: ventaGuardada.id },
-          relations: {
-            productos: {
-              producto: {
-                montura: true,
-                accesorio: true,
-              },
-              stock: {
-                lente: true,
-              },
-            },
-            ventaKits: {
-              kit: {
-                accesorios: {
-                  accesorio: true,
-                },
-              },
-            },
-            cliente: true,
-            user: true,
-          },
+          relations: RELACIONES_VENTA_COMPLETA,
           order: {
             productos: {
               id: 'ASC',
@@ -244,26 +253,7 @@ export class VentasService {
   async obtenerVentas(sedeId: number) {
     return await this.ventaRepository.find({
       where: { sedeId },
-      relations: {
-        productos: {
-          producto: {
-            montura: true,
-            accesorio: true,
-          },
-          stock: {
-            lente: true,
-          },
-        },
-        ventaKits: {
-          kit: {
-            accesorios: {
-              accesorio: true,
-            },
-          },
-        },
-        cliente: true,
-        user: true,
-      },
+      relations: RELACIONES_VENTA_COMPLETA,
       order: {
         createdAt: 'DESC',
       },
@@ -279,26 +269,7 @@ export class VentasService {
         sedeId,
         createdAt: Between(start, end),
       },
-      relations: {
-        productos: {
-          producto: {
-            montura: true,
-            accesorio: true,
-          },
-          stock: {
-            lente: true,
-          },
-        },
-        ventaKits: {
-          kit: {
-            accesorios: {
-              accesorio: true,
-            },
-          },
-        },
-        cliente: true,
-        user: true,
-      },
+      relations: RELACIONES_VENTA_COMPLETA,
       order: {
         createdAt: 'DESC',
       },
@@ -315,31 +286,7 @@ export class VentasService {
         createdAt: Between(start, end),
         activo: true,
       },
-      relations: {
-        sede: true,
-        productos: {
-          producto: {
-            montura: true,
-            accesorio: true,
-          },
-          stock: {
-            lente: {
-              kit: {
-                accesorios: {
-                  accesorio: true,
-                },
-              },
-            },
-          },
-        },
-        ventaKits: {
-          kit: {
-            accesorios: {
-              accesorio: true,
-            },
-          },
-        },
-      },
+      relations: RELACIONES_VENTA_COMPLETA,
       order: {
         createdAt: 'DESC',
       },

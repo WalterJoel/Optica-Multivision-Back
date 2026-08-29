@@ -44,6 +44,20 @@ export class ProductosController {
   }
 
   @Public()
+  @Get('buscarProductoParaTraslado')
+  async buscarProductoParaTraslado(
+    @Query('sedeId', ParseIntPipe) sedeId: number,
+    @Query('tipo') tipo: string,
+    @Query('busqueda') busqueda?: string,
+  ) {
+    return await this.productosService.buscarProductoParaTraslado(
+      sedeId,
+      tipo,
+      busqueda,
+    );
+  }
+
+  @Public()
   @Post('/actualizarStockProductos')
   actualizarStockProductos(
     @Body() actualizarStockProductos: ActualizarStockProductosDto,
