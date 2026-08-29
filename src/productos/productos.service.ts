@@ -982,7 +982,15 @@ export class ProductosService {
         }
       }
 
-      const productosGuardados = await manager.save(Producto, productosParaGuardar);
+      // Guardado por lotes (chunking) de 200 en 200 para evitar exceder el límite de parámetros de PostgreSQL
+      const CHUNK_SIZE = 200;
+      const productosGuardados: Producto[] = [];
+
+      for (let i = 0; i < productosParaGuardar.length; i += CHUNK_SIZE) {
+        const chunk = productosParaGuardar.slice(i, i + CHUNK_SIZE);
+        const guardados = await manager.save(Producto, chunk);
+        productosGuardados.push(...guardados);
+      }
 
       for (const prodSaved of productosGuardados) {
         if (prodSaved.cantidad > 0) {
