@@ -52,7 +52,7 @@ import { editarAccesoriosExcelSchema } from './utils/accesorios/excel/editarAcce
 import { FilaExcelEditarMontura, FilaExcelEditarAccesorio } from './types';
 
 import { KardexService } from 'src/kardex/kardex.service';
-import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
+import { Kardex, OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
 
 type StockCell = {
   id: number;
@@ -992,18 +992,26 @@ export class ProductosService {
         productosGuardados.push(...guardados);
       }
 
+      const kardexParaGuardar: Kardex[] = [];
       for (const prodSaved of productosGuardados) {
         if (prodSaved.cantidad > 0) {
-          // Kardex: Registro de movimiento
-          await this.kardexService.registrarMovimiento(manager, {
-            sedeId: prodSaved.sedeId,
-            tipoProducto: TipoProducto.MONTURA,
-            productoId: prodSaved.id,
-            origenEvento: OrigenEventoKardex.CARGA_EXCEL,
-            cantidadAnterior: 0,
-            cantidadMovimiento: prodSaved.cantidad,
-          });
+          kardexParaGuardar.push(
+            manager.create(Kardex, {
+              sedeId: prodSaved.sedeId,
+              tipoProducto: TipoProducto.MONTURA,
+              productoId: prodSaved.id,
+              origenEvento: OrigenEventoKardex.CARGA_EXCEL,
+              cantidadAnterior: 0,
+              cantidadMovimiento: prodSaved.cantidad,
+              cantidadFinal: prodSaved.cantidad,
+            })
+          );
         }
+      }
+
+      for (let i = 0; i < kardexParaGuardar.length; i += CHUNK_SIZE) {
+        const chunk = kardexParaGuardar.slice(i, i + CHUNK_SIZE);
+        await manager.save(Kardex, chunk);
       }
 
       return {
