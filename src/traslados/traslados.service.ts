@@ -164,6 +164,7 @@ export class TrasladosService {
   ): Promise<void> {
     if (cantidadAEnviar <= 0) return;
 
+    // Valida stock para monturas y accesorios
     if (
       detalle.tipoProducto === TipoProducto.MONTURA ||
       detalle.tipoProducto === TipoProducto.ACCESORIO
@@ -179,7 +180,9 @@ export class TrasladosService {
           message: `Stock insuficiente en la sede proveedora para "${productoProveedora.nombre}". Disponible: ${productoProveedora.cantidad}, Requerido a enviar: ${cantidadAEnviar}`,
         });
       }
-    } else {
+    }
+    // Valida stock para lentes
+    else {
       const stockProveedora = await this.obtenerStockEquivalente(
         manager,
         detalle.stockId!,
@@ -188,7 +191,7 @@ export class TrasladosService {
 
       if (stockProveedora.cantidad < cantidadAEnviar) {
         throw new BadRequestException({
-          message: `Stock insuficiente en la sede proveedora para el lente. Disponible: ${stockProveedora.cantidad}, Requerido a enviar: ${cantidadAEnviar}`,
+          message: `Stock insuficiente para ${stockProveedora.lente.marca} ${stockProveedora.lente.material} (ESF: ${stockProveedora.esf}, CYL: ${stockProveedora.cyl}). Disponible: ${stockProveedora.cantidad}, Requerido: ${cantidadAEnviar}`,
         });
       }
     }
@@ -256,6 +259,7 @@ export class TrasladosService {
   ): Promise<Stock> {
     const stockRef = await manager.getRepository(Stock).findOne({
       where: { id: stockIdReferencia },
+      relations: ['lente'],
     });
 
     if (!stockRef) {
@@ -274,6 +278,7 @@ export class TrasladosService {
         row: stockRef.row,
         col: stockRef.col,
       },
+      relations: ['lente'],
       lock: { mode: 'pessimistic_write' },
     });
 

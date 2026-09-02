@@ -571,7 +571,7 @@ export class VentasService {
         // 2.1 Revertir el stock de accesorios incluidos en los KITS de los lentes vendidos (si aplica)
         await this.revertirStockKitsLente(manager, venta.ventaKits, venta.sedeId);
 
-        // 3. Registrar EGRESO en caja para la devolución
+        // 3. Registrar EGRESO en caja para la devolución // [RN-003]
         if (Number(venta.montoPagado) > 0) {
           // Buscamos el movimiento original para obtener el método de pago correcto
           const movimientoOriginal = await manager.getRepository(MovimientoCaja).findOne({
