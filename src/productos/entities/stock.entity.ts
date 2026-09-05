@@ -43,6 +43,9 @@ export class Stock {
   @Column('int')
   col: number;
 
+  @Column('int', { nullable: true })
+  orden: number | null;
+
   @Column('decimal', { precision: 5, scale: 2, nullable: true })
   esf: number | null;
 
