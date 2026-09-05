@@ -298,27 +298,37 @@ export class VentasService {
       for (const prod of venta.productos) {
         const esLente = prod.tipoProducto === TipoProducto.LENTE;
 
+        // Clave para asociar los productos cuando se vendio +1
         const clave = esLente
           ? `LENTE_${prod.stockId}_${prod.esf}_${prod.cyl}`
           : `${prod.tipoProducto}_${prod.productoId}`;
 
         if (!productosMap.has(clave)) {
-          const kit = venta.ventaKits?.find((vk) => vk.kit?.id === prod.stock?.lente?.kit?.id)?.kit
-            || (venta.ventaKits?.[0]?.kit)
-            || (prod.stock?.lente?.kit?.sedeId === Number(sedeId) ? prod.stock?.lente?.kit : null);
+          let infoKit: any = null;
 
-          const infoKit = esLente && kit ? {
-            id: kit.id,
-            nombre: kit.nombre,
-            descripcion: kit.descripcion,
-            precio: Number(kit.precio || 0),
-            accesorios: kit.accesorios?.map((ka) => ({
-              id: ka.accesorio?.id,
-              nombre: ka.accesorio?.nombre,
-              codigo: ka.accesorio?.codigoAccesorio ?? null,
-              cantidad: ka.cantidad,
-            })) ?? [],
-          } : null;
+          if (esLente) {
+            const kitLenteId = prod.stock?.lente?.kit?.id;
+
+            // 1. Buscar en la venta el registro del kit que corresponde al lente vendido
+            const ventaKit = venta.ventaKits.find((vk) => vk.kitId === kitLenteId);
+            const kit = ventaKit?.kit;
+
+            // Estructurar la información del Kit si la venta lo otorgó
+            if (kit) {
+              infoKit = {
+                id: kit.id,
+                nombre: kit.nombre,
+                descripcion: kit.descripcion,
+                precio: Number(kit.precio),
+                accesorios: kit.accesorios.map((ka) => ({
+                  id: ka.accesorio.id,
+                  nombre: ka.accesorio.nombre,
+                  codigo: ka.accesorio.codigoAccesorio,
+                  cantidad: ka.cantidad,
+                })),
+              };
+            }
+          }
 
           productosMap.set(clave, {
             ...prod,
@@ -351,15 +361,28 @@ export class VentasService {
 
     productosVendidos.sort((a, b) => {
       // 1. Tipo Producto (Lente -> Montura -> Accesorio)
-      const orderA = typeOrder[a.tipoProducto] || 99;
-      const orderB = typeOrder[b.tipoProducto] || 99;
+      const orderA = typeOrder[a.tipoProducto];
+      const orderB = typeOrder[b.tipoProducto];
       if (orderA !== orderB) {
         return orderA - orderB;
       }
 
+      // Ordenamiento óptico para Lentes (Marca -> Matriz -> s.orden)
+      if (a.tipoProducto === TipoProducto.LENTE && b.tipoProducto === TipoProducto.LENTE) {
+        const marcaA = a.stock.lente.marca;
+        const marcaB = b.stock.lente.marca;
+        if (marcaA !== marcaB) return marcaA.localeCompare(marcaB);
+
+        if (a.stock.matrix !== b.stock.matrix) {
+          return a.stock.matrix.localeCompare(b.stock.matrix);
+        }
+
+        return a.stock.orden - b.stock.orden;
+      }
+
       // 2. Sede (Alfabético)
-      const sedeA = String(a.nombreSede || '').toLowerCase();
-      const sedeB = String(b.nombreSede || '').toLowerCase();
+      const sedeA = a.nombreSede.toLowerCase();
+      const sedeB = b.nombreSede.toLowerCase();
       if (sedeA !== sedeB) {
         return sedeA.localeCompare(sedeB);
       }
