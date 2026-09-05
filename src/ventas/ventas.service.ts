@@ -379,6 +379,7 @@ export class VentasService {
     fechaFin: string,
     tipo: TipoProducto,
   ) {
+    // Restamos UTC en las fechas para que sea preciso
     const start = new Date(`${fechaInicio}T00:00:00.000-05:00`);
     const end = new Date(`${fechaFin}T23:59:59.999-05:00`);
 
@@ -419,18 +420,17 @@ export class VentasService {
 
     if (tipo === TipoProducto.ACCESORIO) {
       qb.innerJoin('vp.producto', 'p')
-        .leftJoin('p.accesorio', 'a')
+        .innerJoin('p.accesorio', 'a')
         .select([
           'MIN(vp.id) AS id',
           'vp.productoId AS "productoId"',
-          "COALESCE(a.codigoAccesorio, '') AS codigo",
-          "COALESCE(a.nombre, p.nombre, '') AS nombre",
+          'a.codigoAccesorio AS codigo',
+          'a.nombre AS nombre',
           'SUM(vp.cantidad) AS cantidad',
         ])
         .groupBy('vp.productoId')
         .addGroupBy('a.codigoAccesorio')
         .addGroupBy('a.nombre')
-        .addGroupBy('p.nombre')
         .orderBy('MAX(v.createdAt)', 'DESC');
 
       const raw = await qb.getRawMany();
@@ -451,17 +451,23 @@ export class VentasService {
           's.lenteId AS "lenteId"',
           'l.marca AS marca',
           'l.material AS material',
+          's.matrix AS matrix',
+          's.orden AS orden',
           'SUM(vp.cantidad) AS cantidad',
-          'COALESCE(vp.esf, s.esf) AS sph',
-          'COALESCE(vp.cyl, s.cyl) AS cyl',
+          's.esf AS sph',
+          's.cyl AS cyl',
         ])
         .groupBy('vp.stockId')
         .addGroupBy('s.lenteId')
         .addGroupBy('l.marca')
         .addGroupBy('l.material')
-        .addGroupBy('COALESCE(vp.esf, s.esf)')
-        .addGroupBy('COALESCE(vp.cyl, s.cyl)')
-        .orderBy('MAX(v.createdAt)', 'DESC');
+        .addGroupBy('s.matrix')
+        .addGroupBy('s.orden')
+        .addGroupBy('s.esf')
+        .addGroupBy('s.cyl')
+        .orderBy('l.marca', 'ASC')
+        .addOrderBy('s.matrix', 'ASC')
+        .addOrderBy('s.orden', 'ASC');
 
       const raw = await qb.getRawMany();
       return raw.map((r) => ({
@@ -469,9 +475,10 @@ export class VentasService {
         id: Number(r.id),
         stockId: Number(r.stockId),
         lenteId: Number(r.lenteId),
+        orden: Number(r.orden),
         cantidad: Number(r.cantidad),
-        sph: r.sph !== null ? Number(r.sph) : null,
-        cyl: r.cyl !== null ? Number(r.cyl) : null,
+        sph: r.sph !== null ? Number(r.sph) : 0,
+        cyl: r.cyl !== null ? Number(r.cyl) : 0,
       }));
     }
 

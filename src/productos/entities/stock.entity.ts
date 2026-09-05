@@ -21,6 +21,7 @@ import { MatrixTipo } from '../types';
 @Index(['sedeId'])
 @Index('idx_stock_sede_lente_matrix', ['sedeId', 'lenteId', 'matrix'])
 @Index('idx_stock_graduacion', ['lenteId', 'matrix', 'esf', 'cyl'])
+@Index('idx_stock_orden', ['orden'])
 export class Stock {
   @PrimaryGeneratedColumn()
   id: number;
@@ -43,8 +44,8 @@ export class Stock {
   @Column('int')
   col: number;
 
-  @Column('int', { nullable: true })
-  orden: number | null;
+  @Column('int') // Para las queries en orden de combinaciones
+  orden: number;
 
   @Column('decimal', { precision: 5, scale: 2, nullable: true })
   esf: number | null;

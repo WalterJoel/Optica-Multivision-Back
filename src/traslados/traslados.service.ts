@@ -390,7 +390,9 @@ export class TrasladosService {
       .leftJoinAndSelect('producto.accesorio', 'accesorio')
       .leftJoinAndSelect('detalles.stock', 'stock')
       .leftJoinAndSelect('stock.lente', 'lente')
-      .orderBy('t.createdAt', 'DESC');
+      .orderBy('t.createdAt', 'DESC')
+      .addOrderBy('stock.matrix', 'ASC')
+      .addOrderBy('stock.orden', 'ASC');
 
     if (query.sedeProveedoraId) {
       qb.andWhere('t.sedeProveedoraId = :sedeProveedoraId', {
