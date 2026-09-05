@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, In } from 'typeorm';
 import { Traslado } from './entities/traslado.entity';
 import { TrasladoDetalle } from './entities/trasladoDetalle.entity';
 import { CrearTrasladoDto } from './dto/crear-traslado.dto';
@@ -13,7 +13,7 @@ import { RecibirMercaderiaDto } from './dto/recibir-mercaderia.dto';
 import { EstadoTraslado, TipoProducto } from 'src/common/constants';
 import { Producto, Stock } from 'src/productos/entities';
 import { KardexService } from 'src/kardex/kardex.service';
-import { OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
+import { Kardex, OrigenEventoKardex } from 'src/kardex/entities/kardex.entity';
 
 @Injectable()
 export class TrasladosService {
@@ -79,10 +79,62 @@ export class TrasladosService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
-      // 1. Actualizar estado a ENVIADO
-      traslado.estado = EstadoTraslado.ENVIADO;
+      // 1. Recopilar IDs de referencia de los detalles del traslado
+      const stockIdsRef = traslado.detalles.map((d) => d.stockId).filter(Boolean) as number[];
+      const productoIdsRef = traslado.detalles.map((d) => d.productoId).filter(Boolean) as number[];
 
-      // 2. Validar stock disponible, descontar inventario en Sede Proveedora y actualizar cantidadEnviada
+      // 2. Cargar stocks(lentes) y productos de la sede solicitante (origen del traslado)
+      const stocksOrigen =
+        stockIdsRef.length > 0
+          ? await manager.getRepository(Stock).find({
+            where: { id: In(stockIdsRef) },
+            relations: ['lente'],
+          })
+          : [];
+
+      const productosOrigen =
+        productoIdsRef.length > 0
+          ? await manager.getRepository(Producto).find({
+            where: { id: In(productoIdsRef) },
+            relations: ['montura', 'accesorio'],
+          })
+          : [];
+
+      // 3. Cargar los equivalentes en la sede proveedora (los registros que se van a descontar)
+      const stocksProveedora =
+        stocksOrigen.length > 0
+          ? await manager.getRepository(Stock).find({
+            where: stocksOrigen.map((s) => ({
+              sedeId: traslado.sedeProveedoraId,
+              lenteId: s.lenteId,
+              matrix: s.matrix,
+              row: s.row,
+              col: s.col,
+            })),
+            lock: { mode: 'pessimistic_write' },
+          })
+          : [];
+
+      const whereProductosProveedora = productosOrigen.map((p) => {
+        if (p.monturaId) return { sedeId: traslado.sedeProveedoraId, monturaId: p.monturaId };
+        if (p.accesorioId) return { sedeId: traslado.sedeProveedoraId, accesorioId: p.accesorioId };
+        return { sedeId: traslado.sedeProveedoraId, nombre: p.nombre, tipo: p.tipo };
+      });
+
+      const productosProveedora =
+        whereProductosProveedora.length > 0
+          ? await manager.getRepository(Producto).find({
+            where: whereProductosProveedora,
+            lock: { mode: 'pessimistic_write' },
+          })
+          : [];
+
+      // 4. Validar disponibilidad y preparar cambios en memoria (sin tocar la BD todavía)
+      const faltantes: Array<{ detalleId: number; producto: string; suficiente: boolean }> = [];
+      const stocksADescontar: Stock[] = [];
+      const productosADescontar: Producto[] = [];
+      const movimientosKardex: any[] = [];
+
       for (const item of dto.detalles) {
         const detalle = traslado.detalles.find((d) => d.id === item.detalleId);
         if (!detalle) {
@@ -91,92 +143,97 @@ export class TrasladosService {
           });
         }
 
-        // Validar stock, descontar e inventariar Kardex en 1 sola consulta
-        if (item.cantidadEnviada > 0) {
-          await this.descontarStockProveedora(
-            manager,
-            traslado.sedeProveedoraId,
-            detalle,
-            item.cantidadEnviada,
-          );
-        }
-
+        if (item.cantidadEnviada <= 0) continue;
         detalle.cantidadEnviada = item.cantidadEnviada;
+
+        if (detalle.stockId) {
+          // Lente: buscar el stock equivalente en la proveedora por (lenteId, matrix, row, col)
+          const stockOrigen = stocksOrigen.find((s) => s.id === detalle.stockId);
+          const stockProveedora = stocksProveedora.find(
+            (sp) =>
+              sp.lenteId === stockOrigen?.lenteId &&
+              sp.matrix === stockOrigen?.matrix &&
+              sp.row === stockOrigen?.row &&
+              sp.col === stockOrigen?.col,
+          );
+
+          if (!stockProveedora || stockProveedora.cantidad < item.cantidadEnviada) {
+            // stockOrigen tiene lente cargado via relations, stockProveedora no
+            const nombre = stockOrigen
+              ? `${stockOrigen.lente?.marca} ${stockOrigen.lente?.material} (ESF: ${stockOrigen.esf ?? 0}, CYL: ${stockOrigen.cyl ?? 0})`
+              : 'Lente no encontrado';
+            faltantes.push({ detalleId: detalle.id, producto: nombre, suficiente: false });
+          } else {
+            const cantidadAnterior = stockProveedora.cantidad;
+            stockProveedora.cantidad -= item.cantidadEnviada;
+            stocksADescontar.push(stockProveedora);
+
+            movimientosKardex.push({
+              sedeId: traslado.sedeProveedoraId,
+              tipoProducto: TipoProducto.LENTE,
+              stockId: stockProveedora.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
+              cantidadAnterior,
+              cantidadMovimiento: -item.cantidadEnviada,
+              cantidadFinal: cantidadAnterior - item.cantidadEnviada,
+            });
+          }
+        } else if (detalle.productoId) {
+          // Montura / Accesorio: buscar el producto equivalente en la proveedora por monturaId o accesorioId
+          const productoOrigen = productosOrigen.find((p) => p.id === detalle.productoId);
+          const productoProveedora = productosProveedora.find((p) => {
+            if (productoOrigen?.monturaId) return p.monturaId === productoOrigen.monturaId;
+            if (productoOrigen?.accesorioId) return p.accesorioId === productoOrigen.accesorioId;
+            return p.nombre === productoOrigen?.nombre && p.tipo === productoOrigen?.tipo;
+          });
+
+          if (!productoProveedora || productoProveedora.cantidad < item.cantidadEnviada) {
+            // El nombre del producto es igual en todas las sedes (mismo monturaId/accesorioId)
+            const nombre = productoOrigen?.nombre ?? 'Producto no encontrado';
+            faltantes.push({ detalleId: detalle.id, producto: nombre, suficiente: false });
+          } else {
+            const cantidadAnterior = productoProveedora.cantidad;
+            productoProveedora.cantidad -= item.cantidadEnviada;
+            productosADescontar.push(productoProveedora);
+
+            movimientosKardex.push({
+              sedeId: traslado.sedeProveedoraId,
+              tipoProducto: detalle.tipoProducto,
+              productoId: productoProveedora.id,
+              origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
+              cantidadAnterior,
+              cantidadMovimiento: -item.cantidadEnviada,
+              cantidadFinal: cantidadAnterior - item.cantidadEnviada,
+            });
+          }
+        }
       }
 
-      // Guardar detalles en batch
-      await manager.getRepository(TrasladoDetalle).save(traslado.detalles);
+      if (faltantes.length > 0) {
+        const listaTexto = faltantes.map((f) => `• ${f.producto}`).join('\n');
+        throw new BadRequestException({
+          message: `Stock insuficiente en sede proveedora:\n\n${listaTexto}`,
+          detalles: faltantes,
+        });
+      }
 
-      // 3. Guardar cambios del traslado
+      // 5. Persistir: descontar cantidades, registrar en kardex y marcar traslado como ENVIADO
+      traslado.estado = EstadoTraslado.ENVIADO;
+
+      if (stocksADescontar.length > 0) {
+        await manager.getRepository(Stock).save(stocksADescontar);
+      }
+      if (productosADescontar.length > 0) {
+        await manager.getRepository(Producto).save(productosADescontar);
+      }
+      if (movimientosKardex.length > 0) {
+        const kardexEntities = manager.getRepository(Kardex).create(movimientosKardex);
+        await manager.getRepository(Kardex).save(kardexEntities);
+      }
+
+      await manager.getRepository(TrasladoDetalle).save(traslado.detalles);
       return await manager.getRepository(Traslado).save(traslado);
     });
-  }
-
-  /**
-   * Valida stock disponible en Sede Proveedora, lo descuenta y registra el movimiento en Kardex en 1 sola paso.
-   */
-  private async descontarStockProveedora(
-    manager: EntityManager,
-    sedeProveedoraId: number,
-    detalle: TrasladoDetalle,
-    cantidadAEnviar: number,
-  ): Promise<void> {
-    if (
-      detalle.tipoProducto === TipoProducto.MONTURA ||
-      detalle.tipoProducto === TipoProducto.ACCESORIO
-    ) {
-      const productoProveedora = await this.obtenerProductoEquivalente(
-        manager,
-        detalle.productoId!,
-        sedeProveedoraId,
-      );
-
-      if (productoProveedora.cantidad < cantidadAEnviar) {
-        throw new BadRequestException({
-          message: `Stock insuficiente en la sede proveedora para "${productoProveedora.nombre}". Disponible: ${productoProveedora.cantidad}, Requerido a enviar: ${cantidadAEnviar}`,
-        });
-      }
-
-      const cantidadAnterior = productoProveedora.cantidad;
-      productoProveedora.cantidad -= cantidadAEnviar;
-      await manager.getRepository(Producto).save(productoProveedora);
-
-      // Kardex: Registro de movimiento
-      await this.kardexService.registrarMovimiento(manager, {
-        sedeId: sedeProveedoraId,
-        tipoProducto: detalle.tipoProducto,
-        productoId: productoProveedora.id,
-        origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
-        cantidadAnterior,
-        cantidadMovimiento: -cantidadAEnviar,
-      });
-    } else {
-      const stockProveedora = await this.obtenerStockEquivalente(
-        manager,
-        detalle.stockId!,
-        sedeProveedoraId,
-      );
-
-      if (stockProveedora.cantidad < cantidadAEnviar) {
-        throw new BadRequestException({
-          message: `Stock insuficiente para ${stockProveedora.lente.marca} ${stockProveedora.lente.material} (ESF: ${stockProveedora.esf}, CYL: ${stockProveedora.cyl}). Disponible: ${stockProveedora.cantidad}, Requerido: ${cantidadAEnviar}`,
-        });
-      }
-
-      const cantidadAnterior = stockProveedora.cantidad;
-      stockProveedora.cantidad -= cantidadAEnviar;
-      await manager.getRepository(Stock).save(stockProveedora);
-
-      // Kardex: Registro de movimiento
-      await this.kardexService.registrarMovimiento(manager, {
-        sedeId: sedeProveedoraId,
-        tipoProducto: TipoProducto.LENTE,
-        stockId: stockProveedora.id,
-        origenEvento: OrigenEventoKardex.TRASLADO_ENVIADO,
-        cantidadAnterior,
-        cantidadMovimiento: -cantidadAEnviar,
-      });
-    }
   }
 
   /**
