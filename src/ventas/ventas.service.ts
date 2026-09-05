@@ -843,6 +843,36 @@ export class VentasService {
       throw new NotFoundException({ message: `La venta #${id} no existe.` });
     }
 
+    if (!venta.activo) {
+      throw new BadRequestException({ message: `No se puede editar una venta que se encuentra anulada.` });
+    }
+
+    if (dto.nroCuotas !== undefined) {
+      if (venta.estadoPago === 'PAGADO' || Number(venta.deuda) <= 0) {
+        throw new BadRequestException({
+          message: `No se puede modificar el número de cuotas de una venta que ya está completamente pagada.`,
+        });
+      }
+
+      // Consultar directamente de la tabla de movimientos de caja los pagos/abonos realizados
+      const pagosRealizados = await this.ventaRepository.manager
+        .getRepository(MovimientoCaja)
+        .count({
+          where: {
+            ventaId: id,
+            tipo: TipoMovimiento.INGRESO,
+          },
+        });
+
+      if (dto.nroCuotas < pagosRealizados && Number(venta.deuda) > 0) {
+        throw new BadRequestException({
+          message: `La venta ya registra ${pagosRealizados} pago(s)/abono(s) en caja. El número de cuotas no puede ser menor a los pagos ya registrados (${pagosRealizados}).`,
+        });
+      }
+
+      venta.nroCuotas = dto.nroCuotas;
+    }
+
     if (dto.observaciones !== undefined) venta.observaciones = dto.observaciones;
     if (dto.montaje !== undefined) venta.montaje = dto.montaje;
     if (dto.diasCompromisoPago !== undefined) venta.diasCompromisoPago = dto.diasCompromisoPago;

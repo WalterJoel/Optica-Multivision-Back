@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Not, Repository } from 'typeorm';
+import { Brackets, ILike, Not, Repository } from 'typeorm';
 import { Cliente } from './entities/cliente.entity';
 import { CrearClienteDto } from './dto/crear-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
@@ -156,41 +156,44 @@ export class ClientesService {
   }
 
   async buscarCliente(busqueda?: string, limite = 50, desplazamiento = 0) {
-    let where: any = { activo: true };
+    const query = this.clienteRepository
+      .createQueryBuilder('c')
+      .select([
+        'c.id',
+        'c.tipoCliente',
+        'c.tipoDoc',
+        'c.numeroDoc',
+        'c.nombres',
+        'c.apellidos',
+        'c.razonSocial',
+      ])
+      .where('c.activo = :activo', { activo: true });
 
     if (busqueda?.trim()) {
-      const palabras = busqueda.trim().split(/\s+/);
+      const palabras = busqueda.trim().split(/\s+/).filter(Boolean);
 
-      where = palabras.flatMap((palabra) => [
-        { numeroDoc: ILike(`%${palabra}%`), activo: true },
-        { nombres: ILike(`%${palabra}%`), activo: true },
-        { apellidos: ILike(`%${palabra}%`), activo: true },
-        { razonSocial: ILike(`%${palabra}%`), activo: true },
-      ]);
+      palabras.forEach((palabra, index) => {
+        const paramName = `palabra_${index}`;
+        query.andWhere(
+          new Brackets((qb) => {
+            qb.where(`c.numeroDoc ILIKE :${paramName}`, { [paramName]: `%${palabra}%` })
+              .orWhere(`c.nombres ILIKE :${paramName}`, { [paramName]: `%${palabra}%` })
+              .orWhere(`c.apellidos ILIKE :${paramName}`, { [paramName]: `%${palabra}%` })
+              .orWhere(`c.razonSocial ILIKE :${paramName}`, { [paramName]: `%${palabra}%` })
+              .orWhere(
+                `CONCAT(COALESCE(c.nombres, ''), ' ', COALESCE(c.apellidos, '')) ILIKE :${paramName}`,
+                { [paramName]: `%${palabra}%` },
+              );
+          }),
+        );
+      });
     }
 
-    const [clientes, total] = await this.clienteRepository.findAndCount({
-      where,
-      take: limite,
-      skip: desplazamiento,
-      select: [
-        'id',
-        'tipoCliente',
-        'tipoDoc',
-        'numeroDoc',
-        'nombres',
-        'apellidos',
-        'razonSocial',
-        'telefono',
-        'correo',
-        'direccion',
-        'fechaNacimiento',
-        'antecedentes',
-        'activo',
-        'fechaCreacion',
-      ],
-      order: { id: 'DESC' },
-    });
+    const [clientes, total] = await query
+      .orderBy('c.id', 'DESC')
+      .take(limite)
+      .skip(desplazamiento)
+      .getManyAndCount();
 
     return { total, clientes };
   }

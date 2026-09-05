@@ -28,4 +28,8 @@ export class EditarVentaDto {
   @IsOptional()
   @IsString()
   nroComprobante?: string;
+
+  @IsOptional()
+  @IsInt()
+  nroCuotas?: number;
 }
