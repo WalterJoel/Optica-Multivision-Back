@@ -1966,7 +1966,6 @@ export class ProductosService {
         .orderBy('l.marca', 'ASC')
         .addOrderBy('s.esf', 'ASC')
         .addOrderBy('s.cyl', 'ASC')
-        .take(50)
         .getMany();
 
       console.log('STOCKS DIRECTOS DE BD:', stocks.map(s => ({ id: s.id, esf: s.esf, cyl: s.cyl, marca: s.lente?.marca })));

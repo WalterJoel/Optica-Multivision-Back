@@ -143,8 +143,8 @@ export class TrasladosService {
           });
         }
 
-        if (item.cantidadEnviada <= 0) continue;
         detalle.cantidadEnviada = item.cantidadEnviada;
+        if (item.cantidadEnviada <= 0) continue;
 
         if (detalle.stockId) {
           // Lente: buscar el stock equivalente en la proveedora por (lenteId, matrix, row, col)
@@ -178,7 +178,9 @@ export class TrasladosService {
               cantidadFinal: cantidadAnterior - item.cantidadEnviada,
             });
           }
-        } else if (detalle.productoId) {
+        }
+        // Para monturas y accesorios
+        else if (detalle.productoId) {
           // Montura / Accesorio: buscar el producto equivalente en la proveedora por monturaId o accesorioId
           const productoOrigen = productosOrigen.find((p) => p.id === detalle.productoId);
           const productoProveedora = productosProveedora.find((p) => {
