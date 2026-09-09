@@ -450,6 +450,7 @@ export class TrasladosService {
       .leftJoinAndSelect('detalles.stock', 'stock')
       .leftJoinAndSelect('stock.lente', 'lente')
       .orderBy('t.createdAt', 'DESC')
+      .addOrderBy('lente.marca', 'ASC')
       .addOrderBy('stock.matrix', 'ASC')
       .addOrderBy('stock.orden', 'ASC');
 
