@@ -89,6 +89,7 @@ export class ProductosController {
   // ========================================================================================================
 
   @Post('/lentes/crearLente')
+  @AllowedRoles(Roles.ADMIN)
   crearLente(@Body() crearLenteDto: CrearLenteDto) {
     return this.productosService.crearLente(crearLenteDto);
   }
@@ -99,6 +100,7 @@ export class ProductosController {
   }
 
   @Patch('/lentes/actualizar/:id')
+  @AllowedRoles(Roles.ADMIN)
   actualizarLente(
     @Param('id') id: string,
     @Body() updateLenteDto: UpdateLenteDto,
@@ -107,6 +109,7 @@ export class ProductosController {
   }
 
   @Delete('/lentes/eliminar/:id')
+  @AllowedRoles(Roles.ADMIN)
   eliminarLente(@Param('id') id: string) {
     return this.productosService.eliminarLente(+id);
   }
@@ -149,6 +152,7 @@ export class ProductosController {
   // ========================================================================================================
 
   @Post('/monturas/crearMontura')
+  @AllowedRoles(Roles.ADMIN)
   crearMontura(@Body() DatosParaCrearMonturaDto: DatosParaCrearMonturaDto) {
     return this.productosService.crearMontura(DatosParaCrearMonturaDto);
   }
@@ -188,6 +192,7 @@ export class ProductosController {
   }
 
   @Patch('monturas/actualizar/:id')
+  @AllowedRoles(Roles.ADMIN)
   actualizarMontura(
     @Param('id') id: string,
     @Body() updateMonturaDto: UpdateMonturaDto,
@@ -196,11 +201,13 @@ export class ProductosController {
   }
 
   @Delete('monturas/eliminar/:id')
+  @AllowedRoles(Roles.ADMIN)
   eliminarMontura(@Param('id') id: string) {
     return this.productosService.eliminarMontura(+id);
   }
 
   @Post('monturas/insertarMonturasExcel')
+  @AllowedRoles(Roles.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -214,6 +221,7 @@ export class ProductosController {
   }
 
   @Post('monturas/editarMonturasExcel')
+  @AllowedRoles(Roles.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -238,6 +246,7 @@ export class ProductosController {
   // ========================================================================================================
 
   @Post('/accesorios/crearAccesorio')
+  @AllowedRoles(Roles.ADMIN)
   crearAccesorio(@Body() datosParaCrearAccesorioDto: DatosParaCrearAccesorioDto) {
     return this.productosService.crearAccesorio(datosParaCrearAccesorioDto);
   }
@@ -282,6 +291,7 @@ export class ProductosController {
   }
 
   @Patch('/accesorios/actualizar/:id')
+  @AllowedRoles(Roles.ADMIN)
   actualizarAccesorio(
     @Param('id') id: string,
     @Body() updateAccesorioDto: UpdateAccesorioDto,
@@ -290,11 +300,13 @@ export class ProductosController {
   }
 
   @Delete('/accesorios/eliminar/:id')
+  @AllowedRoles(Roles.ADMIN)
   eliminarAccesorio(@Param('id') id: string) {
     return this.productosService.eliminarAccesorio(+id);
   }
 
   @Post('accesorios/insertarAccesoriosExcel')
+  @AllowedRoles(Roles.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -308,6 +320,7 @@ export class ProductosController {
   }
 
   @Post('accesorios/editarAccesoriosExcel')
+  @AllowedRoles(Roles.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),

@@ -13,12 +13,15 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import type { Request } from 'express';
+import { AllowedRoles } from '../auth/roles.decorator';
+import { Roles } from '../common/constants';
 
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Post()
+  @AllowedRoles(Roles.ADMIN)
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
@@ -39,10 +42,12 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @AllowedRoles(Roles.ADMIN)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
   @Patch(':id/status')
+  @AllowedRoles(Roles.ADMIN)
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { activo: boolean },
@@ -50,6 +55,7 @@ export class UsersController {
     return this.usersService.updateStatus(id, body.activo);
   }
   @Delete(':id')
+  @AllowedRoles(Roles.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
   }

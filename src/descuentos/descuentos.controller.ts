@@ -13,12 +13,15 @@ import { DescuentosService } from './descuentos.service';
 import { CrearDescuentoDto } from './dto/create-descuento.dto';
 import { UpdateDescuentoDto } from './dto/update-descuento.dto';
 import { ObtenerDescuentosDto } from './dto/obtener-descuentos.dto';
+import { AllowedRoles } from '../auth/roles.decorator';
+import { Roles } from '../common/constants';
 
 @Controller('descuentos')
 export class DescuentosController {
   constructor(private readonly descuentosService: DescuentosService) { }
 
   @Post('crearDescuento')
+  @AllowedRoles(Roles.ADMIN)
   create(@Body() createDescuentoDto: CrearDescuentoDto) {
     return this.descuentosService.create(createDescuentoDto);
   }
@@ -42,6 +45,7 @@ export class DescuentosController {
   }
 
   @Patch(':id')
+  @AllowedRoles(Roles.ADMIN)
   update(
     @Param('id') id: string,
     @Body() updateDescuentoDto: UpdateDescuentoDto,
@@ -50,6 +54,7 @@ export class DescuentosController {
   }
 
   @Delete(':id')
+  @AllowedRoles(Roles.ADMIN)
   remove(@Param('id') id: string) {
     return this.descuentosService.remove(+id);
   }
