@@ -112,6 +112,7 @@ export class KitsService {
   }
 
   // Actualizar un kit
+  // Se modifico el metodo para que solo se pueda editar el nombre del KIT
   async update(id: number, updateKitDto: ActualizarKitDto): Promise<Kit> {
     const kit = await this.kitRepository.findOne({ where: { id } });
     if (!kit) {
@@ -122,7 +123,8 @@ export class KitsService {
     Object.assign(kit, updateKitDto);
     await this.kitRepository.save(kit);
 
-    // Actualizar accesorios si vienen
+    // Actualizar accesorios deshabilitado por seguridad (evita descuadres con ventas/Kardex pasados)
+    /*
     if (updateKitDto.accesorios) {
       // Borrar relaciones antiguas
       await this.kitAccesorioRepository.delete({ kit: { id } });
@@ -146,6 +148,7 @@ export class KitsService {
         await this.kitAccesorioRepository.save(kitAccesorio);
       }
     }
+    */
 
     return this.findOne(id);
   }

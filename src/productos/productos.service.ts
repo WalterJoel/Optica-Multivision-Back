@@ -282,7 +282,6 @@ export class ProductosService {
     try {
       // ✅ 2️ LENTE
       const lente = qr.manager.create(Lente, {
-        kitId: crearLenteDto.kitId,
         marca: crearLenteDto.marca,
         material: crearLenteDto.material,
         clasificacion: crearLenteDto.clasificacion,
@@ -321,6 +320,7 @@ export class ProductosService {
           precioRepo.create({
             lenteId: lente.id,
             sedeId: sede.id,
+            kitId: isTargetSede ? crearLenteDto.kitId : null,
             precio_serie1: isTargetSede ? crearLenteDto.precio_serie1 : 0,
             precio_serie2: isTargetSede ? crearLenteDto.precio_serie2 : 0,
             precio_serie3: isTargetSede ? crearLenteDto.precio_serie3 : 0,
@@ -342,7 +342,7 @@ export class ProductosService {
   async getLenses(sedeId?: number) {
     const sedeIdFinal = sedeId;
 
-    // Query 1: todos los lentes activos con precios de esa sede
+    // Query 1: todos los lentes activos con precios de esa sede y nombre de kit
     const lentesRaw = await this.lenteRepository.createQueryBuilder('lente')
       .leftJoin(
         LentePrecio,
@@ -350,9 +350,11 @@ export class ProductosService {
         'lp.lenteId = lente.id AND lp.sedeId = :sedeId',
         { sedeId: sedeIdFinal },
       )
+      .leftJoin('lp.kit', 'kit')
       .select([
         'lente.id AS id',
-        'lente.kitId AS "kitId"',
+        'lp.kitId AS "kitId"',
+        'kit.nombre AS "nombreKit"',
         'lente.marca AS marca',
         'lente.material AS material',
         'lente.clasificacion AS clasificacion',
@@ -384,6 +386,7 @@ export class ProductosService {
       .map(item => ({
         id: item.id,
         kitId: item.kitId,
+        nombreKit: item.nombreKit,
         marca: item.marca,
         material: item.material,
         clasificacion: item.clasificacion,
@@ -398,28 +401,6 @@ export class ProductosService {
       .sort((a, b) => b.totalVendido - a.totalVendido);
   }
 
-  async obtenerLentePorId(id: number, sedeId: number) {
-    const lente = await this.lenteRepository.findOne({
-      where: { id },
-      relations: ['kit'],
-    });
-
-    if (!lente) {
-      throw new NotFoundException({ message: 'Lente no encontrado' });
-    }
-
-    const stockPrice = await this.dataSource.getRepository(LentePrecio).findOne({
-      where: { lenteId: id, sedeId },
-      select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
-    });
-
-    return {
-      ...lente,
-      precio_serie1: stockPrice ? Number(stockPrice.precio_serie1) : 0,
-      precio_serie2: stockPrice ? Number(stockPrice.precio_serie2) : 0,
-      precio_serie3: stockPrice ? Number(stockPrice.precio_serie3) : 0,
-    };
-  }
 
   async actualizarLente(id: number, dto: UpdateLenteDto) {
     try {
@@ -431,39 +412,42 @@ export class ProductosService {
         throw new NotFoundException({ message: 'Lente no encontrado' });
       }
 
-      const { sedeId, precio_serie1, precio_serie2, precio_serie3, ...restDto } = dto;
+      const { sedeId, precio_serie1, precio_serie2, precio_serie3, kitId, ...restDto } = dto;
 
+      // Actualizo tabla Lente_Precio
+      const lpRepo = this.dataSource.getRepository(LentePrecio);
+      let lp = await lpRepo.findOne({
+        where: { lenteId: id, sedeId },
+      });
 
-      if (precio_serie1 !== undefined || precio_serie2 !== undefined || precio_serie3 !== undefined) {
-        const updateData: any = {};
-        if (precio_serie1 !== undefined) updateData.precio_serie1 = precio_serie1;
-        if (precio_serie2 !== undefined) updateData.precio_serie2 = precio_serie2;
-        if (precio_serie3 !== undefined) updateData.precio_serie3 = precio_serie3;
+      if (!lp) {
+        throw new NotFoundException({ message: 'Registro de precio/kit no encontrado para esta sede' });
+      }
 
-        const lpRepo = this.dataSource.getRepository(LentePrecio);
-        let lp = await lpRepo.findOne({ where: { lenteId: id, sedeId } });
-        if (!lp) {
-          lp = lpRepo.create({ lenteId: id, sedeId });
-        }
+      console.log('kit id destructurado -----> ', kitId)
+
+      const updateData: any = {};
+      if (precio_serie1 !== undefined) updateData.precio_serie1 = precio_serie1;
+      if (precio_serie2 !== undefined) updateData.precio_serie2 = precio_serie2;
+      if (precio_serie3 !== undefined) updateData.precio_serie3 = precio_serie3;
+      if (kitId !== undefined) updateData.kitId = kitId;
+
+      if (Object.keys(updateData).length > 0) {
         lpRepo.merge(lp, updateData);
         await lpRepo.save(lp);
       }
 
+      // Actualizamos tabla lente
       const updatedLente = this.lenteRepository.merge(lente, restDto);
       await this.lenteRepository.save(updatedLente);
-
-      const stockPrice = await this.dataSource.getRepository(LentePrecio).findOne({
-        where: { lenteId: id, sedeId },
-        select: ['precio_serie1', 'precio_serie2', 'precio_serie3'],
-      });
 
       return {
         message: 'Lente actualizado correctamente',
         data: {
           ...updatedLente,
-          precio_serie1: stockPrice ? Number(stockPrice.precio_serie1) : 0,
-          precio_serie2: stockPrice ? Number(stockPrice.precio_serie2) : 0,
-          precio_serie3: stockPrice ? Number(stockPrice.precio_serie3) : 0,
+          precio_serie1: lp ? Number(lp.precio_serie1) : 0,
+          precio_serie2: lp ? Number(lp.precio_serie2) : 0,
+          precio_serie3: lp ? Number(lp.precio_serie3) : 0,
         },
       };
     } catch (error: any) {

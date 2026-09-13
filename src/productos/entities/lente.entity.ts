@@ -2,23 +2,15 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToOne,
   CreateDateColumn,
-  JoinColumn,
-  ManyToOne,
+  OneToMany,
 } from 'typeorm';
-import { Producto } from './producto.entity';
-import { Kit } from 'src/kits/entities/kit.entity';
-
-
+import { LentePrecio } from './lente-precio.entity';
 
 @Entity('lentes')
 export class Lente {
   @PrimaryGeneratedColumn()
   id: number;
-
-  @Column({ nullable: true })
-  kitId?: number | null;
 
   @Column({ length: 100 })
   marca: string;
@@ -33,11 +25,8 @@ export class Lente {
   })
   clasificacion: string;
 
-
   @Column({ length: 255, nullable: true })
   imagenUrl: string;
-
-
 
   @Column({
     default: true,
@@ -47,7 +36,6 @@ export class Lente {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => Kit, { onDelete: 'SET NULL', nullable: true }) //Un mismo kit puede estar en muchos lentes
-  @JoinColumn({ name: 'kitId' })
-  kit?: Kit | null;
+  @OneToMany(() => LentePrecio, (lp) => lp.lente)
+  precios: LentePrecio[];
 }

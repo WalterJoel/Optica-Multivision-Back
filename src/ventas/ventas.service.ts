@@ -1,11 +1,11 @@
 import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager, Between } from 'typeorm';
+import { Repository, EntityManager, Between, In } from 'typeorm';
 import { Venta } from './entities/venta.entity';
 import { VentaProducto } from './entities/ventaProducto.entity';
 import { VentaKit } from './entities/ventaKit.entity';
 import { SeguimientoPedido } from './entities/seguimientoPedido.entity';
-import { Producto, Stock } from '../productos/entities';
+import { Producto, Stock, LentePrecio } from '../productos/entities';
 import { Kit } from '../kits/entities/kit.entity';
 import { CrearVentaDto, VentaProductoDto } from './dto/crear-venta.dto';
 import { EditarVentaDto } from './dto/editar-venta.dto';
@@ -33,9 +33,7 @@ export const RELACIONES_VENTA_COMPLETA = {
       accesorio: true,
     },
     stock: {
-      lente: {
-        kit: true,
-      },
+      lente: true,
     },
   },
   ventaKits: {
@@ -293,8 +291,10 @@ export class VentasService {
     });
 
     const productosMap = new Map<string, any>();
+    const kitsRegaloMap = new Map<number, any>();
 
     for (const venta of ventas) {
+      // 1. Agrupar productos directamente vendidos (Lentes, Monturas, Accesorios)
       for (const prod of venta.productos) {
         const esLente = prod.tipoProducto === TipoProducto.LENTE;
 
@@ -304,32 +304,6 @@ export class VentasService {
           : `${prod.tipoProducto}_${prod.productoId}`;
 
         if (!productosMap.has(clave)) {
-          let infoKit: any = null;
-
-          if (esLente) {
-            const kitLenteId = prod.stock?.lente?.kit?.id;
-
-            // 1. Buscar en la venta el registro del kit que corresponde al lente vendido
-            const ventaKit = venta.ventaKits.find((vk) => vk.kitId === kitLenteId);
-            const kit = ventaKit?.kit;
-
-            // Estructurar la información del Kit si la venta lo otorgó
-            if (kit) {
-              infoKit = {
-                id: kit.id,
-                nombre: kit.nombre,
-                descripcion: kit.descripcion,
-                precio: Number(kit.precio),
-                accesorios: kit.accesorios.map((ka) => ({
-                  id: ka.accesorio.id,
-                  nombre: ka.accesorio.nombre,
-                  codigo: ka.accesorio.codigoAccesorio,
-                  cantidad: ka.cantidad,
-                })),
-              };
-            }
-          }
-
           productosMap.set(clave, {
             ...prod,
             ventaId: venta.id,
@@ -340,7 +314,6 @@ export class VentasService {
             subtotal: Number(prod.subtotal),
             descuento: Number(prod.descuento ?? 0),
             precioUnitario: Number(prod.precioUnitario),
-            infoKit,
           });
         } else {
           const item = productosMap.get(clave);
@@ -349,9 +322,57 @@ export class VentasService {
           item.descuento = Number((item.descuento + Number(prod.descuento ?? 0)).toFixed(2));
         }
       }
+
+      // 2. Agrupar accesorios entregados en kits de regalo de esta venta
+      if (venta.ventaKits && venta.ventaKits.length > 0) {
+        for (const vk of venta.ventaKits) {
+          if (vk.kit?.accesorios) {
+            for (const ka of vk.kit.accesorios) {
+              if (ka.accesorio) {
+                const acc = ka.accesorio;
+                const cantRegalada = Number(vk.cantidad) * Number(ka.cantidad);
+
+                if (!kitsRegaloMap.has(acc.id)) {
+                  kitsRegaloMap.set(acc.id, {
+                    id: 0,
+                    ventaId: venta.id,
+                    productoId: acc.id,
+                    stockId: null,
+                    tipoProducto: TipoProducto.ACCESORIO,
+                    precioUnitario: 0,
+                    cantidad: cantRegalada,
+                    subtotal: 0,
+                    descuento: 0,
+                    createdAt: venta.createdAt,
+                    fechaVenta: venta.createdAt,
+                    lenteId: null,
+                    nombreSede: venta.sede?.nombre,
+                    producto: {
+                      id: acc.id,
+                      nombre: `${acc.nombre} (Regalo Kit)`,
+                      accesorio: {
+                        id: acc.id,
+                        codigoAccesorio: acc.codigoAccesorio,
+                        nombre: acc.nombre,
+                        color: acc.color,
+                      },
+                    },
+                  });
+                } else {
+                  const itemRegalo = kitsRegaloMap.get(acc.id);
+                  itemRegalo.cantidad += cantRegalada;
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
-    const productosVendidos = Array.from(productosMap.values());
+    const productosVendidos = [
+      ...Array.from(productosMap.values()),
+      ...Array.from(kitsRegaloMap.values()),
+    ];
 
     const typeOrder = {
       [TipoProducto.LENTE]: 1,
@@ -700,18 +721,22 @@ export class VentasService {
 
     for (const p of productos) {
       if (p.tipoProducto === TipoProducto.LENTE && p.stockId) {
-        // Busco la luna
         const stock = await manager.getRepository(Stock).findOne({
           where: { id: p.stockId },
-          relations: { lente: { kit: true } },
         });
-        // Busco si lente tiene un kit asociado(para todas las series no hay distincion)
-        const kit = stock?.lente?.kit;
-        // Validar que el kit pertenezca a la sede de la venta
-        if (kit && kit.sedeId === Number(sedeId)) {
-          // Suma lunas al kit correspondiente
-          const totalLunas = lunasPorKit.get(kit.id) ?? 0;
-          lunasPorKit.set(kit.id, totalLunas + p.cantidad);
+        if (stock) {
+          const lentePrecio = await manager.getRepository(LentePrecio).findOne({
+            where: { lenteId: stock.lenteId, sedeId: Number(sedeId) },
+            relations: { kit: true },
+          });
+          // Busco si lente tiene un kit asociado(para todas las series no hay distincion)
+          const kit = lentePrecio?.kit;
+          // Validar que el kit pertenezca a la sede de la venta
+          if (kit && kit.sedeId === Number(sedeId)) {
+            // Suma lunas al kit correspondiente
+            const totalLunas = lunasPorKit.get(kit.id) ?? 0;
+            lunasPorKit.set(kit.id, totalLunas + p.cantidad);
+          }
         }
       }
     }

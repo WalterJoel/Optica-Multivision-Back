@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Lente } from './lente.entity';
 import { Sede } from '../../sedes/entities/sede.entity';
+import { Kit } from '../../kits/entities/kit.entity';
 
 @Entity('lente_precios')
 @Index(['lenteId', 'sedeId'], { unique: true })
@@ -24,6 +25,9 @@ export class LentePrecio {
 
   @Column()
   sedeId: number;
+
+  @Column({ nullable: true })
+  kitId?: number | null;
 
   @Column('decimal', {
     precision: 8,
@@ -53,11 +57,15 @@ export class LentePrecio {
   updatedAt: Date;
 
   /* Relaciones */
-  @ManyToOne(() => Lente, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Lente, (lente) => lente.precios, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'lenteId' })
   lente: Lente;
 
   @ManyToOne(() => Sede, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sedeId' })
   sede: Sede;
+
+  @ManyToOne(() => Kit, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'kitId' })
+  kit?: Kit | null;
 }

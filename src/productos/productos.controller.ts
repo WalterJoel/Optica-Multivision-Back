@@ -102,15 +102,6 @@ export class ProductosController {
   }
 
   @Public()
-  @Get('lente/:id')
-  obtenerLentePorId(
-    @Param('id') id: string,
-    @Query('sedeId') sedeId: string,
-  ) {
-    return this.productosService.obtenerLentePorId(+id, +sedeId);
-  }
-
-  @Public()
   @Patch('/lentes/actualizar/:id')
   actualizarLente(
     @Param('id') id: string,
