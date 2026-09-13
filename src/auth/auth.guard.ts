@@ -23,12 +23,12 @@ export class AuthGuard implements CanActivate {
 
     const authHeader = req.headers?.authorization || req.headers?.Authorization;
     if (!authHeader || typeof authHeader !== 'string') {
-      throw new UnauthorizedException('Falta Authorization header');
+      throw new UnauthorizedException({ message: 'Falta Authorization header' });
     }
 
     const [type, token] = authHeader.split(' ');
     if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Authorization debe ser: Bearer <token>');
+      throw new UnauthorizedException({ message: 'Authorization debe ser: Bearer <token>' });
     }
 
     try {
@@ -36,7 +36,7 @@ export class AuthGuard implements CanActivate {
       req.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException('Token inválido o expirado');
+      throw new UnauthorizedException({ message: 'Token inválido o expirado' });
     }
   }
 }

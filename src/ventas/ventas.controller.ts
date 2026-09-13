@@ -14,6 +14,8 @@ import { EditarVentaDto } from './dto/editar-venta.dto';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { BuscarVentasDto } from './dto/buscar-ventas.dto';
 import { BuscarVentasPorTipoDto } from './dto/buscar-ventas-tipo.dto';
+import { AllowedRoles } from '../auth/roles.decorator';
+import { Roles } from '../common/constants';
 
 @Controller('ventas')
 export class VentasController {
@@ -52,11 +54,13 @@ export class VentasController {
   }
 
   @Post('anularVenta/:id')
+  @AllowedRoles(Roles.ADMIN)
   anularVenta(@Param('id') id: string) {
     return this.ventasService.anularVenta(Number(id));
   }
 
   @Patch('editarVenta/:id')
+  @AllowedRoles(Roles.ADMIN)
   editarVenta(@Param('id') id: string, @Body() dto: EditarVentaDto) {
     return this.ventasService.editarVenta(Number(id), dto);
   }

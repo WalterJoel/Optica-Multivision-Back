@@ -22,9 +22,11 @@ import {
 } from './dto';
 import { accesoriosSeed } from 'src/seeds/accesorios/accesorios';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
-import { TipoProducto } from 'src/common/constants';
+import { TipoProducto, Roles } from 'src/common/constants';
+import { AllowedRoles } from '../auth/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+
 
 @Controller('productos')
 export class ProductosController {
@@ -133,6 +135,7 @@ export class ProductosController {
   }
 
   @Post('updateLensStock')
+  @AllowedRoles(Roles.ADMIN)
   async updateLensStock(
     @Body() body: { items: { id: number; cantidad: number }[] },
   ) {
