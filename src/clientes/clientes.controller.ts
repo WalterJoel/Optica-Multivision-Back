@@ -13,7 +13,6 @@ import type { Request } from 'express';
 import { ClientesService } from './clientes.service';
 import { CrearClienteDto } from './dto/crear-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
-import { Public } from 'src/auth/public.decorator';
 
 @Controller('clientes')
 export class ClientesController {
@@ -25,7 +24,6 @@ export class ClientesController {
     return this.clientesService.crearCliente(dto, Number(userId));
   }
 
-  @Public()
   @Get('buscarCliente')
   async buscarCliente(
     @Query('busqueda') busqueda?: string,

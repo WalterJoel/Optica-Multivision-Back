@@ -20,7 +20,6 @@ import {
   DatosParaCrearAccesorioDto,
   UpdateLenteDto,
 } from './dto';
-import { Public } from '../auth/public.decorator';
 import { accesoriosSeed } from 'src/seeds/accesorios/accesorios';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
 import { TipoProducto } from 'src/common/constants';
@@ -37,13 +36,11 @@ export class ProductosController {
   // ========================================================================================================
   // ========================================================================================================
 
-  @Public()
   @Get('obtenerInventarioPorSede/:id')
   obtenerInventarioPorSede(@Param('id') id: number) {
     return this.productosService.obtenerInventarioPorSedes(+id);
   }
 
-  @Public()
   @Get('buscarProductoParaTraslado')
   async buscarProductoParaTraslado(
     @Query('sedeId', ParseIntPipe) sedeId: number,
@@ -57,7 +54,6 @@ export class ProductosController {
     );
   }
 
-  @Public()
   @Post('/actualizarStockProductos')
   actualizarStockProductos(
     @Body() actualizarStockProductos: ActualizarStockProductosDto,
@@ -67,7 +63,6 @@ export class ProductosController {
     );
   }
 
-  @Public()
   @Get('/productosNoActualizados/:idSede/:tipoProducto')
   obtenerProductosNoActualizados(
     @Param('idSede') idSede: number,
@@ -101,7 +96,6 @@ export class ProductosController {
     return this.productosService.getLenses(sedeId ? +sedeId : undefined);
   }
 
-  @Public()
   @Patch('/lentes/actualizar/:id')
   actualizarLente(
     @Param('id') id: string,
@@ -110,13 +104,11 @@ export class ProductosController {
     return this.productosService.actualizarLente(+id, updateLenteDto);
   }
 
-  @Public()
   @Delete('/lentes/eliminar/:id')
   eliminarLente(@Param('id') id: string) {
     return this.productosService.eliminarLente(+id);
   }
 
-  @Public()
   @Get('buscarLente')
   async buscarLente(
     @Query('sedeId') sedeId: string,
@@ -153,20 +145,17 @@ export class ProductosController {
   // ========================================================================================================
   // ========================================================================================================
 
-  @Public()
   @Post('/monturas/crearMontura')
   crearMontura(@Body() DatosParaCrearMonturaDto: DatosParaCrearMonturaDto) {
     return this.productosService.crearMontura(DatosParaCrearMonturaDto);
   }
 
-  @Public()
   @Get('/monturas/:sedeId')
   obtenerMonturas(@Param('sedeId', ParseIntPipe) sedeId: number) {
     // ParseIntPipe se encarga de transformarlo a número y tirar un error 400 si no lo envían
     return this.productosService.obtenerMonturas(sedeId);
   }
 
-  @Public()
   @Get('/monturas/buscarMontura/:sedeId')
   buscarMontura(
     @Param('sedeId') sedeId: string,
@@ -182,13 +171,11 @@ export class ProductosController {
     );
   }
 
-  @Public()
   @Get('montura/:id')
   obtenerMonturaPorId(@Param('id') id: string) {
     return this.productosService.obtenerMonturaPorId(+id);
   }
 
-  @Public()
   @Get('montura/qr/:codigo/:sedeId')
   obtenerMonturaPorQr(
     @Param('codigo') codigo: string,
@@ -197,7 +184,6 @@ export class ProductosController {
     return this.productosService.obtenerMonturaPorQr(codigo, Number(sedeId));
   }
 
-  @Public()
   @Patch('monturas/actualizar/:id')
   actualizarMontura(
     @Param('id') id: string,
@@ -206,13 +192,11 @@ export class ProductosController {
     return this.productosService.actualizarMontura(+id, updateMonturaDto);
   }
 
-  @Public()
   @Delete('monturas/eliminar/:id')
   eliminarMontura(@Param('id') id: string) {
     return this.productosService.eliminarMontura(+id);
   }
 
-  @Public()
   @Post('monturas/insertarMonturasExcel')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -226,7 +210,6 @@ export class ProductosController {
     return this.productosService.insertarMonturasExcel(file);
   }
 
-  @Public()
   @Post('monturas/editarMonturasExcel')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -240,7 +223,6 @@ export class ProductosController {
     return this.productosService.editarMonturasExcel(file);
   }
 
-  @Public()
   @Get('monturas/obtenerMonturasExcel/:sedeId')
   obtenerMonturasExcel(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return this.productosService.obtenerMonturasExcel(sedeId);
@@ -252,13 +234,11 @@ export class ProductosController {
   // ========================================================================================================
   // ========================================================================================================
 
-  @Public()
   @Post('/accesorios/crearAccesorio')
   crearAccesorio(@Body() datosParaCrearAccesorioDto: DatosParaCrearAccesorioDto) {
     return this.productosService.crearAccesorio(datosParaCrearAccesorioDto);
   }
 
-  @Public()
   @Get('/accesorios/:sedeId')
   obtenerAccesorios(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return this.productosService.obtenerAccesorios(sedeId);
@@ -282,13 +262,11 @@ export class ProductosController {
     );
   }
 
-  @Public()
   @Get('accesorio/:id')
   obtenerAccesorioPorId(@Param('id') id: string) {
     return this.productosService.obtenerAccesorioPorId(+id);
   }
 
-  @Public()
   @Get('obtenerAccesorio/:codigo/:sedeId')
   obtenerAccesorioPorCodigoUnico(
     @Param('codigo') codigo: string,
@@ -300,7 +278,6 @@ export class ProductosController {
     );
   }
 
-  @Public()
   @Patch('/accesorios/actualizar/:id')
   actualizarAccesorio(
     @Param('id') id: string,
@@ -309,13 +286,11 @@ export class ProductosController {
     return this.productosService.actualizarAccesorio(+id, updateAccesorioDto);
   }
 
-  @Public()
   @Delete('/accesorios/eliminar/:id')
   eliminarAccesorio(@Param('id') id: string) {
     return this.productosService.eliminarAccesorio(+id);
   }
 
-  @Public()
   @Post('accesorios/insertarAccesoriosExcel')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -329,7 +304,6 @@ export class ProductosController {
     return this.productosService.insertarAccesoriosExcel(file);
   }
 
-  @Public()
   @Post('accesorios/editarAccesoriosExcel')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -343,13 +317,11 @@ export class ProductosController {
     return this.productosService.editarAccesoriosExcel(file);
   }
 
-  @Public()
   @Get('accesorios/obtenerAccesoriosExcel/:sedeId')
   obtenerAccesoriosExcel(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return this.productosService.obtenerAccesoriosExcel(sedeId);
   }
 
-  @Public()
   @Get('stockOtrasSedes/:productoId')
   obtenerStockOtrasSedes(@Param('productoId', ParseIntPipe) productoId: number) {
     return this.productosService.obtenerStockOtrasSedes(productoId);

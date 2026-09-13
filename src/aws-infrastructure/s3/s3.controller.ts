@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { S3Service } from './s3.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Public } from '../../auth/public.decorator';
 
 @Controller('s3')
 export class S3Controller {
@@ -19,7 +18,6 @@ export class S3Controller {
    * El archivo se recibe en memoria (buffer) y se envía a S3.
    * Método: POST /s3/upload
    */
-  @Public() // Hacemos público el endpoint por ahora, o puedes remover esta línea para protegerlo con JWT
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
