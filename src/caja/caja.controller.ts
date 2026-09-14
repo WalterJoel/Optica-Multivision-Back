@@ -13,7 +13,7 @@ export class CajaController {
   constructor(private readonly cajaService: CajaService) { }
 
   @Post('crearMovimiento')
-  @AllowedRoles(Roles.ADMIN)
+  @AllowedRoles(Roles.ADMIN, Roles.VENDEDOR)
   registrar(@Body() dto: CrearMovimientoCajaDto) {
     return this.cajaService.registrarMovimiento(dto);
   }

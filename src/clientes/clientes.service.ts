@@ -156,18 +156,7 @@ export class ClientesService {
   }
 
   async buscarCliente(busqueda?: string, limite = 50, desplazamiento = 0) {
-    const query = this.clienteRepository
-      .createQueryBuilder('c')
-      .select([
-        'c.id',
-        'c.tipoCliente',
-        'c.tipoDoc',
-        'c.numeroDoc',
-        'c.nombres',
-        'c.apellidos',
-        'c.razonSocial',
-      ])
-      .where('c.activo = :activo', { activo: true });
+    const query = this.clienteRepository.createQueryBuilder('c');
 
     if (busqueda?.trim()) {
       const palabras = busqueda.trim().split(/\s+/).filter(Boolean);
