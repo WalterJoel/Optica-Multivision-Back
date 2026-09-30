@@ -28,11 +28,10 @@ export class DescuentosService {
   }
 
   private obtenerSeriePorCilindro(cyl: number | null): number {
-    if (cyl === null) return 1;
+    if (cyl === null || cyl === 0) return 1;
     const abs = Math.abs(cyl);
     return Math.min(3, Math.ceil(abs / 2));
   }
-
   // 
   async obtenerDescuentos(dto: ObtenerDescuentosDto) {
     const { clienteId, sedeId, productos } = dto;
@@ -117,7 +116,7 @@ export class DescuentosService {
     }
     return await this.descuentoRepository.find({
       where: { sedeId },
-      relations: ['producto', 'lente', 'sede'],
+      relations: ['producto', 'lente', 'sede', 'cliente'],
     });
   }
 
@@ -127,6 +126,7 @@ export class DescuentosService {
       relations: ['producto', 'lente'],
     });
   }
+
 
   async update(id: number, updateDescuentoDto: UpdateDescuentoDto) {
     await this.descuentoRepository.update(id, updateDescuentoDto);

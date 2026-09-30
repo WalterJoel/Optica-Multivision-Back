@@ -1,3 +1,4 @@
+import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Producto, Lente } from 'src/productos/entities';
 import { Sede } from 'src/sedes/entities/sede.entity';
 import {
@@ -47,6 +48,10 @@ export class Descuento {
   serie: number | null;
 
   /*Relaciones*/
+
+  @ManyToOne(() => Cliente, { nullable: true })
+  @JoinColumn({ name: 'clienteId' })
+  cliente?: Cliente | null;
 
   @ManyToOne(() => Sede)
   @JoinColumn({ name: 'sedeId' })
