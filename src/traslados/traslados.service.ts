@@ -60,25 +60,29 @@ export class TrasladosService {
    * ENVIAR MERCADERÍA Y VERIFICAR DISPONIBILIDAD EN SEDE PROVEEDORA
    */
   async enviarMercaderia(dto: EnviarMercaderiaDto): Promise<Traslado> {
-    const traslado = await this.trasladoRepository.findOne({
-      where: { id: dto.trasladoId },
-      relations: ['detalles'],
-    });
-
-    // Early returns
-    if (!traslado) {
-      throw new NotFoundException({
-        message: `Traslado con ID ${dto.trasladoId} no encontrado`,
-      });
-    }
-
-    if (traslado.estado !== EstadoTraslado.SOLICITADO) {
-      throw new BadRequestException({
-        message: `El traslado se encuentra en estado ${traslado.estado}. Solo se puede enviar un traslado en estado SOLICITADO.`,
-      });
-    }
-
     return await this.dataSource.transaction(async (manager) => {
+      const traslado = await manager.getRepository(Traslado).findOne({
+        where: { id: dto.trasladoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      // Early returns
+      if (!traslado) {
+        throw new NotFoundException({
+          message: `Traslado con ID ${dto.trasladoId} no encontrado`,
+        });
+      }
+
+      if (traslado.estado !== EstadoTraslado.SOLICITADO) {
+        throw new BadRequestException({
+          message: `El traslado se encuentra en estado ${traslado.estado}. Solo se puede enviar un traslado en estado SOLICITADO.`,
+        });
+      }
+
+      traslado.detalles = await manager.getRepository(TrasladoDetalle).find({
+        where: { trasladoId: traslado.id },
+      });
+
       // 1. Recopilar IDs de referencia de los detalles del traslado
       const stockIdsRef = traslado.detalles.map((d) => d.stockId).filter(Boolean) as number[];
       const productoIdsRef = traslado.detalles.map((d) => d.productoId).filter(Boolean) as number[];
@@ -331,24 +335,28 @@ export class TrasladosService {
   }
 
   async recibirMercaderia(dto: RecibirMercaderiaDto): Promise<Traslado> {
-    const traslado = await this.trasladoRepository.findOne({
-      where: { id: dto.trasladoId },
-      relations: ['detalles'],
-    });
-
-    if (!traslado) {
-      throw new NotFoundException({
-        message: `Traslado con ID ${dto.trasladoId} no encontrado`,
-      });
-    }
-
-    if (traslado.estado !== EstadoTraslado.ENVIADO) {
-      throw new BadRequestException({
-        message: `El traslado se encuentra en estado ${traslado.estado}. Solo se puede recibir un traslado en estado ENVIADO.`,
-      });
-    }
-
     return await this.dataSource.transaction(async (manager) => {
+      const traslado = await manager.getRepository(Traslado).findOne({
+        where: { id: dto.trasladoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!traslado) {
+        throw new NotFoundException({
+          message: `Traslado con ID ${dto.trasladoId} no encontrado`,
+        });
+      }
+
+      if (traslado.estado !== EstadoTraslado.ENVIADO) {
+        throw new BadRequestException({
+          message: `El traslado se encuentra en estado ${traslado.estado}. Solo se puede recibir un traslado en estado ENVIADO.`,
+        });
+      }
+
+      traslado.detalles = await manager.getRepository(TrasladoDetalle).find({
+        where: { trasladoId: traslado.id },
+      });
+
       // 1. Actualizar estado
       traslado.estado = EstadoTraslado.TRASLADADO;
 
