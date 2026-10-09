@@ -745,8 +745,8 @@ export class ProductosService {
 
     if (busqueda) {
       queryBuilder.andWhere(
-        '(montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda OR montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda)',
-        { busqueda: `%${busqueda}%` }
+        '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR CAST(montura.id AS TEXT) ILIKE :busqueda OR CAST(producto.id AS TEXT) ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
+        { busqueda: `%${busqueda}%` },
       );
     }
 
@@ -772,24 +772,56 @@ export class ProductosService {
     return this.mapProductoAMontura(producto);
   }
 
-  async obtenerMonturaPorQr(codigo: string, sedeId: number) {
-    //   const montura = await this.monturaRepository.findOne({
-    //     where: [{ codigo: codigo }, { codigo }],
-    //     select: ['id', 'productoId', 'codigo', 'codigo', 'marca', 'precioCompra'],
-    //   });
-    //   if (!montura) {
-    //     throw new NotFoundException(
-    //       `No se encontró montura con codigoQr: ${codigo}`,
-    //     );
-    //   }
-    //   const stock = await this.stockProductoRepository.findOne({
-    //     where: { productoId: montura.productoId, sedeId },
-    //     select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
-    //   });
-    //   return {
-    //     montura,
-    //     stock: stock || { cantidad: 0, ubicacion: '' },
-    //   };
+  async obtenerMonturaPorBusqueda(busqueda: string, sedeId: number) {
+    const queryBuilder = this.dataSource
+      .getRepository(Montura)
+      .createQueryBuilder('montura')
+      .innerJoinAndSelect(
+        'montura.productos',
+        'producto',
+        'producto.sedeId = :sedeId AND producto.activo = :activo AND producto.tipo = :tipo',
+        {
+          sedeId,
+          activo: true,
+          tipo: TipoProducto.MONTURA,
+        },
+      );
+
+    queryBuilder.andWhere(
+      '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR CAST(montura.id AS TEXT) ILIKE :busqueda OR CAST(producto.id AS TEXT) ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
+      { busqueda: `%${busqueda}%` },
+    );
+
+    const montura = await queryBuilder.getOne();
+
+    if (!montura || !montura.productos || montura.productos.length === 0) {
+      throw new NotFoundException({
+        message: `No se encontró montura para "${busqueda}" en esta sede`,
+      });
+    }
+
+    const producto = montura.productos[0];
+
+    // Retorna segun lo que espera el frontend
+    return {
+      montura: {
+        id: montura.id,
+        codigo: montura.codigo,
+        codigoQr: montura.codigoMontura,
+        productoId: producto.id,
+        precio: Number(producto.precioVenta),
+        marca: montura.marca,
+        imagenUrl: montura.imagenUrl || null,
+      },
+      stock: {
+        id: producto.id,
+        cantidad: producto.cantidad,
+        ubicacion: producto.ubicacion || '',
+        updateAt: producto.updatedAt
+          ? producto.updatedAt.toISOString()
+          : new Date().toISOString(),
+      },
+    };
   }
 
   async actualizarMontura(id: number, updateMonturaDto: UpdateMonturaDto) {
@@ -1406,23 +1438,22 @@ export class ProductosService {
   }
 
   async obtenerAccesorioPorCodigoUnico(codigo: string, sedeId: number) {
-    // const accesorio = await this.accesorioRepository.findOne({
-    //   where: { codigo },
-    //   select: ['id', 'productoId', 'codigo', 'nombre', 'precio'],
-    // });
-    // if (!accesorio) {
-    //   throw new NotFoundException(
-    //     `No se encontró accesorio con codigo: ${codigo}`, //Retorna como message xDDDDD
-    //   );
-    // }
-    // const stock = await this.stockProductoRepository.findOne({
-    //   where: { productoId: accesorio.productoId, sedeId },
-    //   select: ['id', 'cantidad', 'ubicacion', 'updatedAt'],
-    // });
-    // return {
-    //   accesorio,
-    //   stock: stock || { cantidad: 0, ubicacion: '' },
-    // };
+    const producto = await this.dataSource.getRepository(Producto)
+      .createQueryBuilder('producto')
+      .innerJoinAndSelect('producto.accesorio', 'accesorio')
+      .where('producto.sedeId = :sedeId', { sedeId })
+      .andWhere('producto.activo = :activo', { activo: true })
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
+      .andWhere('accesorio.codigoAccesorio = :codigo', { codigo })
+      .getOne();
+
+    if (!producto) {
+      throw new NotFoundException({
+        message: `No se encontró accesorio con el código: ${codigo} en esta sede`,
+      });
+    }
+
+    return this.obtenerAccesorioPorId(producto.id);
   }
 
   async actualizarAccesorio(id: number, updateAccesorioDto: UpdateAccesorioDto) {

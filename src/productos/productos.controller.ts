@@ -178,17 +178,17 @@ export class ProductosController {
     );
   }
 
+  @Get('montura/busquedaInventario/:busqueda/:sedeId')
+  obtenerMonturaPorBusqueda(
+    @Param('busqueda') busqueda: string,
+    @Param('sedeId') sedeId: number,
+  ) {
+    return this.productosService.obtenerMonturaPorBusqueda(busqueda, Number(sedeId));
+  }
+
   @Get('montura/:id')
   obtenerMonturaPorId(@Param('id') id: string) {
     return this.productosService.obtenerMonturaPorId(+id);
-  }
-
-  @Get('montura/qr/:codigo/:sedeId')
-  obtenerMonturaPorQr(
-    @Param('codigo') codigo: string,
-    @Param('sedeId') sedeId: number,
-  ) {
-    return this.productosService.obtenerMonturaPorQr(codigo, Number(sedeId));
   }
 
   @Patch('monturas/actualizar/:id')
