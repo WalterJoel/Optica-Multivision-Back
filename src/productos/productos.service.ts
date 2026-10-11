@@ -205,39 +205,21 @@ export class ProductosService {
   */
   async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
     const inicioHoy = new Date();
-
-    //   console.log(inicioHoy, ' INICIO HOY');
-    //   inicioHoy.setHours(0, 0, 0, 0);
-
-    //   const data = await this.stockProductoRepository.find({
-    //     where: {
-    //       sedeId: idSede,
-
-    //       // Productos actualizados ayer o antes
-    //       updatedAt: LessThan(inicioHoy),
-
-    //       producto: {
-    //         tipo: tipoProducto,
-    //       },
-
-    //       cantidad: MoreThan(0),
-    //     },
-
-    //     relations: {
-    //       producto: {
-    //         montura: true,
-    //         accesorio: true,
-    //       },
-    //     },
-
-    //     order: {
-    //       updatedAt: 'ASC',
-    //     },
-    //   });
-
-    //   console.log(data, 'DATA');
-
-    //   return data;
+    inicioHoy.setHours(0, 0, 0, 0);
+    const productos = await this.dataSource.getRepository(Producto).find({
+      where: {
+        sedeId: Number(idSede),
+        tipo: tipoProducto,
+        activo: true,
+        cantidad: MoreThan(0),
+        updatedAt: LessThan(inicioHoy),
+      },
+      relations: ['montura', 'accesorio'],
+      order: {
+        updatedAt: 'ASC',
+      },
+    });
+    return productos;
   }
 
   remove(id: number) {

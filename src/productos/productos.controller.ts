@@ -67,12 +67,11 @@ export class ProductosController {
 
   @Get('/productosNoActualizados/:idSede/:tipoProducto')
   obtenerProductosNoActualizados(
-    @Param('idSede') idSede: number,
+    @Param('idSede') idSede: string,
     @Param('tipoProducto') tipoProducto: TipoProducto,
   ) {
-    console.log(idSede, tipoProducto, ' SSSSSS-<');
     return this.productosService.obtenerProductosNoActualizados(
-      idSede,
+      Number(idSede),
       tipoProducto,
     );
   }
