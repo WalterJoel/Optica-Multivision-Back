@@ -1436,6 +1436,8 @@ export class ProductosService {
   }
 
 
+
+  // Busqueda para el inventario de accesorisos
   async obtenerAccesorioPorBusqueda(busqueda: string, sedeId: number) {
     const termino = busqueda?.trim() || '';
 
