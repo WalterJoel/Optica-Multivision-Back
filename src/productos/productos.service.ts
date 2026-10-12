@@ -166,46 +166,64 @@ export class ProductosService {
     };
   }
 
-  /*
-    Funcion para actualizar la TABLA STOCK_PRODUCTOS:
-      ✅ se puede actualizar ACCESORIOS O MONTURAS es indiferente
-  */
+  // Actualiza stock de monturas o accesorios por productoId y registra en Kardex
   async actualizarStockProductos(dto: ActualizarStockProductosDto) {
-    // const queryRunner = this.dataSource.createQueryRunner();
-    // await queryRunner.connect();
-    // await queryRunner.startTransaction();
-    // try {
-    //   for (const item of dto.items) {
-    //     await queryRunner.manager.update(
-    //       StockProducto,
-    //       { id: item.stockId },
-    //       { cantidad: item.cantidad },
-    //     );
-    //   }
-    //   await queryRunner.commitTransaction();
-    //   return {
-    //     ok: true,
-    //     count: dto.items.length,
-    //     message: 'Stock actualizado correctamente',
-    //   };
-    // } catch (error: unknown) {
-    //   const message =
-    //     error instanceof Error ? error.message : 'Error al actualizar stock';
-    //   throw new Error(message);
-    // } finally {
-    //   await queryRunner.release();
-    // }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const productoRepo = queryRunner.manager.getRepository(Producto);
+
+      for (const item of dto.items) {
+        const producto = await productoRepo.findOne({
+          where: { id: item.productoId },
+        });
+
+        if (!producto) continue;
+
+        const cantidadAnterior = Number(producto.cantidad) || 0;
+        const nuevaCantidad = Number(item.cantidad) || 0;
+
+        producto.cantidad = nuevaCantidad;
+        producto.updatedAt = new Date();
+
+        await productoRepo.save(producto);
+
+        if (cantidadAnterior !== nuevaCantidad) {
+          await this.kardexService.registrarMovimiento(queryRunner.manager, {
+            sedeId: producto.sedeId,
+            tipoProducto: producto.tipo as TipoProducto,
+            productoId: producto.id,
+            origenEvento: OrigenEventoKardex.AJUSTE_MANUAL_MATRIZ,
+            cantidadAnterior,
+            cantidadMovimiento: nuevaCantidad - cantidadAnterior,
+          });
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      return {
+        ok: true,
+        count: dto.items.length,
+        message: 'Stock actualizado correctamente',
+      };
+    } catch (error: any) {
+      await queryRunner.rollbackTransaction();
+      throw new BadRequestException({
+        message: 'Error al actualizar stock: ' + error.message,
+      });
+    } finally {
+      await queryRunner.release();
+    }
   }
 
-  /*
-    Funcion que retorna los productos que no fueron actualizados EN EL DIA
-      ✅ RECIBE SEDE_ID, TIPO_PRODUCTO(MONTURA O ACCESORIO)
-      ✅ Se consume de la tabla STOCK_PRODUCTOS el campo UPDATE_AT
-      ✅ Solo aquellos productos que tengan un stock mayor a 0  
-  */
+  // [RN-004] Retorna productos activos con stock > 0 no actualizados en el día (corte 00:00 UTC-5 Perú)
   async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
-    const inicioHoy = new Date();
-    inicioHoy.setHours(0, 0, 0, 0);
+    const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+    const inicioHoy = new Date(`${hoy}T00:00:00.000-05:00`);
+
     const productos = await this.dataSource.getRepository(Producto).find({
       where: {
         sedeId: Number(idSede),

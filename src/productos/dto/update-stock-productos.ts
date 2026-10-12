@@ -4,18 +4,15 @@ import { Type } from 'class-transformer';
 export class UpdateStockProductoDto {
   @IsNumber()
   @IsInt()
-  stockId: number;
+  productoId: number;
 
   @IsNumber()
   @IsInt()
-  @Min(0, { message: 'La cantidad de stock no puede ser inferior a 0' })
+  @Min(0, { message: 'La cantidad no puede ser menor a 0' })
   cantidad: number;
 }
 
-/**
- * ✅ Recibe una lista de objetos { stockId, cantidad } para ejecutar
- *     una actualización atómica en la base de datos.
- */
+// Lista de items { productoId, cantidad } para actualización por lote
 export class ActualizarStockProductosDto {
   @IsArray()
   @ValidateNested({ each: true })

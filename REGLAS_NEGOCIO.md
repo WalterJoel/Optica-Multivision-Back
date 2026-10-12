@@ -64,3 +64,26 @@ Especifica cómo interactúa la anulación de una venta con el módulo de caja, 
 * **Backend (`ventas.service.ts`):** `anularVenta` (Creación de EGRESO por devolución y marcado `venta.activo = false`, referenciado como `// [RN-003]`).
 * **Frontend (`components/Caja/index.tsx`):** Filtrado `(m.venta ? m.venta.activo !== false : true)` en `ingresos` y `egresos` (referenciado como `// [RN-003]`).
 
+---
+
+## RN-004: Auditoría Diaria de Inventario (Productos Pendientes de Actualizar)
+
+### Descripción
+Permite a los administradores y encargados de sede identificar qué productos (monturas o accesorios) aún no han sido contados/verificados en el inventario físico durante la jornada actual (corte diario).
+
+### Regla de Negocio
+* **Condición de Stock:** Solo se auditan productos con inventario físico existente en la sede:
+  $$\text{cantidad} > 0$$
+  *(Los productos con stock en 0 no se consideran pendientes de conteo diario).*
+* **Condición de Estado:** El producto debe estar activo (`activo = true`).
+* **Corte de Jornada (Zona Horaria Perú UTC-5):**
+  - Un producto se considera **pendiente de actualización en el día** si su última fecha de modificación (`updatedAt`) es anterior al inicio de la jornada actual:
+    $$\text{updatedAt} < \text{inicioHoyPeru (00:00:00 -05:00)}$$
+  - Una vez que el producto es auditado/actualizado mediante el modal de inventario (`actualizarStockProductos`), su campo `updatedAt` se actualiza al timestamp actual y deja de figurar como pendiente de forma inmediata.
+  - **Corte de medianoche estricto:** El reinicio del ciclo diario ocurre únicamente a las 00:00:00 de Perú (05:00:00 UTC), evitando que el cambio de día UTC (19:00 hrs Perú) desincronice los conteos realizados durante la tarde.
+
+### Aplicación en el Código
+* **Backend (`productos.service.ts`):** `obtenerProductosNoActualizados` (Referenciado en código como `// [RN-004]`).
+* **Frontend (`OutdatedProductsModal.tsx`):** Consumo del endpoint y visualización del listado en el modal "Stock Pendiente".
+
+
