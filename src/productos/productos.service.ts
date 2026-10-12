@@ -1415,7 +1415,24 @@ export class ProductosService {
       .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO });
 
     if (nombre) {
-      queryBuilder.andWhere('accesorio.nombre ILIKE :nombre', { nombre: `%${nombre}%` });
+      const termino = nombre.trim();
+      const esNumero = !isNaN(Number(termino)) && /^\d+$/.test(termino);
+
+      if (esNumero) {
+        queryBuilder.andWhere(
+          '(accesorio.id = :idExacto OR accesorio.codigoAccesorio = :codigoExacto OR accesorio.nombre ILIKE :term)',
+          {
+            idExacto: Number(termino),
+            codigoExacto: termino,
+            term: `%${termino}%`,
+          },
+        );
+      } else {
+        queryBuilder.andWhere(
+          '(accesorio.nombre ILIKE :term OR accesorio.codigoAccesorio ILIKE :term OR accesorio.clasificacion ILIKE :term)',
+          { term: `%${termino}%` },
+        );
+      }
     }
 
     const [productos, total] = await queryBuilder
@@ -1430,6 +1447,11 @@ export class ProductosService {
       precioVenta: Number(p.precioVenta),
       productoId: p.id,
       clasificacion: p.accesorio.clasificacion,
+      imagenUrl: p.accesorio.imagenUrl,
+      producto: {
+        id: p.id,
+        cantidad: p.cantidad,
+      },
     }));
 
     return { total, accesorios: mappedAccesorios };
