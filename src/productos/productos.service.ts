@@ -195,7 +195,7 @@ export class ProductosService {
             sedeId: producto.sedeId,
             tipoProducto: producto.tipo as TipoProducto,
             productoId: producto.id,
-            origenEvento: OrigenEventoKardex.AJUSTE_MANUAL_MATRIZ,
+            origenEvento: OrigenEventoKardex.INVENTARIO_MANUAL,
             cantidadAnterior,
             cantidadMovimiento: nuevaCantidad - cantidadAnterior,
           });
@@ -696,6 +696,7 @@ export class ProductosService {
   private mapProductoAMontura(p: Producto) {
     return {
       id: p.id,
+      monturaId: p.montura?.id || p.monturaId,
       codigo: p.montura.codigo,
       codigoMontura: p.montura.codigoMontura,
       precioCompra: Number(p.precioCompra),
@@ -729,6 +730,7 @@ export class ProductosService {
       .where('producto.sedeId = :sedeId', { sedeId })
       .andWhere('producto.activo = :activo', { activo: true })
       .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.MONTURA })
+      .andWhere('producto.cantidad > 0')
       .orderBy('producto.createdAt', 'DESC')
       .getMany();
 
@@ -744,10 +746,20 @@ export class ProductosService {
       .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.MONTURA });
 
     if (busqueda) {
-      queryBuilder.andWhere(
-        '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR CAST(montura.id AS TEXT) ILIKE :busqueda OR CAST(producto.id AS TEXT) ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
-        { busqueda: `%${busqueda}%` },
-      );
+      const termino = busqueda.trim();
+      const esNumero = !isNaN(Number(termino)) && /^\d+$/.test(termino);
+
+      if (esNumero) {
+        queryBuilder.andWhere(
+          '(montura.id = :idExacto OR montura.codigo = :codigoExacto OR montura.codigoMontura = :codigoExacto)',
+          { idExacto: Number(termino), codigoExacto: termino },
+        );
+      } else {
+        queryBuilder.andWhere(
+          '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
+          { busqueda: `%${termino}%` },
+        );
+      }
     }
 
     const [productos, total] = await queryBuilder
@@ -773,6 +785,8 @@ export class ProductosService {
   }
 
   async obtenerMonturaPorBusqueda(busqueda: string, sedeId: number) {
+    const termino = busqueda?.trim() || '';
+
     const queryBuilder = this.dataSource
       .getRepository(Montura)
       .createQueryBuilder('montura')
@@ -787,16 +801,29 @@ export class ProductosService {
         },
       );
 
-    queryBuilder.andWhere(
-      '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR CAST(montura.id AS TEXT) ILIKE :busqueda OR CAST(producto.id AS TEXT) ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
-      { busqueda: `%${busqueda}%` },
-    );
+    const esNumero = !isNaN(Number(termino)) && termino !== '';
+
+    if (esNumero) {
+      queryBuilder.andWhere(
+        '(montura.id = :idExacto OR montura.codigo = :codigoExacto OR montura.codigoMontura = :codigoExacto)',
+        {
+          idExacto: Number(termino),
+          codigoExacto: termino,
+        },
+      );
+    }
+    else {
+      queryBuilder.andWhere(
+        '(montura.codigo ILIKE :busqueda OR montura.codigoMontura ILIKE :busqueda OR montura.marca ILIKE :busqueda OR montura.material ILIKE :busqueda)',
+        { busqueda: `%${termino}%` },
+      );
+    }
 
     const montura = await queryBuilder.getOne();
 
     if (!montura || !montura.productos || montura.productos.length === 0) {
       throw new NotFoundException({
-        message: `No se encontró montura para "${busqueda}" en esta sede`,
+        message: `No se encontró montura para "${termino}" en esta sede`,
       });
     }
 
