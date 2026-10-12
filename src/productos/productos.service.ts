@@ -784,6 +784,7 @@ export class ProductosService {
     return this.mapProductoAMontura(producto);
   }
 
+  // Busqueda que usa el front para los inventarios de MONTURA y ACCESORIO
   async obtenerMonturaPorBusqueda(busqueda: string, sedeId: number) {
     const termino = busqueda?.trim() || '';
 
