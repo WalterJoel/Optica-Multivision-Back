@@ -1474,7 +1474,7 @@ export class ProductosService {
 
     if (esNumero) {
       queryBuilder.andWhere(
-        '(accesorio.id = :idExacto OR producto.id = :idExacto OR accesorio.codigoAccesorio = :codigoExacto)',
+        '(accesorio.id = :idExacto OR accesorio.codigoAccesorio = :codigoExacto)',
         {
           idExacto: Number(termino),
           codigoExacto: termino,
