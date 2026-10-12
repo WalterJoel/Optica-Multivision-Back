@@ -273,17 +273,13 @@ export class ProductosController {
     );
   }
 
-  @Get('accesorio/:id')
-  obtenerAccesorioPorId(@Param('id') id: string) {
-    return this.productosService.obtenerAccesorioPorId(+id);
-  }
 
   @Get('obtenerAccesorio/:codigo/:sedeId')
-  obtenerAccesorioPorCodigoUnico(
+  obtenerAccesorioPorBusqueda(
     @Param('codigo') codigo: string,
     @Param('sedeId') sedeId: number,
   ) {
-    return this.productosService.obtenerAccesorioPorCodigoUnico(
+    return this.productosService.obtenerAccesorioPorBusqueda(
       codigo,
       Number(sedeId),
     );

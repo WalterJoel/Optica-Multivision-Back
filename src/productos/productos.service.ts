@@ -1368,6 +1368,7 @@ export class ProductosService {
     });
   }
 
+  // 
   async obtenerAccesorios(sedeId: number) {
     const productos = await this.dataSource.getRepository(Producto)
       .createQueryBuilder('producto')
@@ -1376,11 +1377,13 @@ export class ProductosService {
       .where('producto.sedeId = :sedeId', { sedeId })
       .andWhere('producto.activo = :activo', { activo: true })
       .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
+      .andWhere('producto.cantidad > 0')
       .orderBy('producto.createdAt', 'DESC')
       .getMany();
 
     return productos.map((p) => ({
       id: p.id,
+      accesorioId: p.accesorio?.id,
       codigoAccesorio: p.accesorio.codigoAccesorio,
       precioCompra: Number(p.precioCompra),
       precioVenta: Number(p.precioVenta),
@@ -1432,56 +1435,59 @@ export class ProductosService {
     return { total, accesorios: mappedAccesorios };
   }
 
-  async obtenerAccesorioPorId(id: number) {
-    const producto = await this.dataSource.getRepository(Producto).findOne({
-      where: { id },
-      relations: ['accesorio'],
-    });
 
-    if (!producto) {
-      throw new NotFoundException({ message: 'Accesorio no encontrado' });
-    }
+  async obtenerAccesorioPorBusqueda(busqueda: string, sedeId: number) {
+    const termino = busqueda?.trim() || '';
 
-    return {
-      id: producto.id,
-      codigoAccesorio: producto.accesorio.codigoAccesorio,
-      precioCompra: Number(producto.precioCompra),
-      precioVenta: Number(producto.precioVenta),
-      nombre: producto.accesorio.nombre,
-      color: producto.accesorio.color,
-      atributo: producto.accesorio.atributo,
-      clasificacion: producto.accesorio.clasificacion,
-      imagenUrl: producto.accesorio.imagenUrl,
-      createdAt: producto.createdAt,
-      producto: {
-        id: producto.id,
-        sedeId: producto.sedeId,
-        cantidad: producto.cantidad,
-        ubicacion: producto.ubicacion,
-        activo: producto.activo,
-        createdAt: producto.createdAt,
-        updatedAt: producto.updatedAt,
-      },
-    };
-  }
-
-  async obtenerAccesorioPorCodigoUnico(codigo: string, sedeId: number) {
-    const producto = await this.dataSource.getRepository(Producto)
+    const queryBuilder = this.dataSource.getRepository(Producto)
       .createQueryBuilder('producto')
       .innerJoinAndSelect('producto.accesorio', 'accesorio')
       .where('producto.sedeId = :sedeId', { sedeId })
       .andWhere('producto.activo = :activo', { activo: true })
-      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO })
-      .andWhere('accesorio.codigoAccesorio = :codigo', { codigo })
-      .getOne();
+      .andWhere('producto.tipo = :tipo', { tipo: TipoProducto.ACCESORIO });
 
-    if (!producto) {
+    const esNumero = !isNaN(Number(termino)) && termino !== '';
+
+    if (esNumero) {
+      queryBuilder.andWhere(
+        '(accesorio.id = :idExacto OR producto.id = :idExacto OR accesorio.codigoAccesorio = :codigoExacto)',
+        {
+          idExacto: Number(termino),
+          codigoExacto: termino,
+        },
+      );
+    } else {
+      queryBuilder.andWhere(
+        '(accesorio.codigoAccesorio ILIKE :busqueda OR accesorio.nombre ILIKE :busqueda OR accesorio.clasificacion ILIKE :busqueda)',
+        { busqueda: `%${termino}%` },
+      );
+    }
+
+    const producto = await queryBuilder.getOne();
+
+    if (!producto || !producto.accesorio) {
       throw new NotFoundException({
-        message: `No se encontró accesorio con el código: ${codigo} en esta sede`,
+        message: `No se encontró accesorio con el código o nombre: "${termino}" en esta sede`,
       });
     }
 
-    return this.obtenerAccesorioPorId(producto.id);
+    return {
+      accesorio: {
+        id: producto.accesorio.id,
+        codigo: producto.accesorio.codigoAccesorio,
+        productoId: String(producto.id),
+        precio: Number(producto.precioVenta),
+        nombre: producto.accesorio.nombre,
+      },
+      stock: {
+        id: producto.id,
+        cantidad: producto.cantidad,
+        ubicacion: producto.ubicacion || '',
+        updateAt: producto.updatedAt
+          ? producto.updatedAt.toISOString()
+          : new Date().toISOString(),
+      },
+    };
   }
 
   async actualizarAccesorio(id: number, updateAccesorioDto: UpdateAccesorioDto) {
