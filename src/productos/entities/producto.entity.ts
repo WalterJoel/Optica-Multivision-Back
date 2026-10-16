@@ -58,6 +58,10 @@ export class Producto {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
+  // Fecha del último inventario
+  @Column({ name: 'fecha_inventario', type: 'timestamptz', nullable: true })
+  fechaInventario: Date;
+
   //Relations
 
   @ManyToOne(() => Sede)

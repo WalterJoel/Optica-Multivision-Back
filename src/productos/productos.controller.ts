@@ -76,6 +76,17 @@ export class ProductosController {
     );
   }
 
+  @Get('/reporteInventario/:idSede/:tipoProducto')
+  obtenerReporteInventario(
+    @Param('idSede') idSede: string,
+    @Param('tipoProducto') tipoProducto: TipoProducto,
+  ) {
+    return this.productosService.obtenerReporteInventario(
+      Number(idSede),
+      tipoProducto,
+    );
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productosService.remove(+id);

@@ -128,3 +128,9 @@ export enum PrioridadLentes {
   MOSTRAR_CUARTO = 4,
   MOSTRAR_QUINTO = 5,
 }
+
+// Inventario
+export enum EstadoInventario {
+  INVENTARIADO = 'INVENTARIADO',
+  PENDIENTE = 'PENDIENTE'
+}

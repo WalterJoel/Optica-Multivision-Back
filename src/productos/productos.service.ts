@@ -14,6 +14,7 @@ import {
   Repository,
   In,
   Not,
+  Or,
 } from 'typeorm';
 import { v4 } from 'uuid';
 import {
@@ -33,7 +34,7 @@ import * as ExcelJS from 'exceljs';
 import { Producto, Lente, Stock, Montura, LentePrecio } from './entities';
 import { Sede } from '../sedes/entities/sede.entity';
 import { buildStockSeed } from '../seeds';
-import { Codigos, TipoProducto, FormaFacial, SexoMontura, ClasificacionMonturas, ClasificacionAccesorios, CHUNK_SIZE } from '../common/constants';
+import { Codigos, TipoProducto, FormaFacial, SexoMontura, ClasificacionMonturas, ClasificacionAccesorios, CHUNK_SIZE, EstadoInventario } from '../common/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Accesorio } from './entities/accesorio.entity';
 import { ActualizarStockProductosDto } from './dto/update-stock-productos';
@@ -187,6 +188,7 @@ export class ProductosService {
 
         producto.cantidad = nuevaCantidad;
         producto.updatedAt = new Date();
+        producto.fechaInventario = new Date();
 
         await productoRepo.save(producto);
 
@@ -223,14 +225,14 @@ export class ProductosService {
   async obtenerProductosNoActualizados(idSede: number, tipoProducto: string) {
     const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
     const inicioHoy = new Date(`${hoy}T00:00:00.000-05:00`);
-
+    console.log(inicioHoy, ' ""----------')
     const productos = await this.dataSource.getRepository(Producto).find({
       where: {
         sedeId: Number(idSede),
         tipo: tipoProducto,
         activo: true,
         cantidad: MoreThan(0),
-        updatedAt: LessThan(inicioHoy),
+        fechaInventario: Or(IsNull(), LessThan(inicioHoy)),
       },
       relations: ['montura', 'accesorio'],
       order: {
@@ -238,6 +240,74 @@ export class ProductosService {
       },
     });
     return productos;
+  }
+  // Funcion para reporte de inventario (para accesorio o montura)
+  async obtenerReporteInventario(idSede: number, tipoProducto: string) {
+    const hoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+    }).format(new Date());
+
+    const inicioHoy = new Date(`${hoy}T00:00:00.000-05:00`);
+    const inicioManana = new Date(inicioHoy);
+    inicioManana.setDate(inicioManana.getDate() + 1);
+
+    const productos = await this.dataSource.getRepository(Producto).find({
+      where: {
+        sedeId: Number(idSede),
+        tipo: tipoProducto,
+        activo: true,
+        cantidad: MoreThan(0),
+      },
+      relations: ['montura', 'accesorio'],
+      order: {
+        updatedAt: 'ASC',
+      },
+    });
+
+    return productos.map((producto) => {
+      const fecha = producto.fechaInventario;
+
+      const inventariadoHoy =
+        fecha != null &&
+        new Date(fecha) >= inicioHoy &&
+        new Date(fecha) < inicioManana;
+
+      const esMontura = tipoProducto.toLowerCase() === 'montura';
+
+      return {
+        sedeId: producto.sedeId,
+        productoId: producto.id,
+        tipo: producto.tipo,
+
+        // Datos comunes
+        stock: producto.cantidad,
+        fechaInventario: producto.fechaInventario,
+        estadoInventario: inventariadoHoy ? EstadoInventario.INVENTARIADO : EstadoInventario.PENDIENTE,
+
+        // Datos de montura o accesorio
+        monturaId: producto.monturaId,
+        accesorioId: producto.accesorioId,
+
+        nombre: esMontura
+          ? producto.montura?.marca ?? ''
+          : producto.accesorio?.nombre ?? '',
+
+        codigo: esMontura
+          ? producto.montura?.codigo ?? ''
+          : producto.accesorio?.codigoAccesorio ?? '',
+
+        material: esMontura ? producto.montura?.material ?? '' : '',
+        talla: esMontura ? producto.montura?.talla ?? '' : '',
+
+        color: esMontura
+          ? producto.montura?.color ?? ''
+          : producto.accesorio?.color ?? '',
+
+        clasificacion: esMontura
+          ? producto.montura?.clasificacion ?? ''
+          : producto.accesorio?.clasificacion ?? '',
+      };
+    });
   }
 
   remove(id: number) {
